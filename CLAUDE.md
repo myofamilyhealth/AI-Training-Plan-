@@ -126,12 +126,13 @@ Python and the JavaScript suites together.
   CTL/ATL/form model. An hour at FTP is 100 TSS by definition; the tests pin
   that, so treat it as a fixed point when changing anything here.
 - **library.js** — 46 sessions. Each needs `key`, `name`, `focus`, `zone`,
-  `defaultMinutes`, `keywords`, `terrain`, `blurb`, `why` and `build(minutes)`.
-  The tests enforce all of it, plus: every session must be reachable by its own
-  name, and `build` must fill the minutes it is handed. `why` states the
-  adaptation and where the evidence comes from — never add a session without
-  one. Mark `fixed: true` for protocols that must not be stretched (tests,
-  fixed ladders).
+  `defaultMinutes`, `keywords`, `terrain`, `blurb`, `why`, `course` and
+  `build(minutes)`. The tests enforce all of it, plus: every session must be
+  reachable by its own name, and `build` must fill the minutes it is handed.
+  `why` states the adaptation and where the evidence comes from; `course` says
+  where to ride it — the gradient, the length of clear road, whether it really
+  needs a trainer. Never add a session missing either. Mark `fixed: true` for
+  protocols that must not be stretched (tests, fixed ladders).
 - **workouts.js** — the text parser and builder. Targets are fractions of FTP
   everywhere and only become watts at display or export. A session's own name
   outranks any other session's keyword; ties break toward the keyword appearing

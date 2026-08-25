@@ -20,4 +20,11 @@ STYLE = _read("style.css")
 BODY = _read("body.html")
 
 # Order matters: app.js calls into both of these at load.
-SCRIPT = "\n".join((_read("importer.js"), _read("analytics.js"), _read("app.js")))
+SCRIPT = "\n".join((
+    _read("importer.js"),
+    _read("analytics.js"),
+    _read("cycling.js"),
+    _read("workouts.js"),
+    _read("coach.js"),
+    _read("app.js"),
+))

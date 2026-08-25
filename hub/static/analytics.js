@@ -272,6 +272,9 @@
 
     return {
       generated: new Date().toISOString(),
+      // Kept so the cycling views can work from real values rather than
+      // re-deriving them from rounded display rows.
+      raw: activities,
       unit: unit,
       today: dayKey(today),
       totals: {

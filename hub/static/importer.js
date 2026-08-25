@@ -89,8 +89,17 @@
     ['elevation',   [/^total ascent/i, /^elevation gain/i, /^elev gain/i, /^ascent/i]],
     ['calories',    [/^calories/i]],
     ['avg_pace',    [/^avg\.? pace/i, /^average pace/i]],
-    ['avg_speed',   [/^average speed/i, /^avg\.? speed/i]],
-    ['avg_power',   [/^avg\.? power/i, /^average watts/i, /^normalized power/i]],
+    // Cycling. Normalized Power and TSS are ordered before the looser power
+    // patterns so they claim their own columns rather than being read as
+    // average power.
+    ['np',          [/^normali[sz]ed power/i, /^weighted average power/i, /^np\b/i]],
+    ['tss',         [/^training stress score/i, /^tss\b/i, /^relative effort/i]],
+    ['avg_power',   [/^avg\.? power/i, /^average watts/i, /^avg\.? watts/i, /^average power/i]],
+    ['max_power',   [/^max\.? power/i, /^max watts/i, /^maximum power/i]],
+    ['avg_speed_col', [/^avg\.? speed/i, /^average speed/i]],
+    ['max_speed',   [/^max\.? speed/i, /^maximum speed/i]],
+    ['avg_cadence', [/^avg\.? bike cadence/i, /^average cadence/i, /^avg\.? cadence/i]],
+    ['intensity',   [/^intensity factor/i, /^if\b/i]],
   ];
 
   /** Map each canonical field to every column index whose header matches it. */
@@ -227,7 +236,7 @@
       const max_hr = num(values(r, map.max_hr)[0]);
 
       let avg_speed_mps = null;
-      const speedRaw = num(values(r, map.avg_speed)[0]);
+      const speedRaw = num(values(r, map.avg_speed_col)[0]);
       if (speedRaw && unitInfo.unit === 'm') {
         avg_speed_mps = speedRaw;                    // Strava reports m/s
       } else if (distance_m && moving_s) {
@@ -252,6 +261,14 @@
         avg_hr: avg_hr,
         max_hr: max_hr,
         avg_watts: num(values(r, map.avg_power)[0]),
+        max_watts: num(values(r, map.max_power)[0]),
+        // Garmin exports its own NP and TSS for power-meter rides; both are
+        // better than anything derivable from a row average, so they are kept
+        // and only recomputed when absent.
+        np: num(values(r, map.np)[0]),
+        tss: num(values(r, map.tss)[0]),
+        intensity: num(values(r, map.intensity)[0]),
+        avg_cadence: num(values(r, map.avg_cadence)[0]),
         avg_speed_mps: avg_speed_mps,
         calories: num(values(r, map.calories)[0]),
       });

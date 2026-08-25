@@ -172,6 +172,54 @@ politeness to crawlers, not access control. Two ways to keep it private:
 - Or do not publish at all: `./wk web --serve` gives you the same dashboard on
   localhost, and `docs/` never has to be committed.
 
+### For cyclists
+
+The dashboard is built around power, because that is what a bike measures:
+
+- **FTP** anchors everything. Enter it, or take the estimate the page offers
+  from your hardest sustained rides — that reads low, because ride averages
+  include coasting, and it says so.
+- **Form, fitness and fatigue** — the standard 42-day and 7-day exponentially
+  weighted loads, with form as the gap between them.
+- **Training Stress Score** per ride, using your file's own figure where Garmin
+  exported one, the standard power formula where it did not, and a heart-rate
+  estimate for rides with no power meter. Every number says which it used.
+- **W/kg and an estimated VO2 max** (ACSM cycling equation at ~120% of FTP —
+  a formula, not a lab test).
+- **Power zones, zone distribution and best sustained power** by duration band.
+
+A CSV carries one row per ride, never the second-by-second stream, so there is
+no true mean-maximal power curve here and nothing pretends there is.
+
+### Building workouts
+
+The **Build a workout** tab takes what you type and returns a session in watts:
+
+```
+2x20 at threshold          90 minute endurance ride
+4x8min @ 110%              short vo2 session
+6x30s at 400w              over-unders
+```
+
+It reads explicit interval notation first and matches everything else against a
+library of cycling sessions by keyword — and it tells you which it did, so you
+are never guessing whether it understood you. Export to **.zwo** for Zwift,
+**.mrc** or **.erg** for a trainer, or plain text.
+
+This is a parser, not a language model. There is no server and no AI behind the
+page; it is pattern matching over cycling vocabulary, which is why it works
+offline and instantly.
+
+### Recommendations and plans
+
+**Ride today** suggests a session from your current form, how long since your
+last hard ride, and where your intensity distribution is thin — and states the
+rule it applied, so you can disagree with the reasoning rather than just the
+answer.
+
+**Training plan** lays out a block that ramps from the volume you are actually
+riding, with a recovery week every fourth week and a taper into your event.
+
 It gives you, at a glance:
 
 - **Four headline numbers** — last 7 days' distance with a week-over-week delta,
@@ -257,7 +305,10 @@ hub/
     style.css          its styles, both themes
     importer.js        reads a Garmin or Strava CSV in the browser
     analytics.js       the same maths as analyze.py, in JavaScript
-    app.js             charts, tables, and the import screen
+    cycling.js         FTP, TSS, power zones, fitness and fatigue
+    workouts.js        the session library, the text parser, and exports
+    coach.js           what to ride today, and how to lay out a block
+    app.js             charts, tables, the import screen and the three tabs
 docs/
   index.html           the built dashboard, served by GitHub Pages
 training/

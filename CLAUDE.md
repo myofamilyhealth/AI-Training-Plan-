@@ -118,6 +118,23 @@ the browser must not disagree about someone's acute:chronic ratio. Change one
 and change the other, then run the tests: `python3 tests/test_core.py` runs the
 Python and the JavaScript suites together.
 
+## The site is cycling-first
+
+`hub/static/cycling.js`, `workouts.js` and `coach.js` are the bike side:
+
+- **cycling.js** — FTP estimation, TSS, intensity factor, power zones, and the
+  CTL/ATL/form model. An hour at FTP is 100 TSS by definition; the tests pin
+  that, so treat it as a fixed point when changing anything here.
+- **workouts.js** — the session library and the text parser. Targets are held
+  as fractions of FTP everywhere, and only become watts at display or export.
+  Adding a session means adding one entry with keywords and a `build(minutes)`
+  that fills the time it is given.
+- **coach.js** — recommendation rules and plan layout. Every recommendation
+  must carry a `why` naming the rule that fired. Never return advice without it.
+
+A CSV has one row per ride, not a power stream, so a real mean-maximal power
+curve is impossible here. Do not add one, and do not let a label imply one.
+
 ## A hard constraint on Strava
 
 Strava's API policy forbids using Strava Data "in connection with the
@@ -149,5 +166,7 @@ rather than working around the policy.
 - `docs/index.html` is generated. Edit `hub/_template.py`, never the built file.
 - If you change a chart, rebuild and actually look at it before saying it works:
   `./wk web` then open the file. Charts fail visually, not loudly.
+- FTP estimates, VO2 max and hrTSS are estimates from formulas. Say so where
+  they appear; never present them as measurements.
 - The numbers are indicators, not diagnoses. Acute:chronic ratio and the
   easy/hard split are coarse; say so rather than over-claiming precision.

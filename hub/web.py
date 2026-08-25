@@ -118,6 +118,8 @@ def build_payload(activities: list[dict], rest_hr: float = 50, max_hr: float = 1
 
     return {
         "demo_note": demo_note,
+        # The cycling views read these directly; the rows below are for display.
+        "raw": activities,
         "generated": datetime.now().isoformat(timespec="seconds"),
         "unit": unit,
         "today": str(today),

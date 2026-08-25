@@ -108,6 +108,31 @@ ties, because the watch measured the run first-hand.
 all inlined. No build step, no server needed, no network: double-click it and it
 works. Rebuild it after a sync to refresh.
 
+### Publishing it
+
+The dashboard is also live at
+**<https://myofamilyhealth.github.io/AI-Training-Plan-/>**, deployed from
+`site/` by `.github/workflows/pages.yml` whenever that folder changes on `main`.
+
+Building needs your credentials, so it happens on your machine, never in CI.
+To update the published page:
+
+```bash
+./wk sync && ./wk web
+git add site/index.html && git commit -m "Update dashboard" && git push
+```
+
+**Read this before you publish real data.** This repository is public, so
+anything in `site/index.html` is readable by anyone with the URL — every
+session, its date, distance, pace and heart rate. The page carries a `noindex`
+tag so search engines skip it, but that is politeness to crawlers, not access
+control. Two ways to keep it private:
+
+- Make the repository private. Pages on a private repo needs a paid GitHub
+  plan, but the site then requires a login.
+- Or do not publish at all: `./wk web --serve` gives you the same dashboard on
+  localhost, and `site/` never has to be committed.
+
 It gives you, at a glance:
 
 - **Four headline numbers** — last 7 days' distance with a week-over-week delta,

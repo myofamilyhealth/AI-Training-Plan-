@@ -167,6 +167,9 @@ def render(payload: dict, standalone: bool = True, title: str = "Training Hub") 
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         '<meta name="color-scheme" content="light dark">\n'
+        # A personal training page on a public URL should not be indexed.
+        # This is politeness to crawlers, not access control.
+        '<meta name="robots" content="noindex, nofollow">\n'
         f'<title>{title}</title>\n'
         f'<style>{STYLE}</style>\n'
         '</head>\n<body>\n'

@@ -2,21 +2,16 @@
 .env
 .secrets/
 
-# Your training history.
+# Your raw training history.
 #
-# This repository is PUBLIC, so activity data stays out of it by default —
-# where you run, when, and how your heart responds is not something to publish
-# by accident.
+# This repository is PUBLIC, so the underlying data stays out of it — every
+# activity, its GPS start point, and your heart-rate response are not things to
+# publish wholesale by accident.
 #
 # If you make the repository private, delete the `data/` line below. Committing
 # activity JSON is genuinely useful: it is what lets a brand-new Claude session
-# open the repo already knowing your training history, instead of starting cold
-# and needing a full re-sync.
+# open the repo already knowing your training history, instead of starting cold.
 data/
-
-# The built dashboard, generated from hub/_template.py by `./wk web`.
-# It embeds your data, so it is ignored for the same reason.
-site/
 
 __pycache__/
 *.pyc

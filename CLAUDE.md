@@ -109,11 +109,15 @@ behind plan changes so the next conversation inherits it.
 - Never commit `.env` or `.secrets/`. Both are gitignored; keep it that way.
 - Never print tokens, passwords, or the contents of `.secrets/`.
 - Preview before pushing. `--push` and `plan push` touch a live Garmin account.
-- This repository is PUBLIC, so `data/` and `site/` are gitignored. Never commit
-  activity data, wellness data, or the built dashboard while that is true, and
-  never work around the ignore rules to do it. If the athlete makes the repo
-  private and drops the `data/` line, committing `data/activities/` becomes the
-  right call again — it is what gives a fresh session real history.
+- This repository is PUBLIC. `data/` is gitignored — never commit raw activity
+  or wellness data, and never work around the ignore rules to do it. If the
+  athlete makes the repo private and drops the `data/` line, committing
+  `data/activities/` becomes the right call again: it is what gives a fresh
+  session real history.
+- `site/` IS committed, because it is published to GitHub Pages. That means the
+  built dashboard is world-readable. Before committing a rebuilt page that now
+  contains real sessions, say so plainly and let the athlete decide — do not
+  publish their training history on your own initiative.
 - A fresh session therefore starts with no data on disk. Run `./wk sync` before
   reading anything, rather than telling the athlete they have no training.
 - `site/index.html` is generated. Edit `hub/_template.py`, never the built file.

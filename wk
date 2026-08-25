@@ -1,0 +1,422 @@
+#!/usr/bin/env python3
+"""wk — the training hub command line.
+
+Every capability is a subcommand, and every subcommand prints plain text, so
+Claude can drive this with Bash and read the result without any protocol in
+between. `wk brief` is the one to reach for first: it is the whole picture in
+a single call.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from hub import analyze, config, plan as plan_mod, store, workout as workout_mod
+from hub.units import format_distance, format_duration, format_pace
+
+
+def _load(deduped: bool = True) -> list[dict]:
+    acts = store.load_activities()
+    return store.deduped(acts) if deduped else acts
+
+
+def _since(days: int | None) -> list[dict]:
+    acts = _load()
+    if not days:
+        return acts
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    return [a for a in acts if (a.get("start") or "") >= cutoff]
+
+
+# --------------------------------------------------------------------------- auth
+
+def cmd_auth(args):
+    if args.service == "status":
+        strava_tok = config.read_secret("strava")
+        garmin_dir = config.SECRETS / "garmin"
+        print(f"strava: {'connected' if strava_tok else 'NOT connected — ./wk auth strava'}")
+        print(f"garmin: {'connected' if garmin_dir.exists() else 'NOT connected — ./wk auth garmin'}")
+        acts = _load()
+        print(f"activities on disk: {len(acts)}")
+        if acts:
+            print(f"newest: {acts[-1].get('start', '?')[:10]}  oldest: {acts[0].get('start', '?')[:10]}")
+        return
+
+    if args.service == "strava":
+        from hub import strava
+        url = strava.authorize_url()
+        print("1. Open this URL and click Authorize:\n")
+        print(f"   {url}\n")
+        print("2. Your browser lands on a localhost page that fails to load. That is expected.")
+        print("   Copy the `code=...` value out of its address bar.\n")
+        strava.open_browser(url)
+        code = (args.code or input("Paste the code here: ")).strip()
+        token = strava.exchange_code(code)
+        who = token.get("athlete") or {}
+        print(f"\nConnected as {who.get('firstname', '')} {who.get('lastname', '')}".rstrip())
+        print("Now run:  ./wk sync")
+        return
+
+    if args.service == "garmin":
+        from hub import garmin
+        print("Logging in to Garmin Connect (an MFA prompt may follow)...")
+        username = garmin.login()
+        print(f"Connected as {username}. Tokens saved to .secrets/garmin/ — good for about a year.")
+        print("Now run:  ./wk sync")
+
+
+# --------------------------------------------------------------------------- sync
+
+def cmd_sync(args):
+    config.ensure_dirs()
+    print("Syncing...")
+    total = 0
+
+    if not args.garmin_only:
+        try:
+            from hub import strava
+            after = None
+            if args.days:
+                after = int((datetime.now() - timedelta(days=args.days)).timestamp())
+            total += strava.sync(after_epoch=after)
+        except SystemExit as exc:
+            print(f"  strava: skipped ({exc})")
+        except Exception as exc:
+            print(f"  strava: FAILED — {type(exc).__name__}: {exc}")
+
+    if not args.strava_only:
+        try:
+            from hub import garmin
+            total += garmin.sync(limit=args.limit)
+            if args.wellness:
+                garmin.sync_wellness(days=args.days or 30)
+        except SystemExit as exc:
+            print(f"  garmin: skipped ({exc})")
+        except Exception as exc:
+            print(f"  garmin: FAILED — {type(exc).__name__}: {exc}")
+
+    acts = store.load_activities()
+    unique = store.deduped(acts)
+    print(f"\n{len(acts)} records on disk, {len(unique)} unique sessions "
+          f"({len(acts) - len(unique)} matched across both services).")
+
+
+# --------------------------------------------------------------------------- read
+
+def cmd_list(args):
+    acts = _since(args.days)
+    if args.type:
+        acts = [a for a in acts if a.get("type") == args.type]
+    acts = acts[-args.limit:]
+    if not acts:
+        print("Nothing matches. Run `./wk sync` if you have not yet.")
+        return
+
+    imperial = config.imperial()
+    print(f"{'date':<12}{'type':<10}{'distance':>10}{'time':>9}{'pace':>10}{'hr':>5}  name")
+    print("-" * 78)
+    for a in acts:
+        speed = a.get("avg_speed_mps") or 0
+        print(
+            f"{(a.get('start') or '?')[:10]:<12}"
+            f"{(a.get('type') or '?')[:9]:<10}"
+            f"{format_distance(a.get('distance_m') or 0, imperial):>10}"
+            f"{format_duration(a.get('moving_s') or 0):>9}"
+            f"{(format_pace(speed, imperial) if speed else '—'):>10}"
+            f"{int(a['avg_hr']) if a.get('avg_hr') else '—':>5}  "
+            f"{(a.get('name') or '')[:30]}"
+        )
+
+
+def cmd_show(args):
+    for a in _load(deduped=False):
+        if a["id"] == args.id or a.get("source_id") == args.id:
+            print(json.dumps(a, indent=2, sort_keys=True))
+            return
+    print(f"No activity {args.id}. Try `./wk list` for ids.")
+    sys.exit(1)
+
+
+def cmd_summary(args):
+    print(analyze.summary(_load(), weeks=args.weeks,
+                          rest_hr=args.rest_hr, max_hr=args.max_hr))
+
+
+# --------------------------------------------------------------------------- workouts
+
+def cmd_workout(args):
+    text = Path(args.file).read_text() if args.file else args.text
+    if not text:
+        print("Give a workout inline or with -f. Format:\n")
+        print("  warmup 10min @ easy")
+        print("  6x(800m @ 5k pace / 90s jog)")
+        print("  cooldown 10min @ easy\n")
+        print("Named efforts (easy, threshold, 5k pace...) come from training/paces.md.")
+        sys.exit(1)
+
+    w = workout_mod.parse(text, name=args.name, sport=args.sport)
+    print(workout_mod.describe(w))
+
+    if args.json:
+        print()
+        print(json.dumps(workout_mod.to_garmin(w), indent=2))
+
+    if args.push:
+        from hub import garmin
+        created = garmin.create_workout(workout_mod.to_garmin(w))
+        workout_id = created.get("workoutId")
+        print(f"\nPushed to Garmin as workout {workout_id}.")
+        if args.schedule:
+            garmin.schedule_workout(workout_id, args.schedule)
+            print(f"Scheduled for {args.schedule}.")
+
+
+# --------------------------------------------------------------------------- plans
+
+def cmd_plan(args):
+    if args.action == "list":
+        plans = sorted((config.TRAINING / "plans").glob("*.md"))
+        if not plans:
+            print("No plans yet. Ask Claude to write one into training/plans/.")
+            return
+        for p in plans:
+            print(f"  {p.name}")
+        return
+
+    p = plan_mod.load(args.file) if args.file else plan_mod.latest()
+    if not p:
+        print("No plans yet. Ask Claude to write one into training/plans/.")
+        return
+
+    if args.action == "show":
+        print(plan_mod.describe(p, weeks=args.weeks))
+        return
+
+    if args.action == "push":
+        week = None
+        if args.week:
+            week = next((w for w in p.weeks if w.number == args.week), None)
+        else:
+            week = plan_mod.current_week(p)
+        if not week:
+            print("Could not work out which week to push. Pass --week N.")
+            sys.exit(1)
+
+        sessions = plan_mod.build_workouts(week)
+        if not sessions:
+            print(f"Week {week.number} has no structured sessions to push "
+                  f"(easy and long days are prose, which the watch does not need).")
+            return
+
+        from hub import garmin
+        print(f"Pushing week {week.number}...")
+        for day, w in sessions:
+            if args.dry_run:
+                print(f"\n  would push for {day.date}:")
+                print("  " + workout_mod.describe(w).replace("\n", "\n  "))
+                continue
+            created = garmin.create_workout(workout_mod.to_garmin(w))
+            wid = created.get("workoutId")
+            line = f"  {w.name} -> workout {wid}"
+            if day.date:
+                garmin.schedule_workout(wid, day.date)
+                line += f", scheduled {day.date}"
+            print(line)
+
+
+# --------------------------------------------------------------------------- web
+
+def cmd_web(args):
+    from hub import web
+
+    out = web.build(args.out, rest_hr=args.rest_hr, max_hr=args.max_hr,
+                    weeks=args.weeks)
+    size = out.stat().st_size / 1024
+    print(f"Built {out}  ({size:.0f} KB)")
+
+    if args.serve:
+        import http.server
+        import socketserver
+        import threading
+        import webbrowser
+
+        root = out.parent
+        handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(
+            *a, directory=str(root), **k)
+        socketserver.TCPServer.allow_reuse_address = True
+        with socketserver.TCPServer(("127.0.0.1", args.port), handler) as httpd:
+            url = f"http://127.0.0.1:{args.port}/{out.name}"
+            print(f"Serving at {url}   (ctrl-C to stop)")
+            threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                print("\nStopped.")
+        return
+
+    if args.open:
+        import webbrowser
+        webbrowser.open(out.resolve().as_uri())
+    else:
+        print(f"Open it with:  open {out}")
+
+
+# --------------------------------------------------------------------------- brief
+
+def cmd_brief(args):
+    """Everything Claude needs about your training, in one call."""
+    acts = _load()
+    imperial = config.imperial()
+    today = date.today()
+
+    print(f"TRAINING BRIEF — {today}")
+    print("=" * 60)
+
+    if not acts:
+        print("\nNo activity data yet.")
+        print("  ./wk auth status   to see what is connected")
+        print("  ./wk sync          to pull it in")
+        return
+
+    recent = [a for a in acts if (a.get("start") or "")[:10] >= str(today - timedelta(days=14))]
+    print(f"\nLast 14 days: {len(recent)} sessions")
+    for a in recent[-10:]:
+        speed = a.get("avg_speed_mps") or 0
+        print(f"  {(a.get('start') or '?')[:10]}  {(a.get('type') or '?')[:8]:<9}"
+              f"{format_distance(a.get('distance_m') or 0, imperial):>9}"
+              f"{format_duration(a.get('moving_s') or 0):>9}"
+              f"{('  ' + format_pace(speed, imperial)) if speed else ''}"
+              f"{('  ' + str(int(a['avg_hr'])) + 'bpm') if a.get('avg_hr') else ''}")
+
+    ratio = analyze.acwr(acts, rest_hr=args.rest_hr, max_hr=args.max_hr)
+    print(f"\nLoad: acute {ratio['acute_7d']} / chronic {ratio['chronic_weekly_avg']} "
+          f"= {ratio['ratio']} — {ratio['verdict']}")
+
+    split = analyze.easy_hard_split(acts, rest_hr=args.rest_hr, max_hr=args.max_hr)
+    if split["easy_pct"] is not None:
+        print(f"Intensity: {split['easy_pct']}% easy / {split['hard_pct']}% hard "
+              f"(target is roughly 80/20)")
+
+    trend = analyze.fitness_trend(acts)
+    if "change_pct" in trend:
+        print(f"Efficiency: {trend['direction']} ({trend['change_pct']:+}% over 90 days)")
+
+    p = plan_mod.latest()
+    if p:
+        week = plan_mod.current_week(p)
+        print(f"\nPlan: {p.name}")
+        if p.meta.get("race_date"):
+            race = date.fromisoformat(str(p.meta["race_date"]))
+            print(f"  {p.meta.get('goal', 'race')} on {race} — {(race - today).days} days out")
+        if week:
+            print(f"  Week {week.number}" + (f" — {week.label}" if week.label else ""))
+            for day in week.days:
+                when = day.date.strftime("%a %m-%d") if day.date else day.weekday[:3]
+                marker = " <- today" if day.date == today else ""
+                print(f"    {when}  {day.label or day.descriptor or ''}{marker}")
+    else:
+        print("\nPlan: none yet.")
+
+    profile = config.TRAINING / "ATHLETE.md"
+    if profile.exists():
+        print(f"\n(Context in {profile.relative_to(config.ROOT)} and training/paces.md)")
+
+
+# --------------------------------------------------------------------------- wiring
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        prog="wk", description="Your training data, your files.")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("auth", help="connect Strava or Garmin")
+    p.add_argument("service", choices=["strava", "garmin", "status"])
+    p.add_argument("--code", help="Strava OAuth code, if you already have it")
+    p.set_defaults(func=cmd_auth)
+
+    p = sub.add_parser("sync", help="pull activities from both services")
+    p.add_argument("--days", type=int, help="only fetch this far back")
+    p.add_argument("--limit", type=int, default=200, help="max Garmin activities")
+    p.add_argument("--wellness", action="store_true", help="also pull sleep/HRV/body battery")
+    p.add_argument("--strava-only", action="store_true")
+    p.add_argument("--garmin-only", action="store_true")
+    p.set_defaults(func=cmd_sync)
+
+    p = sub.add_parser("list", help="recent activities")
+    p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--days", type=int)
+    p.add_argument("--type", help="running, cycling, swimming...")
+    p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("show", help="one activity as JSON")
+    p.add_argument("id")
+    p.set_defaults(func=cmd_show)
+
+    p = sub.add_parser("summary", help="weekly volume, load, intensity, bests")
+    p.add_argument("--weeks", type=int, default=12)
+    p.add_argument("--rest-hr", type=float, default=50)
+    p.add_argument("--max-hr", type=float, default=190)
+    p.set_defaults(func=cmd_summary)
+
+    p = sub.add_parser("workout", help="build a structured workout, optionally push it")
+    p.add_argument("text", nargs="?", help="the workout, inline")
+    p.add_argument("-f", "--file")
+    p.add_argument("--name", default="Workout")
+    p.add_argument("--sport", default="running", choices=sorted(workout_mod.SPORTS))
+    p.add_argument("--json", action="store_true", help="print the Garmin document")
+    p.add_argument("--push", action="store_true", help="send it to Garmin Connect")
+    p.add_argument("--schedule", help="calendar date, YYYY-MM-DD (implies --push)")
+    p.set_defaults(func=cmd_workout)
+
+    p = sub.add_parser("plan", help="show or push a training plan")
+    p.add_argument("action", choices=["show", "push", "list"])
+    p.add_argument("file", nargs="?", help="defaults to the newest plan")
+    p.add_argument("--week", type=int, help="which week to push")
+    p.add_argument("--weeks", type=int, help="how many weeks to display")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_plan)
+
+    p = sub.add_parser("web", help="build the dashboard as one HTML file")
+    p.add_argument("--out", help="where to write it (default site/index.html)")
+    p.add_argument("--open", action="store_true", help="open it in your browser")
+    p.add_argument("--serve", action="store_true",
+                   help="serve it on localhost and open it")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--weeks", type=int, default=16)
+    p.add_argument("--rest-hr", type=float, default=50)
+    p.add_argument("--max-hr", type=float, default=190)
+    p.set_defaults(func=cmd_web)
+
+    p = sub.add_parser("brief", help="the whole picture, for Claude")
+    p.add_argument("--rest-hr", type=float, default=50)
+    p.add_argument("--max-hr", type=float, default=190)
+    p.set_defaults(func=cmd_brief)
+
+    args = ap.parse_args(argv)
+    if getattr(args, "schedule", None):
+        args.push = True
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    from hub.units import ParseError
+
+    try:
+        sys.exit(main() or 0)
+    except ParseError as exc:
+        # A workout that didn't parse is a typo, not a crash — say so plainly.
+        print(f"Could not read that workout: {exc}", file=sys.stderr)
+        sys.exit(2)
+    except BrokenPipeError:
+        # Piping into `head` closes the stream early; that is not an error.
+        try:
+            sys.stdout.close()
+        finally:
+            sys.exit(0)
+    except KeyboardInterrupt:
+        sys.exit(130)

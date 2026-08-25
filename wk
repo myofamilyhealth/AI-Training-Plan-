@@ -238,6 +238,8 @@ def cmd_web(args):
                     weeks=args.weeks)
     size = out.stat().st_size / 1024
     print(f"Built {out}  ({size:.0f} KB)")
+    if not args.out:
+        print("Also wrote docs/index.html — GitHub Pages can serve either.")
 
     if args.serve:
         import http.server

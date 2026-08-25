@@ -195,9 +195,23 @@ def build(out: Path | str | None = None, standalone: bool = True, **kw) -> Path:
     payload = build_payload(activities, **kw) if activities else None
     html = render(payload, standalone=standalone)
 
-    # docs/ rather than site/: it is the folder GitHub Pages can serve straight
-    # from a branch, so publishing works with or without the Actions workflow.
-    out = Path(out) if out else config.ROOT / "docs" / "index.html"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(html, encoding="utf-8")
-    return out
+    # Written to BOTH the repository root and docs/.
+    #
+    # GitHub Pages can be pointed at either, and which one a repo is set to is
+    # not visible from here. Writing both means the site loads whichever it is,
+    # instead of Jekyll rendering README.md because it found no index.html.
+    if out:
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html, encoding="utf-8")
+        return out
+
+    written = []
+    for target in (config.ROOT / "index.html", config.ROOT / "docs" / "index.html"):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(html, encoding="utf-8")
+        # .nojekyll stops Pages running the files through Jekyll, which is what
+        # turns a repo with no root index.html into a rendered README.
+        (target.parent / ".nojekyll").touch()
+        written.append(target)
+    return written[0]

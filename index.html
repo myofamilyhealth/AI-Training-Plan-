@@ -1,0 +1,4495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<title>Training Hub</title>
+<style>:root {
+  color-scheme: light;
+  --bg:            #eef1f5;
+  --surface:       #ffffff;
+  --surface-2:     #e7ecf1;
+  --border:        #dfe5ec;
+  --border-strong: #c7d0da;
+  --text:          #0d1418;
+  --text-2:        #47535e;
+  --text-3:        #77838e;
+  --series-1:      #2a78d6;
+  --series-2:      #eb6834;
+  --series-3:      #1baf7a;
+  --good:          #1a7f4b;
+  --warn:          #b8730a;
+  --crit:          #c4362f;
+  --grid:          #e8e7e3;
+  --shadow:        0 1px 1px rgba(13,20,24,.04), 0 2px 6px rgba(13,20,24,.04), 0 8px 24px rgba(13,20,24,.05);
+  --shadow-lift:   0 2px 4px rgba(13,20,24,.06), 0 12px 32px rgba(13,20,24,.10);
+  --ramp-0:  #eceae5;
+  --ramp-1:  #cde2fb;
+  --ramp-2:  #9ec5f4;
+  --ramp-3:  #6da7ec;
+  --ramp-4:  #3987e5;
+  --ramp-5:  #256abf;
+  --ramp-6:  #184f95;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg:            #0b0f13;
+    --surface:       #141a20;
+    --surface-2:     #1c242b;
+    --border:        #232c34;
+    --border-strong: #35414b;
+    --text:          #f0f5f8;
+    --text-2:        #aeb9c3;
+    --text-3:        #78848e;
+    --series-1:      #3987e5;
+    --series-2:      #d95926;
+    --series-3:      #199e70;
+    --good:          #35b06e;
+    --warn:          #d99a2b;
+    --crit:          #e66767;
+    --grid:          #292928;
+    --shadow:        0 1px 1px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.24), 0 8px 24px rgba(0,0,0,.22);
+    --shadow-lift:   0 2px 4px rgba(0,0,0,.35), 0 14px 36px rgba(0,0,0,.40);
+    --ramp-0:  #262625;
+    --ramp-1:  #16324f;
+    --ramp-2:  #184f95;
+    --ramp-3:  #256abf;
+    --ramp-4:  #3987e5;
+    --ramp-5:  #6da7ec;
+    --ramp-6:  #9ec5f4;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:      #0b0f13;
+  --surface:     #141a20;
+  --surface-2:   #1c242b;
+  --border:    #232c34;
+  --border-strong: #35414b;
+  --text:      #f0f5f8;
+  --text-2:    #aeb9c3;
+  --text-3:    #78848e;
+  --series-1:      #3987e5;
+  --series-2:      #d95926;
+  --series-3:      #199e70;
+  --good:          #35b06e;
+  --warn:          #d99a2b;
+  --crit:          #e66767;
+  --grid:          #292928;
+  --shadow:        0 1px 1px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.24), 0 8px 24px rgba(0,0,0,.22);
+    --shadow-lift:   0 2px 4px rgba(0,0,0,.35), 0 14px 36px rgba(0,0,0,.40);
+  --ramp-0:  #262625;
+  --ramp-1:  #16324f;
+  --ramp-2:  #184f95;
+  --ramp-3:  #256abf;
+  --ramp-4:  #3987e5;
+  --ramp-5:  #6da7ec;
+  --ramp-6:  #9ec5f4;
+}
+
+* { box-sizing: border-box; }
+
+/* Archivo carries the numbers — it has true tabular figures and real weight at
+   the top end, which a page made mostly of measurements needs. The system stack
+   behind it is a genuine fallback, so the page still reads correctly offline. */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Archivo, ui-sans-serif, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: -.006em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Every figure on this page lines up in a column somewhere. */
+.num, table, .value, .tile .value, .wo-stats b { font-variant-numeric: tabular-nums; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px 88px; }
+
+/* ---------------------------------------------------------------- header */
+header.top {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.6) blur(12px);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+.top-inner {
+  max-width: 1440px; margin: 0 auto; padding: 18px 32px;
+  display: flex; align-items: center; gap: 20px;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand h1 {
+  margin: 0; font-size: 19px; font-weight: 720; letter-spacing: -.032em;
+}
+.brand .sub { color: var(--text-3); font-size: 13px; }
+.spacer { flex: 1; }
+
+.ghost {
+  appearance: none; cursor: pointer;
+  background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: 9px;
+  padding: 7px 13px; font: inherit; font-size: 13px; font-weight: 500;
+  transition: background .13s ease, color .13s ease, border-color .13s ease;
+}
+.ghost:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
+
+/* ---------------------------------------------------------------- cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+}
+.card h2 {
+  margin: 0 0 3px; font-size: 13.5px; font-weight: 620;
+  letter-spacing: -.008em; color: var(--text);
+}
+.card .hint { margin: 0 0 18px; font-size: 12.5px; line-height: 1.55; color: var(--text-3); }
+
+.grid { display: grid; gap: 20px; }
+.kpis { grid-template-columns: repeat(4, 1fr); margin-bottom: 18px; }
+.main { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); align-items: start; }
+.stack { display: grid; gap: 20px; }
+
+@media (max-width: 1180px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .wrap, .top-inner { padding-left: 18px; padding-right: 18px; }
+  .kpis { grid-template-columns: 1fr; }
+}
+
+/* ---------------------------------------------------------------- stat tile */
+.tile { padding: 24px 26px 22px; }
+.tile .label {
+  font-size: 11px; font-weight: 680; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.tile .value {
+  margin-top: 14px; font-size: 52px; line-height: .95;
+  font-weight: 700; letter-spacing: -.045em;
+}
+.tile .value .unit {
+  font-size: 17px; font-weight: 550; color: var(--text-3);
+  letter-spacing: -.01em; margin-left: 5px;
+}
+.tile .foot { margin-top: 14px; font-size: 12.5px; color: var(--text-2); }
+.delta { font-weight: 560; }
+.delta.up { color: var(--good); }
+.delta.down { color: var(--crit); }
+.delta.flat { color: var(--text-3); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 570; letter-spacing: .01em;
+}
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.good { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.pill.crit { color: var(--crit); background: color-mix(in srgb, var(--crit) 12%, transparent); }
+.pill.mute { color: var(--text-3); background: var(--surface-2); }
+
+/* ---------------------------------------------------------------- charts */
+.chart { width: 100%; display: block; overflow: visible; }
+.chart text { font-family: inherit; }
+.axis { font-size: 11px; fill: var(--text-3); }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.legend { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.legend .key { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); }
+.legend .swatch { width: 10px; height: 10px; border-radius: 3px; }
+
+#tip {
+  position: fixed; z-index: 100; pointer-events: none; opacity: 0;
+  transition: opacity .1s ease;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.16);
+  padding: 9px 12px; font-size: 12.5px; line-height: 1.45;
+  max-width: 260px;
+}
+#tip .t-title { font-weight: 620; margin-bottom: 3px; }
+#tip .t-row { color: var(--text-2); display: flex; gap: 10px; justify-content: space-between; }
+#tip .t-row b { color: var(--text); font-weight: 560; }
+
+/* ---------------------------------------------------------------- heatmap */
+.hm-wrap { overflow-x: auto; padding-bottom: 4px; }
+.hm-legend {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--text-3); margin-top: 14px;
+}
+.hm-legend .sw { width: 12px; height: 12px; border-radius: 3px; }
+
+/* ---------------------------------------------------------------- plan */
+.plan-day {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.plan-day:last-child { border-bottom: 0; }
+.plan-day .d { color: var(--text-3); font-size: 12px; width: 62px; flex: none; }
+.plan-day .w { color: var(--text-2); }
+.plan-day.is-today { font-weight: 570; }
+.plan-day.is-today .w, .plan-day.is-today .d { color: var(--text); }
+.tag {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--series-1); background: color-mix(in srgb, var(--series-1) 12%, transparent);
+  padding: 2px 6px; border-radius: 5px;
+}
+
+/* ---------------------------------------------------------------- table */
+.controls { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 9px; padding: 3px; gap: 2px; }
+.seg button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 520;
+  padding: 5px 12px; border-radius: 7px; transition: background .13s, color .13s;
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+  text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-3);
+  padding: 0 12px 10px; white-space: nowrap; cursor: pointer; user-select: none;
+}
+thead th:hover { color: var(--text); }
+thead th .arrow { opacity: .45; font-size: 9px; margin-left: 3px; }
+tbody td { padding: 11px 12px; border-top: 1px solid var(--border); white-space: nowrap; }
+tbody tr:hover { background: var(--surface-2); }
+td.r, th.r { text-align: right; }
+td.name { white-space: normal; min-width: 180px; color: var(--text-2); }
+.src {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text-3); border: 1px solid var(--border-strong);
+  padding: 1px 5px; border-radius: 4px;
+}
+.empty { text-align: center; padding: 56px 20px; color: var(--text-3); }
+.empty code {
+  background: var(--surface-2); border: 1px solid var(--border);
+  padding: 2px 7px; border-radius: 6px; font-size: 12.5px;
+}
+footer.foot {
+  margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--border);
+  font-size: 12.5px; color: var(--text-3);
+  display: flex; gap: 18px; flex-wrap: wrap;
+}
+.demo {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 34%, var(--border));
+  border-radius: 12px; padding: 13px 16px; margin-bottom: 18px;
+  font-size: 13.5px; color: var(--text-2); line-height: 1.5;
+}
+.demo strong { color: var(--text); font-weight: 600; }
+.demo .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--warn);
+  flex: none; margin-top: 7px;
+}
+.sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- import */
+.intro { max-width: 720px; margin: 0 auto; }
+.intro h2 {
+  font-size: 26px; font-weight: 640; letter-spacing: -.025em;
+  margin: 0 0 8px; text-wrap: balance;
+}
+.intro .lede { color: var(--text-2); font-size: 15px; margin: 0 0 28px; }
+
+.drop {
+  border: 1.5px dashed var(--border-strong); border-radius: 16px;
+  background: var(--surface); padding: 30px 28px; text-align: center;
+  transition: border-color .15s ease, background .15s ease;
+}
+.drop.over { border-color: var(--series-1); background: color-mix(in srgb, var(--series-1) 6%, var(--surface)); }
+.drop .big { font-size: 16px; font-weight: 570; margin: 0 0 6px; }
+.drop .small { color: var(--text-3); font-size: 13px; margin: 0 0 20px; }
+input[type=file].hidden-input { display: none; }
+
+.btn {
+  appearance: none; cursor: pointer; font: inherit;
+  font-size: 14px; font-weight: 560;
+  background: var(--series-1); color: #fff; border: 0;
+  border-radius: 10px; padding: 10px 20px;
+  transition: filter .13s ease;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:focus-visible, .ghost:focus-visible, .seg button:focus-visible,
+.drop:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+.howto { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+@media (max-width: 700px) { .howto { grid-template-columns: 1fr; } }
+.howto .card { padding: 18px 20px; }
+.howto h3 {
+  margin: 0 0 10px; font-size: 13px; font-weight: 620;
+  display: flex; align-items: center; gap: 8px;
+}
+.howto ol { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; line-height: 1.6; }
+.howto a { color: var(--series-1); }
+
+.privacy {
+  margin-top: 22px; padding: 14px 18px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 13px; color: var(--text-2); line-height: 1.55;
+}
+.privacy strong { color: var(--text); font-weight: 600; }
+
+.detected {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 18px;
+  font-size: 13px; color: var(--text-2);
+}
+.detected .grow { flex: 1; }
+.err {
+  background: color-mix(in srgb, var(--crit) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--crit) 32%, var(--border));
+  border-radius: 12px; padding: 14px 18px; margin-top: 18px;
+  font-size: 13.5px; color: var(--text-2); line-height: 1.55;
+}
+.err strong { color: var(--text); }
+
+/* ----------------------------------------------------------------- tabs */
+.tabs {
+  display: flex; gap: 4px; margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.tabs button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 540; color: var(--text-3);
+  padding: 10px 16px; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: color .13s ease, border-color .13s ease;
+}
+.tabs button:hover { color: var(--text-2); }
+.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--series-1); }
+
+/* -------------------------------------------------------------- profile */
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; font-weight: 560; color: var(--text-3); letter-spacing: .02em; }
+.field input, .field select, .prompt {
+  font: inherit; font-size: 14px; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border-strong);
+  border-radius: 9px; padding: 9px 11px; width: 100%;
+}
+.field input:focus, .field select:focus, .prompt:focus {
+  outline: 2px solid var(--series-1); outline-offset: 1px; border-color: var(--series-1);
+}
+.field .unit-hint { font-size: 11.5px; color: var(--text-3); }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
+
+.prompt { min-height: 76px; resize: vertical; line-height: 1.5; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.chip {
+  appearance: none; cursor: pointer; font: inherit; font-size: 12.5px;
+  background: var(--surface-2); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px;
+  transition: background .13s, color .13s, border-color .13s;
+}
+.chip:hover { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+
+/* ------------------------------------------------------------- workout */
+.wo-head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.wo-head h3 { margin: 0; font-size: 17px; font-weight: 620; letter-spacing: -.02em; }
+.wo-stats { display: flex; gap: 18px; margin-left: auto; font-size: 13px; color: var(--text-2); }
+.wo-stats b { color: var(--text); font-weight: 620; }
+
+.steps { display: flex; flex-direction: column; gap: 3px; }
+.st { display: flex; align-items: center; gap: 12px; font-size: 13.5px; padding: 7px 0; }
+.st .bar { height: 22px; border-radius: 4px; flex: none; min-width: 3px; }
+.st .dur { width: 62px; color: var(--text-2); flex: none; }
+.st .pw { width: 118px; font-weight: 560; flex: none; }
+.st .lb { color: var(--text-3); }
+.st.rep-head { font-weight: 620; color: var(--text); padding-top: 12px; }
+.st.child { padding-left: 22px; }
+
+.profile-strip {
+  display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+  font-size: 13px; color: var(--text-2);
+}
+.profile-strip b { color: var(--text); font-weight: 620; }
+.estimate {
+  font-size: 12.5px; color: var(--text-2); margin-top: 10px;
+  padding: 10px 13px; background: var(--surface-2);
+  border-radius: 9px; border: 1px solid var(--border);
+}
+.rec-why { font-size: 14px; color: var(--text); margin: 0 0 6px; }
+.rec-note { font-size: 13px; color: var(--text-2); margin: 0; line-height: 1.55; }
+.week-row {
+  display: grid; grid-template-columns: 52px 92px 62px 62px 1fr;
+  gap: 12px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.week-row:last-child { border-bottom: 0; }
+.week-row.is-recovery { color: var(--text-3); }
+.week-row .wk { font-weight: 620; color: var(--text); }
+.week-row .sessions { display: flex; gap: 6px; flex-wrap: wrap; }
+.sess {
+  font-size: 11.5px; padding: 2px 8px; border-radius: 5px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2);
+}
+
+/* ---------------------------------------------------------------- landing */
+.landing { max-width: 1000px; margin: 0 auto; }
+
+.hero { text-align: center; padding: 14px 0 8px; }
+.hero .eyebrow {
+  font-size: 12px; font-weight: 620; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--series-1); margin: 0 0 16px;
+}
+.hero h2 {
+  font-size: clamp(30px, 4.2vw, 46px); line-height: 1.08;
+  font-weight: 660; letter-spacing: -.032em; margin: 0 auto 18px;
+  max-width: 21ch; text-wrap: balance;
+}
+.hero .lede {
+  font-size: 17px; line-height: 1.55; color: var(--text-2);
+  margin: 0 auto 30px; max-width: 62ch; text-wrap: balance;
+}
+.hero .drop { text-align: center; max-width: 620px; margin: 0 auto; }
+
+.assure {
+  display: flex; justify-content: center; gap: 26px; flex-wrap: wrap;
+  margin-top: 18px; font-size: 13px; color: var(--text-3);
+}
+.assure span { display: flex; align-items: center; gap: 7px; }
+.assure svg { flex: none; }
+
+.section { margin-top: 56px; }
+.section > h3 {
+  font-size: 12px; font-weight: 620; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3);
+  margin: 0 0 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 860px) { .features { grid-template-columns: 1fr; } }
+.feature { padding: 22px 24px; }
+.feature h4 {
+  margin: 0 0 8px; font-size: 15.5px; font-weight: 620; letter-spacing: -.015em;
+}
+.feature p { margin: 0 0 14px; font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
+.feature ul { margin: 0; padding-left: 17px; font-size: 13px; line-height: 1.75; color: var(--text-2); }
+.feature li::marker { color: var(--text-3); }
+.feature code {
+  background: var(--surface-2); border: 1px solid var(--border);
+  padding: 1px 5px; border-radius: 5px; font-size: 12px;
+}
+
+.honest { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 860px) { .honest { grid-template-columns: 1fr; } }
+.honest .card p { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--text-2); }
+.honest .card p + p { margin-top: 12px; }
+.honest strong { color: var(--text); font-weight: 600; }
+
+footer.foot a { color: var(--text-2); text-decoration: underline; text-underline-offset: 2px; }
+footer.foot a:hover { color: var(--text); }
+
+/* ------------------------------------------------------------- steps */
+.steps-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  margin: 0 auto 30px; max-width: 720px; text-align: left;
+}
+@media (max-width: 700px) { .steps-row { grid-template-columns: 1fr; } }
+.stepcard { display: flex; gap: 12px; align-items: flex-start; }
+.stepcard .n {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--series-1); color: #fff;
+  font-size: 12px; font-weight: 700; line-height: 24px; text-align: center;
+}
+.stepcard .t { font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.stepcard .t b { color: var(--text); font-weight: 620; display: block; }
+
+/* --------------------------------------------------------- disclosure */
+.more {
+  margin-top: 44px; border-top: 1px solid var(--border); padding-top: 8px;
+}
+.more summary {
+  cursor: pointer; list-style: none; padding: 14px 0;
+  font-size: 13.5px; font-weight: 560; color: var(--text-2);
+  display: flex; align-items: center; gap: 8px;
+}
+.more summary::-webkit-details-marker { display: none; }
+.more summary::before {
+  content: "+"; font-size: 15px; color: var(--text-3); width: 14px;
+}
+.more[open] summary::before { content: "–"; }
+.more summary:hover { color: var(--text); }
+.more .inner { padding: 6px 0 22px; }
+
+/* ------------------------------------------------------------ setup */
+.setup { border-color: color-mix(in srgb, var(--series-1) 34%, var(--border)); }
+.setup h2 { font-size: 16px; }
+.setup .row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
+.setup .field { min-width: 130px; }
+.setup .skip {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--text-3); text-decoration: underline;
+  text-underline-offset: 2px; padding: 10px 2px;
+}
+.setup .skip:hover { color: var(--text-2); }
+</style>
+</head>
+<body>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>Training Hub</h1>
+      <span class="sub" id="range-sub"></span>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="import-btn" type="button" hidden>Load a file</button>
+    <button class="ghost" id="clear-btn" type="button" hidden>Clear</button>
+    <button class="ghost" id="theme-btn" type="button" aria-label="Switch colour theme">Theme</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="app"></div>
+
+  <footer class="foot">
+    <span id="gen"></span>
+    <span id="cli-hint" hidden>Refresh with <code>./wk sync &amp;&amp; ./wk web</code></span>
+    <a id="source-link" href="https://github.com/myofamilyhealth/AI-Training-Plan-"
+       target="_blank" rel="noopener">Read the source</a>
+    <span id="source-note">Every claim on this page is checkable — there is no server to hide one.</span>
+  </footer>
+</div>
+
+<script>/* Reading a training export in the browser.
+ *
+ * Garmin does not document its CSV and the columns differ between accounts, so
+ * nothing here depends on column position — every field is found by matching
+ * the header text against a list of aliases, and anything unrecognised is
+ * ignored rather than throwing. Strava's export is handled by the same path.
+ *
+ * Units are the subtle part. Strava always writes metres and seconds whatever
+ * your display setting says; Garmin writes whatever your account displays, and
+ * never records which that was. So distance units are inferred from the size of
+ * the numbers and can be overridden by hand.
+ */
+(function (root) {
+  'use strict';
+
+  const M_PER_MILE = 1609.344;
+
+  /* ------------------------------------------------------------------ CSV */
+
+  function parseCSV(text) {
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);   // strip BOM
+    const rows = [];
+    let row = [], field = '', quoted = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (quoted) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }        // escaped quote
+          else quoted = false;
+        } else field += c;
+        continue;
+      }
+      if (c === '"') { quoted = true; continue; }
+      if (c === ',') { row.push(field); field = ''; continue; }
+      if (c === '\r') continue;
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; continue; }
+      field += c;
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(v => v !== ''));
+  }
+
+  /* -------------------------------------------------------------- values */
+
+  function num(v) {
+    if (v == null) return null;
+    const s = String(v).replace(/,/g, '').trim();
+    // Garmin writes "--" for a metric the device did not record.
+    if (!s || s === '--' || s === '-') return null;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /** "1:05:23" and "45:23" are clock times; a bare number is already seconds. */
+  function seconds(v) {
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (!s || s === '--') return null;
+    if (s.indexOf(':') === -1) return num(s);
+    const parts = s.split(':').map(p => parseFloat(p) || 0);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return null;
+  }
+
+  function parseDate(v) {
+    if (!v) return null;
+    const s = String(v).trim();
+    // "2026-08-20 07:15:23" is not ISO until the space becomes a T.
+    let d = new Date(/^\d{4}-\d{2}-\d{2} /.test(s) ? s.replace(' ', 'T') : s);
+    if (isNaN(d)) d = new Date(s.replace(/-/g, '/'));           // last resort
+    return isNaN(d) ? null : d;
+  }
+
+  /* ------------------------------------------------------------- headers */
+
+  // Ordered: the first alias that matches a header wins, so specific patterns
+  // ("Moving Time") must precede loose ones ("Time").
+  const FIELDS = [
+    ['start',       [/^activity date$/i, /^date$/i, /^start time/i]],
+    ['name',        [/^activity name$/i, /^title$/i, /^name$/i]],
+    ['type',        [/^activity type$/i, /^sport/i, /^type$/i]],
+    ['distance',    [/^distance/i]],
+    ['moving_s',    [/^moving time/i, /^moving duration/i]],
+    ['elapsed_s',   [/^elapsed time/i, /^total time/i, /^duration/i, /^time$/i]],
+    ['avg_hr',      [/^avg\.? ?hr$/i, /^average heart ?rate/i, /^avg heart ?rate/i]],
+    ['max_hr',      [/^max\.? ?hr$/i, /^max(imum)? heart ?rate/i]],
+    ['elevation',   [/^total ascent/i, /^elevation gain/i, /^elev gain/i, /^ascent/i]],
+    ['calories',    [/^calories/i]],
+    ['avg_pace',    [/^avg\.? pace/i, /^average pace/i]],
+    // Cycling. Normalized Power and TSS are ordered before the looser power
+    // patterns so they claim their own columns rather than being read as
+    // average power.
+    ['np',          [/^normali[sz]ed power/i, /^weighted average power/i, /^np\b/i]],
+    ['tss',         [/^training stress score/i, /^tss\b/i, /^relative effort/i]],
+    ['avg_power',   [/^avg\.? power/i, /^average watts/i, /^avg\.? watts/i, /^average power/i]],
+    ['max_power',   [/^max\.? power/i, /^max watts/i, /^maximum power/i]],
+    ['avg_speed_col', [/^avg\.? speed/i, /^average speed/i]],
+    ['max_speed',   [/^max\.? speed/i, /^maximum speed/i]],
+    ['avg_cadence', [/^avg\.? bike cadence/i, /^average cadence/i, /^avg\.? cadence/i]],
+    ['intensity',   [/^intensity factor/i, /^if\b/i]],
+  ];
+
+  /** Map each canonical field to every column index whose header matches it. */
+  function mapHeaders(header) {
+    const map = {};
+    header.forEach((raw, i) => {
+      const h = String(raw).trim();
+      if (!h) return;
+      for (const [field, patterns] of FIELDS) {
+        if (patterns.some(p => p.test(h))) {
+          (map[field] = map[field] || []).push(i);
+          return;                       // one column serves one field only
+        }
+      }
+    });
+    return map;
+  }
+
+  function detectSource(header) {
+    const joined = header.join('|').toLowerCase();
+    if (/activity id/.test(joined) && /activity date/.test(joined)) return 'strava';
+    if (/avg hr|total ascent|aerobic te|avg run cadence/.test(joined)) return 'garmin';
+    return /activity date/.test(joined) ? 'strava' : 'garmin';
+  }
+
+  /* --------------------------------------------------------------- units */
+
+  /** Pick the column that actually holds a usable value for this row.
+   *  Strava's export repeats "Distance" — once in kilometres, once in metres —
+   *  so every candidate column is offered and the caller decides. */
+  function values(row, idxs) {
+    if (!idxs) return [];
+    return idxs.map(i => row[i]).filter(v => v != null && String(v).trim() !== '');
+  }
+
+  /**
+   * Work out what the distance column means.
+   *
+   * Metres are unmistakable: a median run distance in the thousands cannot be
+   * miles. Telling miles from kilometres is genuinely impossible from the
+   * numbers alone, so that falls back to a caller-supplied preference and is
+   * reported so the UI can offer a switch.
+   */
+  function inferDistanceUnit(samples, preferred) {
+    const clean = samples.filter(n => n != null && n > 0).sort((a, b) => a - b);
+    if (!clean.length) return { unit: preferred || 'mi', certain: false };
+    const median = clean[Math.floor(clean.length / 2)];
+    if (median > 400) return { unit: 'm', certain: true };
+    return { unit: preferred || 'mi', certain: false };
+  }
+
+  function toMetres(value, unit) {
+    if (value == null) return null;
+    if (unit === 'm') return value;
+    if (unit === 'km') return value * 1000;
+    return value * M_PER_MILE;
+  }
+
+  /* ----------------------------------------------------------- act types */
+
+  const TYPE_MAP = {
+    run: 'running', running: 'running', trailrun: 'running',
+    trail_running: 'running', 'trail running': 'running',
+    treadmill_running: 'running', 'treadmill running': 'running',
+    'indoor running': 'running', 'track running': 'running',
+    'virtual run': 'running', virtualrun: 'running', 'street running': 'running',
+    ride: 'cycling', cycling: 'cycling', 'road cycling': 'cycling',
+    'virtual ride': 'cycling', 'indoor cycling': 'cycling',
+    'mountain biking': 'cycling', 'gravel cycling': 'cycling', biking: 'cycling',
+    'e-bike ride': 'cycling', ebikeride: 'cycling',
+    swim: 'swimming', swimming: 'swimming', 'pool swim': 'swimming',
+    'lap swimming': 'swimming', 'open water swimming': 'swimming',
+    walk: 'walking', walking: 'walking', hike: 'hiking', hiking: 'hiking',
+    'strength training': 'strength', weighttraining: 'strength',
+    'indoor rowing': 'rowing', rowing: 'rowing',
+  };
+
+  function canonicalType(raw) {
+    if (!raw) return 'other';
+    const k = String(raw).trim().toLowerCase();
+    return TYPE_MAP[k] || TYPE_MAP[k.replace(/[\s_]+/g, '')] || k;
+  }
+
+  /* --------------------------------------------------------------- parse */
+
+  function parse(text, opts) {
+    opts = opts || {};
+    const rows = parseCSV(text);
+    if (rows.length < 2) {
+      throw new Error('That file has no rows in it. Export the activity list as CSV and try again.');
+    }
+    const header = rows[0];
+    const map = mapHeaders(header);
+    if (!map.start || !map.distance) {
+      throw new Error(
+        'Could not find a date and a distance column. Columns seen: ' +
+        header.filter(Boolean).slice(0, 12).join(', '));
+    }
+    const source = detectSource(header);
+
+    // One pass to see what the distance numbers look like, then a second to
+    // convert them — the unit is a property of the file, not of a row.
+    const raw = rows.slice(1).map(r => {
+      const d = values(r, map.distance).map(num).filter(v => v != null);
+      return { row: r, distances: d };
+    });
+    const flat = [];
+    raw.forEach(r => r.distances.forEach(d => flat.push(d)));
+    const unitInfo = inferDistanceUnit(flat, opts.preferredUnit);
+
+    const out = [];
+    raw.forEach((entry, i) => {
+      const r = entry.row;
+      const date = parseDate(values(r, map.start)[0]);
+      if (!date) return;
+
+      // With several distance columns (Strava has two), the largest is the one
+      // in metres; that is the precise figure.
+      let distance = null;
+      if (entry.distances.length) {
+        distance = unitInfo.unit === 'm'
+          ? Math.max.apply(null, entry.distances)
+          : entry.distances[0];
+      }
+      const distance_m = toMetres(distance, unitInfo.unit);
+
+      const movingCandidates = values(r, map.moving_s).map(seconds).filter(v => v);
+      const elapsedCandidates = values(r, map.elapsed_s).map(seconds).filter(v => v);
+      const moving_s = movingCandidates[0] || elapsedCandidates[0] || null;
+      const elapsed_s = elapsedCandidates[0] || moving_s;
+
+      const type = canonicalType(values(r, map.type)[0]);
+      const avg_hr = num(values(r, map.avg_hr)[0]);
+      const max_hr = num(values(r, map.max_hr)[0]);
+
+      let avg_speed_mps = null;
+      const speedRaw = num(values(r, map.avg_speed_col)[0]);
+      if (speedRaw && unitInfo.unit === 'm') {
+        avg_speed_mps = speedRaw;                    // Strava reports m/s
+      } else if (distance_m && moving_s) {
+        avg_speed_mps = distance_m / moving_s;
+      } else {
+        const paceSec = seconds(values(r, map.avg_pace)[0]);
+        if (paceSec) {
+          avg_speed_mps = (unitInfo.unit === 'km' ? 1000 : M_PER_MILE) / paceSec;
+        }
+      }
+
+      out.push({
+        id: source + '-' + i + '-' + date.getTime(),
+        source: source,
+        name: values(r, map.name)[0] || '',
+        type: type,
+        start: date.toISOString(),
+        distance_m: distance_m,
+        moving_s: moving_s,
+        elapsed_s: elapsed_s,
+        elevation_m: num(values(r, map.elevation)[0]),
+        avg_hr: avg_hr,
+        max_hr: max_hr,
+        avg_watts: num(values(r, map.avg_power)[0]),
+        max_watts: num(values(r, map.max_power)[0]),
+        // Garmin exports its own NP and TSS for power-meter rides; both are
+        // better than anything derivable from a row average, so they are kept
+        // and only recomputed when absent.
+        np: num(values(r, map.np)[0]),
+        tss: num(values(r, map.tss)[0]),
+        intensity: num(values(r, map.intensity)[0]),
+        avg_cadence: num(values(r, map.avg_cadence)[0]),
+        avg_speed_mps: avg_speed_mps,
+        calories: num(values(r, map.calories)[0]),
+      });
+    });
+
+    out.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+    return {
+      activities: out,
+      source: source,
+      unit: unitInfo.unit,
+      unitCertain: unitInfo.certain,
+      columns: header.filter(Boolean),
+      matched: Object.keys(map),
+      skipped: rows.length - 1 - out.length,
+    };
+  }
+
+  /* -------------------------------------------------------------- dedupe */
+
+  function dedupeKey(a) {
+    if (!a.start) return null;
+    const bucket = Math.floor(new Date(a.start).getTime() / 1000 / 150);
+    return [a.type, bucket, Math.round((a.distance_m || 0) / 500)].join('|');
+  }
+
+  /** Same session from two files (a watch export and a Strava export) collapses
+   *  to one, keeping Garmin's copy — the watch measured it first-hand. */
+  function dedupe(activities) {
+    const best = new Map(), loose = [];
+    activities.forEach(a => {
+      const k = dedupeKey(a);
+      if (!k) { loose.push(a); return; }
+      const cur = best.get(k);
+      if (!cur) best.set(k, a);
+      else if (a.source === 'garmin' && cur.source !== 'garmin') best.set(k, a);
+    });
+    return [...best.values()].concat(loose)
+      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+  }
+
+  const api = { parseCSV, parse, dedupe, canonicalType, seconds, num, parseDate,
+                inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Importer = api;
+})(typeof self !== 'undefined' ? self : this);
+
+/* Reading a .FIT file in the browser.
+ *
+ * This is where the real numbers come from. A CSV carries one row per ride —
+ * an average, maybe a normalized power someone else computed. A .FIT carries
+ * the whole recording, usually a sample per second, which is what actually
+ * supports a power curve, a true normalized power, and an FTP taken from a
+ * measured twenty minutes instead of guessed at from an average.
+ *
+ * Only the parts needed for that are decoded: the file header, the definition
+ * and data records, and the record/session/file_id messages. Everything else
+ * is skipped by length, which keeps this small and tolerant of the fields any
+ * given head unit happens to write.
+ */
+(function (root) {
+  'use strict';
+
+  // FIT counts seconds from 1989-12-31, not 1970.
+  const FIT_EPOCH_OFFSET = 631065600;
+
+  // base type -> [size in bytes, reader name, "invalid" sentinel]
+  const BASE_TYPES = {
+    0x00: [1, 'getUint8', 0xff],          // enum
+    0x01: [1, 'getInt8', 0x7f],
+    0x02: [1, 'getUint8', 0xff],
+    0x83: [2, 'getInt16', 0x7fff],
+    0x84: [2, 'getUint16', 0xffff],
+    0x85: [4, 'getInt32', 0x7fffffff],
+    0x86: [4, 'getUint32', 0xffffffff],
+    0x07: [1, 'getUint8', 0x00],          // string, handled bytewise
+    0x88: [4, 'getFloat32', null],
+    0x89: [8, 'getFloat64', null],
+    0x0a: [1, 'getUint8', 0x00],
+    0x8b: [2, 'getUint16', 0x0000],
+    0x8c: [4, 'getUint32', 0x00000000],
+    0x0d: [1, 'getUint8', 0xff],          // byte
+    0x8e: [8, null, null],                // sint64 — skipped
+    0x8f: [8, null, null],
+    0x90: [8, null, null],
+  };
+
+  const RECORD = 20, SESSION = 18, FILE_ID = 0;
+
+  // Only the fields this page uses; the rest are stepped over.
+  const RECORD_FIELDS = {
+    3: ['heart_rate', 1, 0], 4: ['cadence', 1, 0], 5: ['distance', 100, 0],
+    6: ['speed', 1000, 0], 7: ['power', 1, 0], 2: ['altitude', 5, 500],
+    73: ['speed', 1000, 0], 78: ['altitude', 5, 500], 253: ['timestamp', 1, 0],
+  };
+  const SESSION_FIELDS = {
+    2: ['start_time', 1, 0], 5: ['sport', 1, 0], 7: ['total_elapsed_time', 1000, 0],
+    8: ['total_timer_time', 1000, 0], 9: ['total_distance', 100, 0],
+    11: ['total_calories', 1, 0], 14: ['avg_speed', 1000, 0], 15: ['max_speed', 1000, 0],
+    16: ['avg_heart_rate', 1, 0], 17: ['max_heart_rate', 1, 0],
+    20: ['avg_power', 1, 0], 21: ['max_power', 1, 0], 22: ['total_ascent', 1, 0],
+    34: ['normalized_power', 1, 0], 35: ['training_stress_score', 10, 0],
+    36: ['intensity_factor', 1000, 0], 254: ['message_index', 1, 0],
+  };
+  const SPORTS = { 0: 'other', 1: 'running', 2: 'cycling', 5: 'swimming', 11: 'walking', 17: 'hiking' };
+
+  function parse(buffer) {
+    const view = new DataView(buffer);
+    if (buffer.byteLength < 14) throw new Error('That file is too small to be a .FIT recording.');
+
+    const headerSize = view.getUint8(0);
+    const dataSize = view.getUint32(4, true);
+    const magic = String.fromCharCode(view.getUint8(8), view.getUint8(9),
+                                      view.getUint8(10), view.getUint8(11));
+    if (magic !== '.FIT') throw new Error('That is not a .FIT file — its header is missing the .FIT marker.');
+
+    const end = Math.min(headerSize + dataSize, buffer.byteLength);
+    let pos = headerSize;
+    const definitions = {};
+    const records = [];
+    const sessions = [];
+    let fileTime = null;
+
+    while (pos < end) {
+      const header = view.getUint8(pos++);
+
+      // A compressed-timestamp record reuses the previous definition and packs
+      // a 5-bit time offset into the header.
+      const compressed = (header & 0x80) !== 0;
+      const localType = compressed ? (header >> 5) & 0x03 : header & 0x0f;
+
+      if (!compressed && (header & 0x40)) {
+        // Definition message.
+        pos++;                                        // reserved
+        const littleEndian = view.getUint8(pos++) === 0;
+        const globalNum = view.getUint16(pos, littleEndian); pos += 2;
+        const fieldCount = view.getUint8(pos++);
+        const fields = [];
+        for (let i = 0; i < fieldCount; i++) {
+          fields.push({ num: view.getUint8(pos), size: view.getUint8(pos + 1),
+                        type: view.getUint8(pos + 2) });
+          pos += 3;
+        }
+        let devFields = [];
+        if (header & 0x20) {
+          const devCount = view.getUint8(pos++);
+          for (let i = 0; i < devCount; i++) {
+            devFields.push({ size: view.getUint8(pos + 1) });
+            pos += 3;
+          }
+        }
+        definitions[localType] = { globalNum, littleEndian, fields, devFields };
+        continue;
+      }
+
+      const def = definitions[localType];
+      if (!def) break;                                // data before its definition
+
+      const out = {};
+      const map = def.globalNum === RECORD ? RECORD_FIELDS
+                : def.globalNum === SESSION ? SESSION_FIELDS : null;
+
+      def.fields.forEach(f => {
+        const spec = BASE_TYPES[f.type];
+        const entry = map ? map[f.num] : null;
+        if (!spec || !spec[1] || !entry) { pos += f.size; return; }
+
+        const [size, reader, invalid] = spec;
+        // Arrays are declared by a size larger than the base type; only the
+        // first element is ever needed here.
+        let value;
+        try { value = view[reader](pos, def.littleEndian); }
+        catch (e) { pos += f.size; return; }
+        pos += f.size;
+        if (invalid != null && value === invalid) return;
+
+        const [name, scale, offset] = entry;
+        out[name] = value / scale - offset;
+      });
+      def.devFields.forEach(f => { pos += f.size; });
+
+      if (def.globalNum === RECORD) records.push(out);
+      else if (def.globalNum === SESSION) sessions.push(out);
+      else if (def.globalNum === FILE_ID && out.timestamp) fileTime = out.timestamp;
+    }
+
+    if (!records.length && !sessions.length) {
+      throw new Error('No ride data could be read out of that .FIT file.');
+    }
+    return buildActivity(records, sessions, fileTime);
+  }
+
+  function fitTimeToISO(t) {
+    if (t == null) return null;
+    return new Date((t + FIT_EPOCH_OFFSET) * 1000).toISOString();
+  }
+
+  /** Turn the decoded messages into the same activity shape the CSV path
+   *  produces, plus the streams a CSV can never carry. */
+  function buildActivity(records, sessions, fileTime) {
+    const s = sessions[0] || {};
+    const power = records.map(r => (r.power == null ? 0 : r.power));
+    const hasPower = power.some(p => p > 0);
+    const hr = records.map(r => r.heart_rate || null);
+    const cadence = records.map(r => r.cadence || null);
+    const speed = records.map(r => r.speed || null);
+
+    const start = fitTimeToISO(s.start_time != null ? s.start_time : (records[0] || {}).timestamp)
+               || fitTimeToISO(fileTime);
+    const moving = s.total_timer_time || s.total_elapsed_time || records.length;
+
+    const np = hasPower ? normalizedPower(power) : null;
+
+    return {
+      id: 'fit-' + (start || Date.now()),
+      source: 'fit',
+      name: null,
+      type: SPORTS[s.sport] || 'cycling',
+      start: start,
+      distance_m: s.total_distance || null,
+      moving_s: moving,
+      elapsed_s: s.total_elapsed_time || moving,
+      elevation_m: s.total_ascent || null,
+      avg_hr: s.avg_heart_rate || avg(hr),
+      max_hr: s.max_heart_rate || null,
+      avg_watts: s.avg_power || (hasPower ? Math.round(avg(power)) : null),
+      max_watts: s.max_power || (hasPower ? Math.max.apply(null, power) : null),
+      // A normalized power computed from the stream beats one copied out of a
+      // summary, so ours wins when we have the samples to do it.
+      np: np || s.normalized_power || null,
+      tss: s.training_stress_score || null,
+      intensity: s.intensity_factor || null,
+      avg_cadence: s.avg_cadence || avg(cadence),
+      avg_speed_mps: s.avg_speed || avg(speed) ||
+        (s.total_distance && moving ? s.total_distance / moving : null),
+      calories: s.total_calories || null,
+      // The part that only a .FIT can give.
+      streams: hasPower ? { power: power, seconds: records.length } : null,
+      samples: records.length,
+    };
+  }
+
+  function avg(list) {
+    const clean = list.filter(v => v != null && v > 0);
+    return clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : null;
+  }
+
+  /**
+   * Normalized power: a 30-second rolling average, raised to the fourth power,
+   * averaged, then the fourth root. The fourth power is what makes surges cost
+   * more than their duration suggests, which is the whole point of the metric.
+   */
+  function normalizedPower(power) {
+    if (power.length < 30) return null;
+    let sum = 0;
+    const rolled = [];
+    for (let i = 0; i < power.length; i++) {
+      sum += power[i];
+      if (i >= 30) sum -= power[i - 30];
+      if (i >= 29) rolled.push(sum / 30);
+    }
+    if (!rolled.length) return null;
+    const fourth = rolled.reduce((t, v) => t + Math.pow(v, 4), 0) / rolled.length;
+    return Math.round(Math.pow(fourth, 0.25));
+  }
+
+  // The durations a rider actually talks about.
+  const CURVE_DURATIONS = [1, 5, 15, 30, 60, 120, 300, 480, 600, 1200, 1800, 3600];
+
+  /**
+   * Mean maximal power: for each duration, the best average the rider held for
+   * that long anywhere in the ride. A prefix sum makes each window O(n), so the
+   * whole curve is cheap even for a long ride.
+   */
+  function powerCurve(power, durations) {
+    durations = durations || CURVE_DURATIONS;
+    const n = power.length;
+    if (!n) return [];
+    const prefix = new Float64Array(n + 1);
+    for (let i = 0; i < n; i++) prefix[i + 1] = prefix[i] + power[i];
+
+    return durations.filter(d => d <= n).map(d => {
+      let best = 0;
+      for (let i = 0; i + d <= n; i++) {
+        const mean = (prefix[i + d] - prefix[i]) / d;
+        if (mean > best) best = mean;
+      }
+      return { seconds: d, watts: Math.round(best) };
+    });
+  }
+
+  /** Merge curves from several rides, keeping the best at each duration. */
+  function mergeCurves(curves) {
+    const best = new Map();
+    curves.forEach(curve => curve.forEach(p => {
+      const cur = best.get(p.seconds);
+      if (!cur || p.watts > cur.watts) best.set(p.seconds, p);
+    }));
+    return [...best.values()].sort((a, b) => a.seconds - b.seconds);
+  }
+
+  /**
+   * FTP from a measured twenty minutes, at the conventional 95%.
+   *
+   * This is the real thing rather than the CSV estimate: it comes from the best
+   * continuous twenty minutes in the recording, not from a ride average that
+   * includes every coast and traffic light.
+   */
+  function ftpFromCurve(curve) {
+    const twenty = curve.find(p => p.seconds === 1200);
+    if (twenty) return { ftp: Math.round(twenty.watts * 0.95), from: '20 min', watts: twenty.watts };
+    const hour = curve.find(p => p.seconds === 3600);
+    if (hour) return { ftp: hour.watts, from: '60 min', watts: hour.watts };
+    return null;
+  }
+
+  /** Seconds spent in each power zone — the real distribution, sample by
+   *  sample, rather than a whole ride dropped into one bucket. */
+  function zoneSeconds(power, ftp, zones) {
+    if (!ftp) return null;
+    const out = zones.map(z => 0);
+    power.forEach(w => {
+      if (w <= 0) { out[0] += 1; return; }
+      const pct = w / ftp;
+      for (let i = 0; i < zones.length; i++) {
+        if (pct <= zones[i].hiPct || i === zones.length - 1) { out[i] += 1; break; }
+      }
+    });
+    return out;
+  }
+
+  const api = { parse, powerCurve, mergeCurves, ftpFromCurve, normalizedPower,
+                zoneSeconds, CURVE_DURATIONS, fitTimeToISO };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Fit = api;
+})(typeof self !== 'undefined' ? self : this);
+
+/* The same training maths as hub/analyze.py, in the browser.
+ *
+ * Kept deliberately in step with the Python: the CLI and the web page must not
+ * disagree about your acute:chronic ratio. The test suite runs both over the
+ * same activities and compares.
+ */
+(function (root) {
+  'use strict';
+
+  const M_PER_MILE = 1609.344;
+  const DAY = 86400000;
+
+  const dayOf = a => (a.start ? new Date(a.start) : null);
+  const dayKey = d => d.toISOString().slice(0, 10);
+
+  function hrReserveFraction(hr, restHr, maxHr) {
+    const span = Math.max(maxHr - restHr, 1);
+    return Math.min(Math.max((hr - restHr) / span, 0), 1);
+  }
+
+  /** One session's load: Banister TRIMP with heart rate, a duration-times-
+   *  intensity estimate without it — so a strapless run still counts. */
+  function trainingLoad(a, restHr, maxHr) {
+    restHr = restHr == null ? 50 : restHr;
+    maxHr = maxHr == null ? 190 : maxHr;
+    const minutes = (a.moving_s || 0) / 60;
+    if (minutes <= 0) return 0;
+
+    if (a.avg_hr) {
+      const f = hrReserveFraction(a.avg_hr, restHr, maxHr);
+      return Math.round(minutes * f * 0.64 * Math.exp(1.92 * f) * 10) / 10;
+    }
+    const speed = a.avg_speed_mps || 0;
+    const easy = M_PER_MILE / 600;                       // a 10:00/mi jog
+    const intensity = speed ? Math.min(Math.max(speed / easy, 0.5), 2) : 1;
+    return Math.round(minutes * intensity * 10) / 10;
+  }
+
+  function dailyLoad(activities, restHr, maxHr) {
+    const out = {};
+    activities.forEach(a => {
+      const d = dayOf(a);
+      if (!d) return;
+      const k = dayKey(d);
+      out[k] = (out[k] || 0) + trainingLoad(a, restHr, maxHr);
+    });
+    return out;
+  }
+
+  function acwr(activities, restHr, maxHr, today) {
+    today = today || new Date();
+    const loads = dailyLoad(activities, restHr, maxHr);
+    let acute = 0, chronic28 = 0;
+    Object.keys(loads).forEach(k => {
+      const age = Math.floor((today - new Date(k + 'T00:00:00Z')) / DAY);
+      if (age >= 0 && age < 7) acute += loads[k];
+      if (age >= 0 && age < 28) chronic28 += loads[k];
+    });
+    const chronic = chronic28 / 4;
+    const ratio = chronic > 0 ? acute / chronic : null;
+
+    let verdict;
+    if (ratio == null) verdict = 'not enough history yet';
+    else if (ratio < 0.8) verdict = 'detraining or a deliberate down week';
+    else if (ratio <= 1.3) verdict = 'sustainable';
+    else if (ratio <= 1.5) verdict = 'ramping fast — watch for niggles';
+    else verdict = 'spike — high injury risk';
+
+    return {
+      acute_7d: Math.round(acute * 10) / 10,
+      chronic_weekly_avg: Math.round(chronic * 10) / 10,
+      ratio: ratio == null ? null : Math.round(ratio * 100) / 100,
+      verdict: verdict,
+    };
+  }
+
+  function mondayOf(d) {
+    const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const wd = (m.getUTCDay() + 6) % 7;                  // Monday = 0
+    m.setUTCDate(m.getUTCDate() - wd);
+    return m;
+  }
+
+  function weekly(activities, weeks, restHr, maxHr, today) {
+    today = today || new Date();
+    const thisMonday = mondayOf(today);
+    const buckets = new Map();
+    for (let i = weeks - 1; i >= 0; i--) {
+      const m = new Date(thisMonday.getTime() - i * 7 * DAY);
+      buckets.set(dayKey(m), {
+        week: dayKey(m), distance_m: 0, moving_s: 0, load: 0,
+        elevation_m: 0, count: 0,
+      });
+    }
+    activities.forEach(a => {
+      const d = dayOf(a);
+      if (!d) return;
+      const b = buckets.get(dayKey(mondayOf(d)));
+      if (!b) return;
+      b.count += 1;
+      b.distance_m += a.distance_m || 0;
+      b.moving_s += a.moving_s || 0;
+      b.elevation_m += a.elevation_m || 0;
+      b.load += trainingLoad(a, restHr, maxHr);
+    });
+    return [...buckets.values()];
+  }
+
+  /** How much running is genuinely easy. The line is 76% of heart-rate reserve;
+   *  sessions with no heart rate are reported apart rather than guessed at. */
+  function easyHardSplit(activities, restHr, maxHr) {
+    restHr = restHr == null ? 50 : restHr;
+    maxHr = maxHr == null ? 190 : maxHr;
+    let easy = 0, hard = 0, unknown = 0;
+    activities.forEach(a => {
+      if (a.type !== 'running') return;
+      const s = a.moving_s || 0;
+      if (!a.avg_hr) unknown += s;
+      else if (hrReserveFraction(a.avg_hr, restHr, maxHr) < 0.76) easy += s;
+      else hard += s;
+    });
+    const known = easy + hard;
+    return {
+      easy_pct: known ? Math.round((1000 * easy / known)) / 10 : null,
+      hard_pct: known ? Math.round((1000 * hard / known)) / 10 : null,
+      easy_time: fmtDuration(easy),
+      hard_time: fmtDuration(hard),
+      unmeasured_time: fmtDuration(unknown),
+      note: known ? null : 'no heart-rate data in this range',
+    };
+  }
+
+  const BANDS = [['5k', 4800, 5400], ['10k', 9600, 10800],
+                 ['half', 20500, 21800], ['marathon', 41500, 43500]];
+
+  function bests(activities, imperial) {
+    const out = {};
+    activities.forEach(a => {
+      if (a.type !== 'running') return;
+      const dist = a.distance_m || 0, secs = a.moving_s || 0;
+      if (!dist || !secs) return;
+      BANDS.forEach(([label, lo, hi]) => {
+        if (dist < lo || dist > hi) return;
+        const speed = dist / secs;
+        if (!out[label] || speed > out[label]._speed) {
+          out[label] = {
+            _speed: speed, date: dayKey(dayOf(a)), name: a.name,
+            time: fmtDuration(secs), pace: fmtPace(speed, imperial),
+          };
+        }
+      });
+    });
+    Object.values(out).forEach(v => delete v._speed);
+    return out;
+  }
+
+  /** Speed per heartbeat on easy runs: recent half of the window against the
+   *  older half. Noisy under about a dozen runs, so it says so instead. */
+  function fitnessTrend(activities, days, today) {
+    days = days || 90;
+    today = today || new Date();
+    const cutoff = today.getTime() - days * DAY;
+    const pts = [];
+    activities.forEach(a => {
+      const d = dayOf(a);
+      if (!d || d.getTime() < cutoff || a.type !== 'running') return;
+      if (a.avg_hr && a.avg_speed_mps && (a.moving_s || 0) > 1200) {
+        pts.push([d.getTime(), a.avg_speed_mps / a.avg_hr]);
+      }
+    });
+    if (pts.length < 6) {
+      return { samples: pts.length,
+               status: 'need at least 6 heart-rate runs over 20 min in this window' };
+    }
+    pts.sort((x, y) => x[0] - y[0]);
+    const mid = Math.floor(pts.length / 2);
+    const older = pts.slice(0, mid).reduce((s, p) => s + p[1], 0) / mid;
+    const recent = pts.slice(mid).reduce((s, p) => s + p[1], 0) / (pts.length - mid);
+    const change = 100 * (recent - older) / older;
+    return {
+      samples: pts.length,
+      change_pct: Math.round(change * 10) / 10,
+      direction: change > 1.5 ? 'improving' : change < -1.5 ? 'declining' : 'flat',
+      note: 'speed per heartbeat on easy runs; higher is fitter',
+    };
+  }
+
+  /* ------------------------------------------------------------ formatting */
+
+  function fmtDuration(seconds) {
+    seconds = Math.round(seconds || 0);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+  }
+
+  function fmtPace(mps, imperial) {
+    if (!mps || mps <= 0) return '';
+    const per = imperial ? M_PER_MILE : 1000;
+    // Round to whole seconds BEFORE splitting: rounding the remainder instead
+    // turns 239.999 s into "3:60" rather than "4:00".
+    const total = Math.round(per / mps);
+    const m = Math.floor(total / 60), s = total % 60;
+    return `${m}:${String(s).padStart(2, '0')}/${imperial ? 'mi' : 'km'}`;
+  }
+
+  /* --------------------------------------------------------------- payload */
+
+  /** Build exactly the shape the page renders, so an imported file and a
+   *  `./wk web` build are interchangeable. */
+  function buildPayload(activities, opts) {
+    opts = opts || {};
+    const restHr = opts.restHr == null ? 50 : opts.restHr;
+    const maxHr = opts.maxHr == null ? 190 : opts.maxHr;
+    const imperial = opts.unit !== 'km';
+    const unit = imperial ? 'mi' : 'km';
+    const divisor = imperial ? M_PER_MILE : 1000;
+    const today = opts.today || new Date();
+    const weeksBack = opts.weeks || 16;
+    const heatWeeks = opts.heatmapWeeks || 26;
+
+    const thisMonday = dayKey(mondayOf(today));
+    const weeklyRows = weekly(activities, weeksBack, restHr, maxHr, today).map(w => ({
+      week: w.week,
+      distance: Math.round((w.distance_m / divisor) * 100) / 100,
+      hours: Math.round((w.moving_s / 3600) * 100) / 100,
+      load: Math.round(w.load * 10) / 10,
+      count: w.count,
+      partial: w.week === thisMonday,
+    }));
+
+    const loads = dailyLoad(activities, restHr, maxHr);
+    const start = new Date(thisMonday + 'T00:00:00Z');
+    start.setUTCDate(start.getUTCDate() - (heatWeeks - 1) * 7);
+    const heatmap = [];
+    for (let t = start.getTime(); t <= today.getTime(); t += DAY) {
+      const k = dayKey(new Date(t));
+      heatmap.push({ date: k, load: Math.round((loads[k] || 0) * 10) / 10 });
+    }
+
+    const rows = activities.map(a => {
+      const speed = a.avg_speed_mps || 0;
+      return {
+        id: a.id, date: dayKey(dayOf(a)), name: a.name || '', type: a.type || 'other',
+        source: a.source,
+        distance: Math.round(((a.distance_m || 0) / divisor) * 100) / 100,
+        seconds: Math.round(a.moving_s || 0),
+        duration: fmtDuration(a.moving_s || 0),
+        pace: speed ? fmtPace(speed, imperial) : '',
+        speed: Math.round(speed * 10000) / 10000,
+        hr: a.avg_hr ? Math.round(a.avg_hr) : null,
+        elevation: Math.round(a.elevation_m || 0),
+        load: trainingLoad(a, restHr, maxHr),
+      };
+    }).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+    const inWindow = (a, days) => {
+      const d = dayOf(a);
+      return d && (today - d) >= 0 && (today - d) < days * DAY;
+    };
+    const sumDist = days => activities.filter(a => inWindow(a, days))
+      .reduce((s, a) => s + (a.distance_m || 0), 0) / divisor;
+    const last7 = sumDist(7);
+    const prev14 = activities.filter(a => {
+      const d = dayOf(a);
+      if (!d) return false;
+      const age = (today - d) / DAY;
+      return age >= 7 && age < 14;
+    }).reduce((s, a) => s + (a.distance_m || 0), 0) / divisor;
+
+    return {
+      generated: new Date().toISOString(),
+      // Kept so the cycling views can work from real values rather than
+      // re-deriving them from rounded display rows.
+      raw: activities,
+      unit: unit,
+      today: dayKey(today),
+      totals: {
+        activities: activities.length,
+        last7: Math.round(last7 * 10) / 10,
+        prev7: Math.round(prev14 * 10) / 10,
+        first: rows.length ? rows[rows.length - 1].date : null,
+      },
+      weekly: weeklyRows,
+      heatmap: heatmap,
+      activities: rows,
+      acwr: acwr(activities, restHr, maxHr, today),
+      split: easyHardSplit(activities, restHr, maxHr),
+      trend: fitnessTrend(activities, 90, today),
+      bests: bests(activities, imperial),
+      plan: null,
+      demo_note: opts.demoNote || null,
+    };
+  }
+
+  const api = { trainingLoad, dailyLoad, acwr, weekly, easyHardSplit, bests,
+                fitnessTrend, buildPayload, fmtDuration, fmtPace, mondayOf };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Analytics = api;
+})(typeof self !== 'undefined' ? self : this);
+
+/* Cycling metrics: power, not pace.
+ *
+ * A word on what a CSV can and cannot support. These exports carry one row per
+ * ride — an average, a normalized power, sometimes a TSS — never the
+ * second-by-second stream. So a true mean-maximal power curve is impossible
+ * here, and nothing below pretends otherwise: every derived figure says what it
+ * came from, and FTP is an estimate the rider is expected to correct.
+ */
+(function (root) {
+  'use strict';
+
+  /* ------------------------------------------------------- power zones */
+
+  // Coggan's seven, as percentages of FTP.
+  const ZONES = [
+    { n: 1, key: 'recovery',  name: 'Active recovery', lo: 0,    hi: 0.55 },
+    { n: 2, key: 'endurance', name: 'Endurance',       lo: 0.56, hi: 0.75 },
+    { n: 3, key: 'tempo',     name: 'Tempo',           lo: 0.76, hi: 0.90 },
+    { n: 4, key: 'threshold', name: 'Threshold',       lo: 0.91, hi: 1.05 },
+    { n: 5, key: 'vo2max',    name: 'VO2 max',         lo: 1.06, hi: 1.20 },
+    { n: 6, key: 'anaerobic', name: 'Anaerobic',       lo: 1.21, hi: 1.50 },
+    { n: 7, key: 'neuro',     name: 'Neuromuscular',   lo: 1.51, hi: 2.50 },
+  ];
+
+  function zones(ftp) {
+    return ZONES.map(z => ({
+      n: z.n, key: z.key, name: z.name,
+      lo: Math.round(z.lo * ftp), hi: Math.round(z.hi * ftp),
+      loPct: z.lo, hiPct: z.hi,
+    }));
+  }
+
+  function zoneFor(watts, ftp) {
+    if (!ftp || !watts) return null;
+    const pct = watts / ftp;
+    for (const z of ZONES) if (pct <= z.hi) return z;
+    return ZONES[ZONES.length - 1];
+  }
+
+  /* -------------------------------------------------------------- FTP */
+
+  const isRide = a => a.type === 'cycling';
+
+  /** Best power a ride sustained. Garmin's own NP is preferred where present —
+   *  it is computed from the stream we do not have. */
+  function ridePower(a) {
+    return a.np || a.avg_watts || null;
+  }
+
+  /**
+   * Estimate FTP from the hardest sustained rides in the file.
+   *
+   * A ~60 minute effort is roughly FTP by definition; a ~20 minute one is
+   * conventionally taken at 95%. Both windows are checked and the higher
+   * estimate wins. This is a starting point, not a test result — ride averages
+   * include coasting, so it usually reads low.
+   */
+  function estimateFTP(activities) {
+    const windows = [
+      { lo: 1200, hi: 2100, factor: 0.95, label: '20-35 min effort' },
+      { lo: 3000, hi: 5400, factor: 1.00, label: '50-90 min effort' },
+    ];
+    let best = null;
+    activities.filter(isRide).forEach(a => {
+      const p = ridePower(a);
+      const secs = a.moving_s || 0;
+      if (!p || !secs) return;
+      windows.forEach(w => {
+        if (secs < w.lo || secs > w.hi) return;
+        const est = p * w.factor;
+        if (!best || est > best.ftp) {
+          best = {
+            ftp: Math.round(est), from: w.label, date: (a.start || '').slice(0, 10),
+            name: a.name, watts: Math.round(p), source: a.np ? 'normalized power' : 'average power',
+          };
+        }
+      });
+    });
+    return best;
+  }
+
+  /* ----------------------------------------------------- effort scoring */
+
+  function intensityFactor(a, ftp) {
+    if (a.intensity) return a.intensity;
+    const p = ridePower(a);
+    return (p && ftp) ? p / ftp : null;
+  }
+
+  /**
+   * Training Stress Score for one ride.
+   *
+   * Garmin's own figure is used when the file has it. Otherwise the standard
+   * formula is applied to whatever power we do have; failing that a
+   * heart-rate estimate keeps rides from a bike with no power meter in the
+   * picture, flagged so the two are never confused.
+   */
+  function rideTSS(a, ftp, restHr, maxHr) {
+    if (a.tss) return { tss: a.tss, basis: 'file' };
+
+    const secs = a.moving_s || 0;
+    if (!secs) return { tss: 0, basis: 'none' };
+
+    const np = ridePower(a);
+    if (np && ftp) {
+      const IF = np / ftp;
+      return { tss: Math.round((secs * np * IF) / (ftp * 3600) * 100 * 10) / 10,
+               basis: a.np ? 'power' : 'average power' };
+    }
+    if (a.avg_hr && maxHr) {
+      // hrTSS: an hour at threshold heart rate is 100 points, scaled by the
+      // square of the reserve fraction so hard hours count for much more.
+      const frac = Math.min(Math.max((a.avg_hr - restHr) / Math.max(maxHr - restHr, 1), 0), 1);
+      return { tss: Math.round((secs / 3600) * 100 * Math.pow(frac / 0.85, 2) * 10) / 10,
+               basis: 'heart rate' };
+    }
+    return { tss: Math.round((secs / 3600) * 40), basis: 'duration only' };
+  }
+
+  /* ------------------------------------------------- fitness & fatigue */
+
+  /**
+   * The performance management chart: fitness, fatigue and form.
+   *
+   * CTL is an exponentially weighted 42-day average of daily TSS, ATL the same
+   * over 7 days, and form is yesterday's CTL minus yesterday's ATL — the
+   * standard construction. Rest days count as zero, which is the point of it.
+   */
+  function pmc(activities, opts) {
+    opts = opts || {};
+    const ftp = opts.ftp, restHr = opts.restHr || 50, maxHr = opts.maxHr || 190;
+    const daily = {};
+    activities.forEach(a => {
+      if (!a.start) return;
+      const day = a.start.slice(0, 10);
+      daily[day] = (daily[day] || 0) + rideTSS(a, ftp, restHr, maxHr).tss;
+    });
+
+    const days = Object.keys(daily).sort();
+    if (!days.length) return { series: [], today: null };
+
+    const start = new Date(days[0] + 'T00:00:00Z');
+    const end = opts.today || new Date();
+    const series = [];
+    let ctl = 0, atl = 0;
+    for (let t = start.getTime(); t <= end.getTime(); t += 86400000) {
+      const key = new Date(t).toISOString().slice(0, 10);
+      const tss = daily[key] || 0;
+      const form = ctl - atl;                       // yesterday's values
+      ctl += (tss - ctl) / 42;
+      atl += (tss - atl) / 7;
+      series.push({
+        date: key, tss: Math.round(tss * 10) / 10,
+        ctl: Math.round(ctl * 10) / 10,
+        atl: Math.round(atl * 10) / 10,
+        form: Math.round(form * 10) / 10,
+      });
+    }
+    const last = series[series.length - 1];
+    return { series: series, today: last, verdict: formVerdict(last.form) };
+  }
+
+  /** What today's form number means for what to ride. */
+  function formVerdict(form) {
+    if (form == null) return { label: 'unknown', kind: 'mute', advice: '' };
+    if (form > 20) return { label: 'very fresh', kind: 'good',
+      advice: 'Well rested — arguably detrained. A hard session or a race is well within you.' };
+    if (form > 5) return { label: 'fresh', kind: 'good',
+      advice: 'Rested and ready. Good day for intervals or an event.' };
+    if (form >= -10) return { label: 'neutral', kind: 'mute',
+      advice: 'Balanced. Normal training, hard or easy, both fine.' };
+    if (form >= -30) return { label: 'building', kind: 'warn',
+      advice: 'Carrying real fatigue — which is where fitness comes from. Keep easy days easy.' };
+    return { label: 'deep fatigue', kind: 'crit',
+      advice: 'Heavily loaded. Recovery or endurance only until this comes back up.' };
+  }
+
+  /* ------------------------------------------------------------- rider */
+
+  function wattsPerKg(ftp, kg) {
+    return (ftp && kg) ? Math.round((ftp / kg) * 100) / 100 : null;
+  }
+
+  /**
+   * VO2 max estimate, via the ACSM leg-ergometry equation
+   * (VO2 mL/kg/min = 10.8 x watts / kg + 7 + 3.5), evaluated at the power a
+   * rider can hold for about five minutes — near 120% of FTP.
+   *
+   * It is an estimate from a formula, not a lab measurement, and it moves
+   * with FTP and weight alone.
+   */
+  function vo2maxEstimate(ftp, kg) {
+    if (!ftp || !kg) return null;
+    const vo2Power = ftp * 1.2;
+    return Math.round(((10.8 * vo2Power / kg) + 10.5) * 10) / 10;
+  }
+
+  function vo2Rating(vo2, age, sex) {
+    if (!vo2) return null;
+    // Broad population bands; useful for orientation, not diagnosis.
+    const male = sex !== 'female';
+    const bands = male
+      ? [['superior', 55], ['excellent', 49], ['good', 43], ['fair', 37], ['poor', 0]]
+      : [['superior', 49], ['excellent', 44], ['good', 38], ['fair', 32], ['poor', 0]];
+    for (const [label, floor] of bands) if (vo2 >= floor) return label;
+    return 'poor';
+  }
+
+  /* ---------------------------------------------------- ride summaries */
+
+  /** Best sustained power by duration band. Not a mean-maximal power curve —
+   *  that needs streams — but it is the honest version of one from a CSV. */
+  function powerProfile(activities) {
+    const bands = [
+      ['under 30 min', 0, 1800], ['30-60 min', 1800, 3600],
+      ['1-2 hours', 3600, 7200], ['2-4 hours', 7200, 14400],
+      ['over 4 hours', 14400, Infinity],
+    ];
+    const out = [];
+    bands.forEach(([label, lo, hi]) => {
+      let best = null;
+      activities.filter(isRide).forEach(a => {
+        const secs = a.moving_s || 0, p = ridePower(a);
+        if (!p || secs < lo || secs >= hi) return;
+        if (!best || p > best.watts) {
+          best = { watts: Math.round(p), date: (a.start || '').slice(0, 10),
+                   name: a.name, normalized: !!a.np,
+                   duration: secs };
+        }
+      });
+      if (best) out.push(Object.assign({ band: label }, best));
+    });
+    return out;
+  }
+
+  function speedStats(activities, imperial) {
+    const rides = activities.filter(a => isRide(a) && a.avg_speed_mps && a.moving_s);
+    if (!rides.length) return null;
+    const totalTime = rides.reduce((s, a) => s + a.moving_s, 0);
+    const totalDist = rides.reduce((s, a) => s + (a.distance_m || 0), 0);
+    const factor = imperial ? 2.236936 : 3.6;           // m/s to mph or km/h
+    const fastest = rides.reduce((b, a) => (!b || a.avg_speed_mps > b.avg_speed_mps ? a : b), null);
+    return {
+      average: Math.round((totalDist / totalTime) * factor * 10) / 10,
+      best: Math.round(fastest.avg_speed_mps * factor * 10) / 10,
+      bestDate: (fastest.start || '').slice(0, 10),
+      unit: imperial ? 'mph' : 'km/h',
+      rides: rides.length,
+    };
+  }
+
+  /** How the last N days of riding split across the zones, by time. Rides are
+   *  placed whole, by their normalized power — a CSV cannot do better. */
+  function zoneDistribution(activities, ftp, days, today) {
+    if (!ftp) return null;
+    today = today || new Date();
+    const cutoff = today.getTime() - (days || 42) * 86400000;
+    const buckets = {};
+    ZONES.forEach(z => { buckets[z.key] = 0; });
+    let total = 0, unpowered = 0;
+
+    activities.filter(isRide).forEach(a => {
+      if (!a.start || new Date(a.start).getTime() < cutoff) return;
+      const secs = a.moving_s || 0;
+      const p = ridePower(a);
+      if (!secs) return;
+      if (!p) { unpowered += secs; return; }
+      const z = zoneFor(p, ftp);
+      buckets[z.key] += secs;
+      total += secs;
+    });
+    if (!total) return null;
+    return {
+      total: total, unpowered: unpowered,
+      rows: ZONES.map(z => ({
+        n: z.n, key: z.key, name: z.name,
+        seconds: buckets[z.key],
+        pct: Math.round((1000 * buckets[z.key] / total)) / 10,
+      })).filter(r => r.seconds > 0),
+    };
+  }
+
+  const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor,
+                rideTSS, pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
+                powerProfile, speedStats, zoneDistribution };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Cycling = api;
+})(typeof self !== 'undefined' ? self : this);
+
+/* Building bike workouts, recommending them, and scheduling them.
+ *
+ * Targets are held as fractions of FTP throughout, so one library serves every
+ * rider and re-testing FTP re-scales every session automatically. Watts appear
+ * only at the moment something is displayed or exported.
+ *
+ * The text box is a parser, not a language model: it reads explicit interval
+ * notation ("4x8min @ 110%") and matches everything else against the session
+ * library by keyword. It says which it did, so a rider is never guessing
+ * whether it understood them.
+ */
+(function (root) {
+  'use strict';
+
+  // In the browser these arrive as globals from the bundle; under node the
+  // test suite loads them through require.
+  const Cy = (typeof module !== 'undefined' && module.exports)
+    ? require('./cycling.js') : root.Cycling;
+
+  /* ------------------------------------------------------------ library */
+
+  const step = (role, seconds, lo, hi, label, extra) =>
+    Object.assign({ role, seconds, lo, hi: hi == null ? lo : hi, label: label || null }, extra || {});
+
+  /** Warm-up and cool-down are taken OUT of the time the rider asked for, not
+   *  added on top: "90 minute endurance ride" must come back as 90 minutes. */
+  function wrapperSeconds(totalMinutes) {
+    if (totalMinutes >= 60) return 600;
+    if (totalMinutes >= 40) return 450;
+    if (totalMinutes >= 25) return 300;
+    return 180;
+  }
+
+  /** Every session is a function of how long the rider has, so "sweet spot"
+   *  and "sweet spot in 45 minutes" are the same template. */
+  const LIBRARY = [
+    {
+      key: 'recovery', name: 'Recovery spin', focus: 'recovery',
+      zone: 1, defaultMinutes: 45,
+      keywords: ['recovery', 'easy spin', 'rest', 'active recovery', 'shake out', 'legs out'],
+      blurb: 'Genuinely easy. The point is blood flow, not training.',
+      build: mins => [step('work', Math.round(mins * 60), 0.45, 0.55, 'Spin easy',
+                           { cadence: '90-100 rpm' })],
+    },
+    {
+      key: 'endurance', name: 'Endurance ride', focus: 'endurance',
+      zone: 2, defaultMinutes: 90,
+      keywords: ['endurance', 'base', 'zone 2', 'z2', 'long', 'aerobic', 'steady', 'easy ride'],
+      blurb: 'The bulk of a cyclist’s year. Conversational, all day.',
+      build: mins => [step('work', Math.round(mins * 60), 0.60, 0.72, 'Steady endurance')],
+    },
+    {
+      key: 'tempo', name: 'Tempo', focus: 'tempo',
+      zone: 3, defaultMinutes: 75,
+      keywords: ['tempo', 'zone 3', 'z3', 'moderate'],
+      blurb: 'Firm but sustainable. Useful in a time crunch, easy to overdo.',
+      build: mins => {
+        const reps = mins > 50 ? 3 : mins > 30 ? 2 : 1;
+        const rest = reps > 1 ? 5 : 0;
+        const each = Math.max(8, Math.round((mins - rest * (reps - 1)) / reps));
+        return [{ repeat: reps, steps: [
+          step('work', each * 60, 0.76, 0.85, each + ' min tempo'),
+          step('recovery', rest * 60, 0.45, 0.55, 'Easy'),
+        ] }];
+      },
+    },
+    {
+      key: 'sweetspot', name: 'Sweet spot', focus: 'sweet spot',
+      zone: 3, defaultMinutes: 75,
+      keywords: ['sweet spot', 'sweetspot', 'ss', 'sub-threshold', 'sub threshold'],
+      blurb: 'Just under threshold — most fitness per unit of fatigue.',
+      build: mins => {
+        const reps = mins >= 45 ? 3 : mins >= 28 ? 2 : 1;
+        const rest = reps > 1 ? 5 : 0;
+        const each = Math.max(8, Math.round((mins - rest * (reps - 1)) / reps));
+        return [{ repeat: reps, steps: [
+          step('work', each * 60, 0.88, 0.93, each + ' min sweet spot'),
+          step('recovery', rest * 60, 0.45, 0.55, 'Easy'),
+        ] }];
+      },
+    },
+    {
+      key: 'threshold', name: 'Threshold intervals', focus: 'threshold',
+      zone: 4, defaultMinutes: 75,
+      keywords: ['threshold', 'ftp', 'zone 4', 'z4', '2x20', 'lt', 'lactate'],
+      blurb: 'At the line you can hold for an hour. Raises the ceiling of everything below.',
+      build: mins => {
+        const reps = mins >= 55 ? 3 : 2;
+        const rest = 5;
+        const each = Math.max(8, Math.round((mins - rest * (reps - 1)) / reps));
+        return [{ repeat: reps, steps: [
+          step('work', each * 60, 0.95, 1.00, each + ' min at threshold'),
+          step('recovery', rest * 60, 0.45, 0.55, 'Easy'),
+        ] }];
+      },
+    },
+    {
+      key: 'overunder', name: 'Over-unders', focus: 'over-unders',
+      zone: 4, defaultMinutes: 75,
+      keywords: ['over under', 'over-under', 'overunder', 'over/under', 'clearance'],
+      blurb: 'Alternating side to side of threshold — teaches you to clear lactate while still working.',
+      build: mins => {
+        const sets = Math.max(2, Math.min(4, Math.round(mins / 17)));
+        return [{ repeat: sets, steps: [
+          { repeat: 3, steps: [
+            step('work', 120, 1.03, 1.06, '2 min over'),
+            step('work', 120, 0.88, 0.92, '2 min under'),
+          ] },
+          step('recovery', 300, 0.45, 0.55, 'Easy'),
+        ] }];
+      },
+    },
+    {
+      key: 'vo2max', name: 'VO2 max intervals', focus: 'vo2 max',
+      zone: 5, defaultMinutes: 70,
+      keywords: ['vo2', 'vo2max', 'vo2 max', 'zone 5', 'z5', 'max aerobic', '5x3', '4x4'],
+      blurb: 'Hard enough that breathing sets the limit. Where aerobic ceiling moves.',
+      build: mins => {
+        const each = mins >= 40 ? 4 : 3;
+        const reps = Math.max(4, Math.min(6, Math.round(mins / (each * 2))));
+        return [{ repeat: reps, steps: [
+          step('work', each * 60, 1.08, 1.15, each + ' min at VO2 max'),
+          step('recovery', each * 60, 0.45, 0.55, 'Equal recovery'),
+        ] }];
+      },
+    },
+    {
+      key: 'anaerobic', name: 'Anaerobic capacity', focus: 'anaerobic',
+      zone: 6, defaultMinutes: 60,
+      keywords: ['anaerobic', 'zone 6', 'z6', 'capacity', '1 minute', 'attacks'],
+      blurb: 'Short, very hard, long recoveries. Race-winning efforts.',
+      build: mins => {
+        const reps = Math.max(5, Math.min(10, Math.round(mins / 4)));
+        return [{ repeat: reps, steps: [
+          step('work', 60, 1.25, 1.40, '1 min hard'),
+          step('recovery', 180, 0.40, 0.50, '3 min easy'),
+        ] }];
+      },
+    },
+    {
+      key: 'sprints', name: 'Sprints', focus: 'neuromuscular',
+      zone: 7, defaultMinutes: 60,
+      keywords: ['sprint', 'sprints', 'neuromuscular', 'zone 7', 'z7', 'power', 'jumps'],
+      blurb: 'All-out and short, fully recovered between. Quality over quantity.',
+      build: mins => {
+        const reps = Math.max(6, Math.min(10, Math.round(mins / 5)));
+        return [{ repeat: reps, steps: [
+          step('work', 15, 1.80, 2.20, '15 s sprint', { cadence: 'max' }),
+          step('recovery', 285, 0.40, 0.50, 'Full recovery'),
+        ] }];
+      },
+    },
+    {
+      key: 'ftptest', name: 'FTP test (20 min)', focus: 'test',
+      zone: 4, defaultMinutes: 60,
+      keywords: ['ftp test', 'test', '20 minute test', '20 min test', 'benchmark', 'retest'],
+      blurb: 'The classic. Your FTP is about 95% of the average power you hold for the 20 minutes.',
+      build: () => [
+        step('work', 300, 1.00, 1.10, '5 min opener, hard'),
+        step('recovery', 600, 0.45, 0.55, '10 min easy'),
+        step('work', 1200, 1.00, 1.10, '20 min all-out — pace it evenly'),
+      ],
+    },
+  ];
+
+  const byKey = k => LIBRARY.find(w => w.key === k);
+
+  /* -------------------------------------------------------------- parse */
+
+  const DURATION_RE = /(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?|m)\b/i;
+  // "4x8min @ 110%", "3 x 10 at threshold", "5x3"
+  const EXPLICIT_RE = /(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(s|sec|secs|seconds|m|min|mins|minutes)?\s*(?:@|at)?\s*([^,;]*)/i;
+
+  function parseDurationMinutes(text) {
+    const m = DURATION_RE.exec(text);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    return /^h/i.test(m[2]) ? Math.round(n * 60) : Math.round(n);
+  }
+
+  /** Turn a target phrase into a fraction-of-FTP band. */
+  function parseTarget(text, ftp) {
+    if (!text) return null;
+    const t = text.trim().toLowerCase();
+
+    const pctRange = /(\d+)\s*[-–]\s*(\d+)\s*%/.exec(t);
+    if (pctRange) return [Number(pctRange[1]) / 100, Number(pctRange[2]) / 100];
+    const pct = /(\d+)\s*%/.exec(t);
+    if (pct) return [Number(pct[1]) / 100, Number(pct[1]) / 100];
+
+    const wattRange = /(\d+)\s*[-–]\s*(\d+)\s*(?:w|watts)/.exec(t);
+    if (wattRange && ftp) return [Number(wattRange[1]) / ftp, Number(wattRange[2]) / ftp];
+    const watt = /(\d+)\s*(?:w|watts)\b/.exec(t);
+    if (watt && ftp) return [Number(watt[1]) / ftp, Number(watt[1]) / ftp];
+
+    const zone = /zone\s*([1-7])|^z([1-7])\b/.exec(t);
+    if (zone) {
+      const z = Cy.ZONES[Number(zone[1] || zone[2]) - 1];
+      return [z.lo, Math.min(z.hi, 2.2)];
+    }
+    for (const w of LIBRARY) {
+      if (w.keywords.some(k => t.indexOf(k) !== -1)) {
+        const built = w.build(w.defaultMinutes);
+        const first = built[0].repeat ? built[0].steps[0] : built[0];
+        return [first.lo, first.hi];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Read what the rider typed.
+   *
+   * Explicit notation is tried first, because "4x8 at 110%" is a specific
+   * request and should not be approximated by the nearest template.
+   */
+  function fromText(text, opts) {
+    opts = opts || {};
+    const ftp = opts.ftp;
+    const raw = String(text || '').trim();
+    if (!raw) throw new Error('Describe the session you want — "2x20 at threshold", "90 minute endurance ride", "short vo2 session".');
+
+    let minutes = parseDurationMinutes(raw);
+    const lowerRaw = raw.toLowerCase();
+    const modifier = /\bshort\b|\bquick\b/.test(lowerRaw) ? 0.7
+                   : /\blong\b|\bbig\b/.test(lowerRaw) ? 1.4 : 1;
+
+    const ex = EXPLICIT_RE.exec(raw);
+    if (ex && Number(ex[1]) >= 2 && Number(ex[1]) <= 30) {
+      const reps = Number(ex[1]);
+      const unitIsSeconds = /^s/i.test(ex[3] || '');
+      const each = Number(ex[2]) * (unitIsSeconds ? 1 : 60);
+      const target = parseTarget(ex[4], ftp) || parseTarget(raw, ftp) || [0.95, 1.00];
+      const rest = Math.round(each >= 300 ? 300 : Math.max(60, each * 0.75));
+      const label = unitIsSeconds ? `${ex[2]} s` : `${ex[2]} min`;
+      return finish({
+        name: `${reps} x ${label}`,
+        focus: describeTarget(target),
+        blurb: 'Built from exactly what you asked for.',
+        interpretation: `Read as ${reps} x ${label} at ${describeTarget(target)}.`,
+        matched: 'explicit',
+        steps: [{ repeat: reps, steps: [
+          step('work', each, target[0], target[1], label),
+          step('recovery', rest, 0.45, 0.55, 'Recovery'),
+        ] }],
+      }, ftp, Math.round(reps * (each + rest) / 60) + 20);
+    }
+
+    // Otherwise match the library on keywords, most specific phrase first.
+    const lower = raw.toLowerCase();
+    let best = null;
+    LIBRARY.forEach(w => {
+      w.keywords.forEach(k => {
+        if (lower.indexOf(k) !== -1 && (!best || k.length > best.k.length)) best = { w, k };
+      });
+    });
+    if (!best) {
+      throw new Error(
+        'Not sure what session that is. Try naming an effort — endurance, tempo, ' +
+        'sweet spot, threshold, over-unders, VO2 max, anaerobic, sprints — or write ' +
+        'it out, like "4x8min at 110%".');
+    }
+    const w = best.w;
+    const mins = minutes || Math.round(w.defaultMinutes * modifier);
+    const wrapMins = (wrapperSeconds(mins) * 2) / 60;
+    const workMins = Math.max(6, mins - wrapMins);
+    return finish({
+      name: w.name, focus: w.focus, blurb: w.blurb, key: w.key,
+      interpretation: `Matched "${best.k}" to ${w.name}, built to fill ${mins} minutes` +
+        (minutes ? '' : modifier !== 1 ? ` (${modifier < 1 ? 'short' : 'long'} version)` : '') + '.',
+      matched: 'library',
+      steps: w.build(workMins),
+    }, ftp, mins);
+  }
+
+  function describeTarget(t) {
+    const mid = (t[0] + t[1]) / 2;
+    const z = Cy.ZONES.find(z => mid <= z.hi) || Cy.ZONES[6];
+    return z.name.toLowerCase();
+  }
+
+  /** Wrap the working set in a warm-up and cool-down and total it up. */
+  function finish(workout, ftp, totalMinutes) {
+    const wrap = wrapperSeconds(totalMinutes || 60);
+    const steps = [step('warmup', wrap, 0.50, 0.70, 'Warm up')]
+      .concat(workout.steps)
+      .concat([step('cooldown', wrap, 0.55, 0.40, 'Cool down')]);
+    workout.steps = steps;
+    workout.seconds = totalSeconds(steps);
+    workout.ftp = ftp || null;
+    if (ftp) {
+      workout.tss = estimateTSS(steps, ftp);
+      workout.if = Math.round(averageIntensity(steps) * 100) / 100;
+    }
+    return workout;
+  }
+
+  /** Expand repeats into a flat list.
+   *
+   *  The recovery after the LAST repetition is dropped: you ride the cool-down
+   *  instead, and counting it makes every session overshoot the time asked for.
+   */
+  function flatten(steps, out) {
+    out = out || [];
+    steps.forEach(s => {
+      if (s.repeat) {
+        const inner = s.steps;
+        const tail = inner[inner.length - 1];
+        const dropTail = s.skipLastRecovery !== false &&
+                         inner.length > 1 && tail.role === 'recovery';
+        for (let i = 0; i < s.repeat; i++) {
+          const last = i === s.repeat - 1;
+          flatten(last && dropTail ? inner.slice(0, -1) : inner, out);
+        }
+      } else out.push(s);
+    });
+    return out;
+  }
+
+  const totalSeconds = steps => flatten(steps).reduce((t, s) => t + s.seconds, 0);
+
+  /** Intensity factor of the whole session, via the same fourth-power
+   *  weighting that normalized power uses. */
+  function averageIntensity(steps) {
+    const flat = flatten(steps);   // already honours the dropped final recovery
+    const total = flat.reduce((t, s) => t + s.seconds, 0);
+    if (!total) return 0;
+    const weighted = flat.reduce((t, s) => {
+      const mid = (s.lo + s.hi) / 2;
+      return t + Math.pow(mid, 4) * s.seconds;
+    }, 0);
+    return Math.pow(weighted / total, 0.25);
+  }
+
+  function estimateTSS(steps, ftp) {
+    const secs = totalSeconds(steps);
+    const IF = averageIntensity(steps);
+    return Math.round((secs / 3600) * IF * IF * 100);
+  }
+
+  /* ------------------------------------------------------------- render */
+
+  function watts(fraction, ftp) {
+    return ftp ? Math.round(fraction * ftp) : null;
+  }
+
+  function describe(workout, ftp) {
+    ftp = ftp || workout.ftp;
+    const lines = [];
+    const fmt = s => {
+      const m = Math.floor(s / 60), sec = s % 60;
+      return sec ? `${m}:${String(sec).padStart(2, '0')}` : `${m} min`;
+    };
+    const target = s => {
+      if (!ftp) return `${Math.round(s.lo * 100)}-${Math.round(s.hi * 100)}% FTP`;
+      const a = watts(s.lo, ftp), b = watts(s.hi, ftp);
+      return a === b ? `${a} W` : `${Math.min(a, b)}-${Math.max(a, b)} W`;
+    };
+    const walk = (steps, indent) => {
+      steps.forEach(s => {
+        if (s.repeat) {
+          lines.push(`${indent}${s.repeat} x`);
+          walk(s.steps, indent + '    ');
+        } else {
+          lines.push(`${indent}${fmt(s.seconds).padEnd(8)} ${target(s)}` +
+                     (s.label ? `   ${s.label}` : ''));
+        }
+      });
+    };
+    walk(workout.steps, '  ');
+    return lines.join('\n');
+  }
+
+  /* ------------------------------------------------------------- export */
+
+  function toZWO(workout, ftp) {
+    const esc = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    const body = [];
+    const emit = steps => {
+      steps.forEach(s => {
+        if (s.repeat) {
+          const on = s.steps[0], off = s.steps[1];
+          if (s.steps.length === 2 && off && off.role === 'recovery') {
+            if (s.repeat > 1) {
+              body.push(`    <IntervalsT Repeat="${s.repeat - 1}" OnDuration="${on.seconds}" ` +
+                        `OffDuration="${off.seconds}" OnPower="${on.lo.toFixed(3)}" ` +
+                        `OffPower="${off.lo.toFixed(3)}"/>`);
+            }
+            body.push(`    <SteadyState Duration="${on.seconds}" Power="${((on.lo + on.hi) / 2).toFixed(3)}"/>`);
+          } else {
+            // Anything more complex than on/off is written out longhand.
+            for (let i = 0; i < s.repeat; i++) emit(s.steps);
+          }
+          return;
+        }
+        if (s.role === 'warmup') {
+          body.push(`    <Warmup Duration="${s.seconds}" PowerLow="${s.lo.toFixed(3)}" PowerHigh="${s.hi.toFixed(3)}"/>`);
+        } else if (s.role === 'cooldown') {
+          body.push(`    <Cooldown Duration="${s.seconds}" PowerLow="${s.lo.toFixed(3)}" PowerHigh="${s.hi.toFixed(3)}"/>`);
+        } else {
+          const p = ((s.lo + s.hi) / 2).toFixed(3);
+          body.push(`    <SteadyState Duration="${s.seconds}" Power="${p}"/>`);
+        }
+      });
+    };
+    emit(workout.steps);
+    return `<workout_file>
+  <author>Training Hub</author>
+  <name>${esc(workout.name)}</name>
+  <description>${esc(workout.blurb || '')}</description>
+  <sportType>bike</sportType>
+  <tags/>
+  <workout>
+${body.join('\n')}
+  </workout>
+</workout_file>
+`;
+  }
+
+  /** .mrc is percentage of FTP over time; .erg the same shape in watts. */
+  function toCourseFile(workout, ftp, asWatts) {
+    const rows = [];
+    let t = 0;
+    flatten(workout.steps).forEach(s => {
+      const a = asWatts ? watts(s.lo, ftp) : Math.round(s.lo * 100);
+      const b = asWatts ? watts(s.hi, ftp) : Math.round(s.hi * 100);
+      rows.push([(t / 60).toFixed(2), a]);
+      t += s.seconds;
+      rows.push([(t / 60).toFixed(2), b]);
+    });
+    return `[COURSE HEADER]
+VERSION = 2
+UNITS = ENGLISH
+DESCRIPTION = ${workout.name}
+FILE NAME = ${workout.name.replace(/[^\w]+/g, '-').toLowerCase()}
+MINUTES ${asWatts ? 'WATTS' : 'PERCENT'}
+[END COURSE HEADER]
+[COURSE DATA]
+${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
+[END COURSE DATA]
+`;
+  }
+
+  const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile,
+                flatten, totalSeconds, estimateTSS, averageIntensity, watts,
+                parseTarget, parseDurationMinutes, finish, step };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Workouts = api;
+})(typeof self !== 'undefined' ? self : this);
+
+/* Deciding what to ride, and when.
+ *
+ * These are rules, not a model. Everything below follows from the standard
+ * fitness/fatigue picture — form decides whether you can absorb a hard session,
+ * intensity distribution decides which kind is missing, and a plan ramps
+ * chronic load at a rate people generally tolerate. Each recommendation says
+ * which rule produced it, so a rider can disagree with the reasoning rather
+ * than just the answer.
+ */
+(function (root) {
+  'use strict';
+
+  const req = (typeof module !== 'undefined' && module.exports);
+  const Cy = req ? require('./cycling.js') : root.Cycling;
+  const Wk = req ? require('./workouts.js') : root.Workouts;
+
+  const DAY = 86400000;
+
+  /* ---------------------------------------------------- recent history */
+
+  function recentRides(activities, days, today) {
+    const cutoff = (today || new Date()).getTime() - days * DAY;
+    return activities.filter(a => a.type === 'cycling' && a.start &&
+                                  new Date(a.start).getTime() >= cutoff);
+  }
+
+  /** How long since a genuinely hard ride — the thing that decides whether
+   *  another one is reasonable today. */
+  function daysSinceHard(activities, ftp, today) {
+    today = today || new Date();
+    let best = null;
+    activities.filter(a => a.type === 'cycling' && a.start).forEach(a => {
+      const p = Cy.ridePower(a);
+      const hard = (ftp && p && p >= ftp * 0.88) ||
+                   (!p && a.avg_hr && a.avg_hr > 0 && (a.moving_s || 0) > 1800 && a.avg_hr >= 155);
+      if (!hard) return;
+      const age = Math.floor((today - new Date(a.start)) / DAY);
+      if (age >= 0 && (best == null || age < best)) best = age;
+    });
+    return best;
+  }
+
+  function weeklyHours(activities, today) {
+    const rides = recentRides(activities, 28, today);
+    if (!rides.length) return 0;
+    return Math.round((rides.reduce((s, a) => s + (a.moving_s || 0), 0) / 3600 / 4) * 10) / 10;
+  }
+
+  /* -------------------------------------------------------- recommend */
+
+  /**
+   * Suggest today's session.
+   *
+   * Order matters: fatigue vetoes everything, then a recent hard day, then the
+   * gap in the rider's intensity distribution, and only then a default.
+   */
+  function recommend(activities, profile, today) {
+    today = today || new Date();
+    const ftp = profile && profile.ftp;
+    const pmc = Cy.pmc(activities, {
+      ftp: ftp, restHr: profile && profile.restHr, maxHr: profile && profile.maxHr, today: today,
+    });
+    const form = pmc.today ? pmc.today.form : null;
+    const ctl = pmc.today ? pmc.today.ctl : 0;
+    const sinceHard = daysSinceHard(activities, ftp, today);
+    const hours = weeklyHours(activities, today);
+    const dist = Cy.zoneDistribution(activities, ftp, 42, today);
+    const rides28 = recentRides(activities, 28, today).length;
+
+    const pattern = distributionNote(dist, ctl);
+    const pick = (key, why, note) => ({
+      key: key,
+      workout: Wk.fromText(Wk.byKey(key).name, { ftp: ftp }),
+      why: why,
+      note: note || null,
+      pattern: pattern,
+      form: form, ctl: Math.round(ctl * 10) / 10,
+      daysSinceHard: sinceHard, weeklyHours: hours,
+    });
+
+    if (rides28 < 3) {
+      return pick('endurance',
+        'There is not much recent riding here to go on.',
+        'Build a couple of weeks of steady riding first — the recommendations get sharper once there is a pattern to read.');
+    }
+
+    if (form != null && form < -30) {
+      return pick('recovery',
+        `Form is ${Math.round(form)}, which is deep fatigue.`,
+        'Another hard session here buys very little and costs a lot. Spin, or take the day off entirely.');
+    }
+
+    if (sinceHard != null && sinceHard < 1) {
+      return pick('recovery',
+        'You rode hard today already.',
+        'Easy spinning helps you absorb it.');
+    }
+
+    if (sinceHard != null && sinceHard < 2 && form != null && form < -10) {
+      return pick('endurance',
+        'Yesterday was hard and form is still negative.',
+        'Steady endurance keeps the volume up without adding to the hole.');
+    }
+
+    // Enough freshness for real work: pick the intensity the rider is short of.
+    const fresh = form == null || form > -12;
+    if (fresh) {
+      const hardEnough = sinceHard == null || sinceHard >= 2;
+      if (hardEnough && dist) {
+        const pctOf = keys => dist.rows
+          .filter(r => keys.indexOf(r.key) !== -1)
+          .reduce((s, r) => s + r.pct, 0);
+        const easy = pctOf(['recovery', 'endurance']);
+        const middle = pctOf(['tempo']);
+        const top = pctOf(['vo2max', 'anaerobic', 'neuro']);
+
+        if (middle > 25) {
+          return pick('vo2max',
+            `${Math.round(middle)}% of your riding sits in tempo — the grey zone.`,
+            'Tempo is tiring without being decisive. Going properly hard today, and properly easy tomorrow, gives more for the same fatigue.');
+        }
+        if (easy > 88 && ctl > 25) {
+          return pick('threshold',
+            `${Math.round(easy)}% of your riding is easy, with almost nothing at threshold.`,
+            'The aerobic base is there. Some work at threshold will convert it.');
+        }
+        if (top < 3 && ctl > 35) {
+          return pick('vo2max',
+            'Solid fitness, but nothing above threshold in the last six weeks.',
+            'A VO2 session moves the ceiling that everything else sits under.');
+        }
+      }
+      if (hardEnough) {
+        return pick('sweetspot',
+          form != null ? `Form is ${Math.round(form)} — you can take a real session.`
+                       : 'You look ready for a real session.',
+          'Sweet spot is the reliable default: most of the benefit of threshold work, noticeably less cost.');
+      }
+    }
+
+    const ago = sinceHard == null
+      ? 'there is no hard ride on record'
+      : `the last hard ride was ${sinceHard} day${sinceHard === 1 ? '' : 's'} ago`;
+    return pick('endurance',
+      form != null ? `Form is ${Math.round(form)} and ${ago}.`
+                   : 'Steady riding is the safe call today.',
+      'Endurance is never the wrong answer — it is what most of a season is made of.');
+  }
+
+  /** A standing observation about the last six weeks of riding, independent of
+   *  what today calls for. Returns null when the mix looks reasonable. */
+  function distributionNote(dist, ctl) {
+    if (!dist) return null;
+    const pctOf = keys => dist.rows
+      .filter(r => keys.indexOf(r.key) !== -1)
+      .reduce((s, r) => s + r.pct, 0);
+    const easy = pctOf(['recovery', 'endurance']);
+    const middle = pctOf(['tempo']);
+    const top = pctOf(['vo2max', 'anaerobic', 'neuro']);
+
+    if (middle > 25) {
+      return `Over the last six weeks ${Math.round(middle)}% of your riding sat in tempo. ` +
+             'That band is tiring without being decisive — most riders get more from ' +
+             'pushing the easy days easier and the hard days harder.';
+    }
+    if (easy > 92 && ctl > 25) {
+      return `${Math.round(easy)}% of your riding has been easy. The aerobic base is ` +
+             'there; it needs some work at threshold to convert into speed.';
+    }
+    if (top < 2 && ctl > 35) {
+      return 'Nothing above threshold in six weeks. Your ceiling is where it was; ' +
+             'a VO2 session every week or two moves it.';
+    }
+    return null;
+  }
+
+  /* -------------------------------------------------------------- plan */
+
+  const PHASES = [
+    { key: 'base',  name: 'Base',  blurb: 'Volume and aerobic depth. Mostly endurance, one quality day.' },
+    { key: 'build', name: 'Build', blurb: 'Two hard sessions a week around a base of endurance.' },
+    { key: 'peak',  name: 'Peak',  blurb: 'Sharper and shorter — race-specific intensity, volume easing back.' },
+    { key: 'taper', name: 'Taper', blurb: 'Volume drops hard, intensity stays. You should feel twitchy.' },
+  ];
+
+  // Which sessions a week is made of, per phase. Rest days are the gaps.
+  const WEEK_SHAPES = {
+    base:  [['Tue', 'sweetspot'], ['Thu', 'endurance'], ['Sat', 'endurance'], ['Sun', 'endurance']],
+    build: [['Tue', 'threshold'], ['Thu', 'vo2max'], ['Sat', 'endurance'], ['Sun', 'endurance']],
+    peak:  [['Tue', 'vo2max'], ['Thu', 'overunder'], ['Sat', 'threshold'], ['Sun', 'endurance']],
+    taper: [['Tue', 'vo2max'], ['Thu', 'threshold'], ['Sat', 'endurance']],
+    raceweek: [['Tue', 'vo2max'], ['Thu', 'recovery']],
+    recovery: [['Tue', 'endurance'], ['Thu', 'recovery'], ['Sun', 'endurance']],
+  };
+
+  function phaseFor(weekIndex, totalWeeks) {
+    const left = totalWeeks - weekIndex;
+    if (left <= 2) return 'taper';
+    if (left <= 5) return 'peak';
+    if (weekIndex < Math.max(2, Math.floor(totalWeeks * 0.35))) return 'base';
+    return 'build';
+  }
+
+  /**
+   * Lay out a block of training.
+   *
+   * Every fourth week is a recovery week — the load comes off so the previous
+   * three can be absorbed. Weekly hours ramp about 8% per build week, which is
+   * roughly what people tolerate; the rider's own recent volume sets the start.
+   */
+  function buildPlan(opts) {
+    opts = opts || {};
+    const weeks = Math.max(4, Math.min(24, opts.weeks || 12));
+    const ftp = opts.ftp;
+    const startHours = Math.max(3, opts.weeklyHours || 6);
+    const eventDate = opts.eventDate ? new Date(opts.eventDate + 'T00:00:00Z') : null;
+
+    const out = [];
+    let hours = startHours;
+    for (let i = 0; i < weeks; i++) {
+      const recovery = (i + 1) % 4 === 0 && i < weeks - 3;
+      const phase = recovery ? 'recovery' : phaseFor(i, weeks);
+      const isRaceWeek = !recovery && i === weeks - 1;
+      const shape = WEEK_SHAPES[isRaceWeek ? 'raceweek' : phase];
+
+      if (!recovery && i > 0 && phase !== 'taper') {
+        hours = Math.min(hours * 1.08, startHours * 1.6);
+      }
+      // The taper steps down week by week — the last one is the lightest.
+      const weeksToEvent = weeks - 1 - i;
+      const taperFactor = weeksToEvent === 0 ? 0.45 : weeksToEvent === 1 ? 0.6 : 0.7;
+      const weekHours = recovery ? hours * 0.6
+                      : phase === 'taper' ? hours * taperFactor
+                      : phase === 'peak' ? hours * 0.85 : hours;
+
+      // Hard days get a fixed sensible length; endurance absorbs the remainder.
+      const quality = shape.filter(([, k]) => k !== 'endurance');
+      const enduranceDays = shape.filter(([, k]) => k === 'endurance');
+      const qualityMinutes = quality.length * 70;
+      const enduranceMinutes = Math.max(45, Math.round(
+        (weekHours * 60 - qualityMinutes) / Math.max(1, enduranceDays.length)));
+
+      const days = shape.map(([day, key]) => {
+        const mins = key === 'endurance' ? enduranceMinutes
+                   : key === 'recovery' ? 45 : 70;
+        const w = Wk.fromText(`${Wk.byKey(key).name} ${mins} min`, { ftp: ftp });
+        return { day: day, key: key, name: Wk.byKey(key).name,
+                 minutes: Math.round(w.seconds / 60), tss: w.tss || null, workout: w };
+      });
+
+      out.push({
+        week: i + 1,
+        phase: phase === 'recovery' ? 'Recovery' : PHASES.find(p => p.key === phase).name,
+        blurb: isRaceWeek
+          ? 'Event week. Just enough intensity to stay sharp, nothing that costs you.'
+          : phase === 'recovery'
+            ? 'Load comes off so the last three weeks can land. Resist adding to it.'
+            : PHASES.find(p => p.key === phase).blurb,
+        recovery: recovery,
+        hours: Math.round(weekHours * 10) / 10,
+        tss: days.reduce((s, d) => s + (d.tss || 0), 0),
+        days: days,
+        date: eventDate
+          ? new Date(eventDate.getTime() - (weeks - 1 - i) * 7 * DAY).toISOString().slice(0, 10)
+          : null,
+      });
+    }
+    return { weeks: out, ftp: ftp, eventDate: opts.eventDate || null,
+             startHours: startHours, name: opts.name || 'Training block' };
+  }
+
+  const api = { recommend, buildPlan, daysSinceHard, weeklyHours, PHASES, WEEK_SHAPES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Coach = api;
+})(typeof self !== 'undefined' ? self : this);
+
+// Replaced with a JSON payload by `./wk web`; null for the hosted page,
+// which gets its data from whatever the visitor loads.
+let DATA = null;
+
+/* ------------------------------------------------------------------ utils */
+const $ = (sel, root) => (root || document).querySelector(sel);
+const el = (tag, attrs, kids) => {
+  const n = document.createElementNS(
+    tag === 'svg' || SVG_TAGS.has(tag) ? 'http://www.w3.org/2000/svg'
+                                       : 'http://www.w3.org/1999/xhtml', tag);
+  for (const k in (attrs || {})) {
+    if (k === 'text') n.textContent = attrs[k];
+    else if (k === 'html') n.innerHTML = attrs[k];
+    else if (attrs[k] != null) n.setAttribute(k, attrs[k]);
+  }
+  (kids || []).forEach(c => c && n.appendChild(c));
+  return n;
+};
+const SVG_TAGS = new Set(['g','rect','circle','path','line','text','svg','polyline','defs','clipPath']);
+const fmt = (n, d) => Number(n).toLocaleString(undefined, {
+  minimumFractionDigits: d == null ? 0 : d, maximumFractionDigits: d == null ? 0 : d });
+const shortDate = s => {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+const hrs = h => Math.floor(h) + 'h ' + Math.round((h % 1) * 60) + 'm';
+
+/* ------------------------------------------------------------------ tooltip */
+const tip = $('#tip');
+function showTip(evt, title, rows) {
+  tip.innerHTML = '';
+  tip.appendChild(el('div', { class: 't-title', text: title }));
+  rows.forEach(([k, v]) => {
+    const r = el('div', { class: 't-row' });
+    r.appendChild(el('span', { text: k }));
+    r.appendChild(el('b', { text: v }));
+    tip.appendChild(r);
+  });
+  tip.style.opacity = '1';
+  moveTip(evt);
+}
+function moveTip(evt) {
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+  tip.style.left = Math.max(8, x) + 'px';
+  tip.style.top = Math.max(8, y) + 'px';
+}
+const hideTip = () => { tip.style.opacity = '0'; };
+function hoverable(node, title, rows) {
+  node.addEventListener('mouseenter', e => showTip(e, title, rows));
+  node.addEventListener('mousemove', moveTip);
+  node.addEventListener('mouseleave', hideTip);
+}
+
+/* ------------------------------------------------------------------ tiles */
+function tile(label, value, unit, foot) {
+  const v = el('div', { class: 'value num' });
+  v.appendChild(document.createTextNode(value));
+  if (unit) v.appendChild(el('span', { class: 'unit', text: unit }));
+  const card = el('div', { class: 'card tile' }, [
+    el('div', { class: 'label', text: label }), v,
+  ]);
+  if (foot) card.appendChild(el('div', { class: 'foot' }, [foot]));
+  return card;
+}
+function deltaNode(now, before, unit) {
+  if (!before) return el('span', { class: 'delta flat', text: 'no prior week' });
+  const pct = ((now - before) / before) * 100;
+  const cls = Math.abs(pct) < 3 ? 'flat' : pct > 0 ? 'up' : 'down';
+  const arrow = Math.abs(pct) < 3 ? '' : pct > 0 ? '\u2191 ' : '\u2193 ';
+  const s = el('span', {});
+  s.appendChild(el('span', { class: 'delta ' + cls, text: arrow + fmt(Math.abs(pct), 0) + '%' }));
+  s.appendChild(document.createTextNode(' vs previous 7 days'));
+  return s;
+}
+function pill(text, kind) { return el('span', { class: 'pill ' + kind, text: text }); }
+
+/* ------------------------------------------------------------------ column chart */
+function columnChart(rows, key, unitLabel) {
+  const W = 720, H = 232, L = 46, R = 12, T = 14, B = 30;
+  const iw = W - L - R, ih = H - T - B;
+  const scale = niceScale(Math.max(...rows.map(r => r[key]), 1), 4);
+  const ceil = scale.ceil;
+  const band = iw / rows.length;
+  const bw = Math.min(24, band - 6);
+
+  const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                          preserveAspectRatio: 'xMidYMid meet', role: 'img',
+                          'aria-label': `Weekly ${unitLabel} for the last ${rows.length} weeks` });
+  const y = v => T + ih - (v / ceil) * ih;
+
+  scale.ticks.forEach(t => {
+    svg.appendChild(el('line', { class: 'gridline', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+    svg.appendChild(el('text', { class: 'axis', x: L - 9, y: y(t) + 4,
+                                 'text-anchor': 'end', text: fmt(t) }));
+  });
+
+  rows.forEach((r, i) => {
+    const x = L + i * band + (band - bw) / 2;
+    const h = Math.max(r[key] > 0 ? 3 : 0, (r[key] / ceil) * ih);
+    if (h > 0) {
+      // Rounded cap, square at the baseline: the bar grows from the axis.
+      const rad = Math.min(4, h, bw / 2);
+      const top = y(r[key]);
+      const d = `M${x},${top + h} L${x},${top + rad} Q${x},${top} ${x + rad},${top}
+                 L${x + bw - rad},${top} Q${x + bw},${top} ${x + bw},${top + rad}
+                 L${x + bw},${top + h} Z`;
+      const bar = el('path', { d: d, fill: 'var(--series-1)',
+                               'fill-opacity': r.partial ? 0.4 : 1 });
+      const rows = [
+        [unitLabel, fmt(r[key], 1)],
+        ['Time', hrs(r.hours)],
+        ['Sessions', String(r.count)],
+        ['Load', fmt(r.load)],
+      ];
+      if (r.partial) rows.push(['Note', 'week still in progress']);
+      hoverable(bar, 'Week of ' + shortDate(r.week), rows);
+      svg.appendChild(bar);
+    }
+    if (i % Math.ceil(rows.length / 8) === 0 || i === rows.length - 1) {
+      svg.appendChild(el('text', { class: 'axis', x: x + bw / 2, y: H - 10,
+                                   'text-anchor': 'middle', text: shortDate(r.week) }));
+    }
+  });
+
+  // Label the last COMPLETE week only — a number on every bar goes unread,
+  // and labelling a part-finished week invites comparing it to full ones.
+  const lastFull = rows.map((r, i) => [r, i]).filter(([r]) => !r.partial).pop();
+  if (lastFull && lastFull[0][key] > 0) {
+    const [r, i] = lastFull;
+    const x = L + i * band + band / 2;
+    svg.appendChild(el('text', { class: 'axis', x: x, y: y(r[key]) - 8,
+                                 'text-anchor': 'middle', fill: 'var(--text)',
+                                 'font-weight': '600', text: fmt(r[key], 1) }));
+  }
+  return svg;
+}
+
+/* ------------------------------------------------------------------ line chart */
+function lineChart(rows, key, label) {
+  const W = 720, H = 150, L = 46, R = 12, T = 16, B = 26;
+  const iw = W - L - R, ih = H - T - B;
+  const scale = niceScale(Math.max(...rows.map(r => r[key]), 1), 3);
+  const ceil = scale.ceil;
+  const band = iw / rows.length;
+  const x = i => L + i * band + band / 2;
+  const y = v => T + ih - (v / ceil) * ih;
+
+  const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                          preserveAspectRatio: 'xMidYMid meet', role: 'img',
+                          'aria-label': label });
+  scale.ticks.forEach(t => {
+    svg.appendChild(el('line', { class: 'gridline', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+    svg.appendChild(el('text', { class: 'axis', x: L - 9, y: y(t) + 4,
+                                 'text-anchor': 'end', text: fmt(t) }));
+  });
+
+  const pts = rows.map((r, i) => [x(i), y(r[key])]);
+  const partialAt = rows.findIndex(r => r.partial);
+  const solid = partialAt < 0 ? pts : pts.slice(0, Math.max(partialAt, 1));
+  const path = p => 'M' + p.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' L');
+  svg.appendChild(el('path', { d: path(solid), fill: 'none',
+    stroke: 'var(--series-1)', 'stroke-width': 2,
+    'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+  if (partialAt > 0) {
+    // The run into an unfinished week is drawn dashed: it is not yet a real drop.
+    svg.appendChild(el('path', { d: path(pts.slice(partialAt - 1)), fill: 'none',
+      stroke: 'var(--series-1)', 'stroke-width': 2, 'stroke-opacity': 0.45,
+      'stroke-dasharray': '4 4', 'stroke-linecap': 'round' }));
+  }
+
+  rows.forEach((r, i) => {
+    const isLast = i === rows.length - 1;
+    if (isLast) {
+      // Surface ring keeps the end marker legible where it crosses the line.
+      svg.appendChild(el('circle', { cx: x(i), cy: y(r[key]), r: 5,
+                                     fill: r.partial ? 'var(--surface)' : 'var(--series-1)',
+                                     stroke: r.partial ? 'var(--series-1)' : 'var(--surface)',
+                                     'stroke-width': 2 }));
+    }
+    const hit = el('rect', { x: x(i) - band / 2, y: T, width: band, height: ih,
+                             fill: 'transparent' });
+    const lr = [['Load', fmt(r[key])]];
+    if (r.partial) lr.push(['Note', 'week still in progress']);
+    hoverable(hit, 'Week of ' + shortDate(r.week), lr);
+    svg.appendChild(hit);
+  });
+  return svg;
+}
+
+/* A scale a person would have chosen: steps of 1, 2, 2.5 or 5 times a power of
+   ten, so the axis reads 0/20/40/60 rather than 0/217/433/650. */
+function niceScale(max, target) {
+  target = target || 4;
+  const raw = max / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10) * mag;
+  const ceil = Math.ceil(max / step) * step;
+  const out = [];
+  for (let v = 0; v <= ceil + step / 2; v += step) out.push(Math.round(v * 1e6) / 1e6);
+  return { ceil: ceil, ticks: out };
+}
+
+/* ------------------------------------------------------------------ heatmap */
+function heatmap(days) {
+  const CELL = 15, GAP = 3, TOP = 20, LEFT = 32;
+  const weeks = Math.ceil(days.length / 7);
+  const W = LEFT + weeks * (CELL + GAP), H = TOP + 7 * (CELL + GAP);
+  const max = Math.max(...days.map(d => d.load), 1);
+  const svg = el('svg', { class: 'chart', width: W, height: H,
+                          viewBox: `0 0 ${W} ${H}`, role: 'img',
+                          'aria-label': 'Daily training load over the last six months' });
+
+  ['Mon', 'Wed', 'Fri'].forEach((lbl, i) => {
+    svg.appendChild(el('text', { class: 'axis', x: 0, y: TOP + (i * 2) * (CELL + GAP) + CELL - 2,
+                                 text: lbl }));
+  });
+
+  let lastMonth = '', lastLabelX = -Infinity;
+  days.forEach((d, i) => {
+    const col = Math.floor(i / 7), row = i % 7;
+    const x = LEFT + col * (CELL + GAP), y = TOP + row * (CELL + GAP);
+    const step = d.load <= 0 ? 0 : Math.min(6, 1 + Math.floor((d.load / max) * 5.99));
+    const cell = el('rect', { x: x, y: y, width: CELL, height: CELL, rx: 3,
+                              fill: `var(--ramp-${step})` });
+    hoverable(cell, new Date(d.date + 'T00:00').toLocaleDateString(undefined,
+      { weekday: 'short', month: 'short', day: 'numeric' }),
+      [['Load', d.load > 0 ? fmt(d.load, 1) : 'rest']]);
+    svg.appendChild(cell);
+
+    const month = d.date.slice(0, 7);
+    // Only label a month once its column is clear of the previous label.
+    if (row === 0 && month !== lastMonth && x - lastLabelX >= 32) {
+      lastMonth = month;
+      lastLabelX = x;
+      svg.appendChild(el('text', { class: 'axis', x: x, y: 11,
+        text: new Date(d.date + 'T00:00').toLocaleDateString(undefined, { month: 'short' }) }));
+    }
+  });
+  return svg;
+}
+
+/* ------------------------------------------------------------------ split bar */
+function splitBar(split) {
+  const wrap = el('div', {});
+  if (split.easy_pct == null) {
+    wrap.appendChild(el('p', { class: 'hint', text: split.note || 'No heart-rate data yet.' }));
+    return wrap;
+  }
+  const legend = el('div', { class: 'legend' });
+  [['Easy', 'var(--series-1)', split.easy_pct, split.easy_time],
+   ['Hard', 'var(--series-2)', split.hard_pct, split.hard_time]].forEach(([n, c, p, t]) => {
+    const k = el('div', { class: 'key' });
+    k.appendChild(el('span', { class: 'swatch', style: 'background:' + c }));
+    k.appendChild(el('span', { text: `${n} ${fmt(p, 0)}% \u00b7 ${t}` }));
+    legend.appendChild(k);
+  });
+  wrap.appendChild(legend);
+
+  const W = 320, H = 26;
+  const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                          preserveAspectRatio: 'none', role: 'img', height: H,
+                          'aria-label': `${split.easy_pct}% easy, ${split.hard_pct}% hard` });
+  const easyW = (split.easy_pct / 100) * W;
+  // 2px surface gap does the separating — no stroke around either segment.
+  const a = el('rect', { x: 0, y: 0, width: Math.max(0, easyW - 1), height: H, rx: 5,
+                         fill: 'var(--series-1)' });
+  const b = el('rect', { x: easyW + 1, y: 0, width: Math.max(0, W - easyW - 1), height: H, rx: 5,
+                         fill: 'var(--series-2)' });
+  hoverable(a, 'Easy running', [['Share', fmt(split.easy_pct, 1) + '%'], ['Time', split.easy_time]]);
+  hoverable(b, 'Hard running', [['Share', fmt(split.hard_pct, 1) + '%'], ['Time', split.hard_time]]);
+  svg.appendChild(a); svg.appendChild(b);
+  wrap.appendChild(svg);
+  wrap.appendChild(el('p', { class: 'hint', style: 'margin:12px 0 0',
+    text: 'Most training plans aim for roughly 80% easy. The line sits at 76% of heart-rate reserve.' }));
+  if (split.unmeasured_time && split.unmeasured_time !== '0:00') {
+    wrap.appendChild(el('p', { class: 'hint', style: 'margin:4px 0 0',
+      text: split.unmeasured_time + ' had no heart rate and is left out rather than guessed at.' }));
+  }
+  return wrap;
+}
+
+/* ------------------------------------------------------------------ table */
+const TABLE_STATE = { sort: 'date', dir: -1, type: 'all', days: 30 };
+
+function activityTable() {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Sessions' }));
+  card.appendChild(el('p', { class: 'hint', text: 'Click a column to sort.' }));
+
+  const controls = el('div', { class: 'controls' });
+  const types = ['all', ...new Set(DATA.activities.map(a => a.type))];
+  controls.appendChild(seg(types, TABLE_STATE.type, v => { TABLE_STATE.type = v; draw(); },
+    t => t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)));
+  controls.appendChild(seg([30, 90, 365, 0], TABLE_STATE.days,
+    v => { TABLE_STATE.days = v; draw(); },
+    d => d === 0 ? 'All time' : d + ' days'));
+  card.appendChild(controls);
+
+  const wrap = el('div', { class: 'tbl-wrap' });
+  card.appendChild(wrap);
+
+  const COLS = [
+    ['date', 'Date', false], ['name', 'Session', false], ['type', 'Type', false],
+    ['distance', DATA.unit === 'mi' ? 'Miles' : 'Km', true], ['seconds', 'Time', true],
+    ['speed', 'Pace', true], ['hr', 'Avg HR', true], ['load', 'Load', true],
+  ];
+
+  function draw() {
+    const cutoff = TABLE_STATE.days
+      ? new Date(Date.now() - TABLE_STATE.days * 864e5).toISOString().slice(0, 10) : '';
+    let rows = DATA.activities.filter(r =>
+      (TABLE_STATE.type === 'all' || r.type === TABLE_STATE.type) && r.date >= cutoff);
+
+    rows.sort((a, b) => {
+      const x = a[TABLE_STATE.sort], y = b[TABLE_STATE.sort];
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (x > y ? 1 : x < y ? -1 : 0) * TABLE_STATE.dir;
+    });
+
+    wrap.innerHTML = '';
+    if (!rows.length) {
+      wrap.appendChild(el('p', { class: 'empty', text: 'Nothing in this range.' }));
+      return;
+    }
+    const thead = el('thead');
+    const tr = el('tr');
+    COLS.forEach(([k, label, right]) => {
+      const arrow = TABLE_STATE.sort === k ? (TABLE_STATE.dir > 0 ? ' \u25b2' : ' \u25bc') : '';
+      const th = el('th', { class: right ? 'r' : '', scope: 'col',
+                            html: label + '<span class="arrow">' + arrow + '</span>' });
+      th.addEventListener('click', () => {
+        if (TABLE_STATE.sort === k) TABLE_STATE.dir *= -1;
+        else { TABLE_STATE.sort = k; TABLE_STATE.dir = -1; }
+        draw();
+      });
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+
+    const tbody = el('tbody');
+    rows.slice(0, 400).forEach(r => {
+      const row = el('tr');
+      row.appendChild(el('td', { class: 'num', text: r.date }));
+      const nameCell = el('td', { class: 'name' });
+      nameCell.appendChild(document.createTextNode(r.name || '—'));
+      if (r.source) {
+        nameCell.appendChild(document.createTextNode(' '));
+        nameCell.appendChild(el('span', { class: 'src', text: r.source }));
+      }
+      row.appendChild(nameCell);
+      row.appendChild(el('td', { text: r.type }));
+      row.appendChild(el('td', { class: 'r num', text: fmt(r.distance, 2) }));
+      row.appendChild(el('td', { class: 'r num', text: r.duration }));
+      row.appendChild(el('td', { class: 'r num', text: r.pace || '—' }));
+      row.appendChild(el('td', { class: 'r num', text: r.hr == null ? '—' : r.hr }));
+      row.appendChild(el('td', { class: 'r num', text: fmt(r.load) }));
+      tbody.appendChild(row);
+    });
+
+    const table = el('table');
+    table.appendChild(thead); table.appendChild(tbody);
+    wrap.appendChild(table);
+    if (rows.length > 400) {
+      wrap.appendChild(el('p', { class: 'hint', style: 'margin-top:14px',
+        text: `Showing the newest 400 of ${rows.length}.` }));
+    }
+  }
+
+  draw();
+  return card;
+}
+
+function seg(values, current, onPick, labelFn) {
+  const box = el('div', { class: 'seg', role: 'group' });
+  values.forEach(v => {
+    const b = el('button', { type: 'button', text: labelFn(v),
+                             'aria-pressed': String(v === current) });
+    b.addEventListener('click', () => {
+      [...box.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      onPick(v);
+    });
+    box.appendChild(b);
+  });
+  return box;
+}
+
+/* ------------------------------------------------------------------ panels */
+function planCard() {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Plan' }));
+  if (!DATA.plan) {
+    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+      text: 'No plan yet. Ask Claude to write one into training/plans/.' }));
+    return card;
+  }
+  const p = DATA.plan;
+  card.appendChild(el('p', { class: 'hint',
+    text: p.days_out != null ? `${p.goal || 'Race'} in ${p.days_out} days${p.target_time ? ' \u00b7 target ' + p.target_time : ''}`
+                             : (p.goal || '') }));
+
+  const head = el('div', { style: 'display:flex;align-items:baseline;gap:9px;margin-bottom:10px' });
+  head.appendChild(el('strong', { style: 'font-size:14px', text: p.name }));
+  if (p.week_number) {
+    const of = p.total_weeks > p.week_number ? ` of ${p.total_weeks}` : '';
+    head.appendChild(el('span', { class: 'pill mute', text: `Week ${p.week_number}${of}` }));
+  }
+  card.appendChild(head);
+
+  if (!p.days.length) {
+    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+      text: 'The plan has not started yet.' }));
+    return card;
+  }
+  p.days.forEach(d => {
+    const row = el('div', { class: 'plan-day' + (d.today ? ' is-today' : '') });
+    row.appendChild(el('span', { class: 'd num',
+      text: d.date ? d.weekday + ' ' + d.date.slice(5) : d.weekday }));
+    const w = el('span', { class: 'w' });
+    w.appendChild(document.createTextNode(d.label || '—'));
+    if (d.structured) {
+      w.appendChild(document.createTextNode(' '));
+      w.appendChild(el('span', { class: 'tag', text: 'watch' }));
+    }
+    row.appendChild(w);
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function bestsCard() {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Best efforts' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Fastest average pace across a whole activity — not verified race results.' }));
+  const order = ['5k', '10k', 'half', 'marathon'];
+  const found = order.filter(k => DATA.bests[k]);
+  if (!found.length) {
+    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+      text: 'Nothing in a standard distance band yet.' }));
+    return card;
+  }
+  found.forEach(k => {
+    const b = DATA.bests[k];
+    const row = el('div', { class: 'plan-day' });
+    row.appendChild(el('span', { class: 'd', text: k }));
+    const w = el('span', { class: 'w num', style: 'flex:1' });
+    w.appendChild(el('strong', { style: 'color:var(--text)', text: b.time }));
+    w.appendChild(document.createTextNode('  ' + b.pace));
+    row.appendChild(w);
+    row.appendChild(el('span', { class: 'd num', style: 'text-align:right', text: b.date }));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+/* ------------------------------------------------------------------ assemble */
+function kpiRow() {
+  const row = el('div', { class: 'grid kpis' });
+  const t = DATA.totals;
+
+  row.appendChild(tile('Last 7 days', fmt(t.last7, 1), DATA.unit,
+    deltaNode(t.last7, t.prev7)));
+
+  const a = DATA.acwr;
+  const kind = a.ratio == null ? 'mute'
+    : a.ratio > 1.5 ? 'crit' : a.ratio > 1.3 ? 'warn' : a.ratio < 0.8 ? 'mute' : 'good';
+  row.appendChild(tile('Acute : chronic', a.ratio == null ? '—' : fmt(a.ratio, 2), '',
+    pill(a.verdict, kind)));
+
+  const s = DATA.split;
+  row.appendChild(tile('Easy running', s.easy_pct == null ? '—' : fmt(s.easy_pct, 0), '%',
+    el('span', { text: s.easy_pct == null ? (s.note || 'needs heart rate')
+                                          : 'of running time \u00b7 aim near 80%' })));
+
+  const tr = DATA.trend;
+  const val = tr.change_pct == null ? '—' : (tr.change_pct > 0 ? '+' : '') + fmt(tr.change_pct, 1);
+  row.appendChild(tile('Efficiency', val, tr.change_pct == null ? '' : '%',
+    el('span', { text: tr.change_pct == null ? (tr.status || 'not enough data')
+                                             : 'speed per heartbeat, 90 days' })));
+  return row;
+}
+
+function volumeCard() {
+  const card = el('div', { class: 'card' });
+  const head = el('div', { style: 'display:flex;align-items:flex-start;gap:16px' });
+  const titles = el('div', { style: 'flex:1' });
+  titles.appendChild(el('h2', { text: 'Weekly volume' }));
+  titles.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+    text: `Distance per week in ${DATA.unit}, with training stress below.` }));
+  head.appendChild(titles);
+
+  const body = el('div');
+  const chartBox = el('div', { style: 'margin-top:18px' });
+  let showTable = false;
+  const toggle = el('button', { class: 'ghost', type: 'button', text: 'Table' });
+  toggle.addEventListener('click', () => {
+    showTable = !showTable;
+    toggle.textContent = showTable ? 'Chart' : 'Table';
+    render();
+  });
+  head.appendChild(toggle);
+  card.appendChild(head);
+
+  function render() {
+    chartBox.innerHTML = '';
+    if (showTable) {
+      const table = el('table');
+      const thead = el('thead');
+      const tr = el('tr');
+      ['Week of', DATA.unit === 'mi' ? 'Miles' : 'Km', 'Time', 'Sessions', 'Load']
+        .forEach((h, i) => tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
+      thead.appendChild(tr);
+      const tbody = el('tbody');
+      [...DATA.weekly].reverse().forEach(w => {
+        const r = el('tr');
+        r.appendChild(el('td', { class: 'num', text: w.week }));
+        r.appendChild(el('td', { class: 'r num', text: fmt(w.distance, 1) }));
+        r.appendChild(el('td', { class: 'r num', text: hrs(w.hours) }));
+        r.appendChild(el('td', { class: 'r num', text: w.count }));
+        r.appendChild(el('td', { class: 'r num', text: fmt(w.load) }));
+        tbody.appendChild(r);
+      });
+      const t = el('table'); t.appendChild(thead); t.appendChild(tbody);
+      chartBox.appendChild(el('div', { class: 'tbl-wrap' }, [t]));
+    } else {
+      chartBox.appendChild(columnChart(DATA.weekly, 'distance',
+        DATA.unit === 'mi' ? 'Miles' : 'Kilometres'));
+      if (DATA.weekly.some(w => w.partial)) {
+        chartBox.appendChild(el('p', { class: 'hint', style: 'margin:10px 0 0',
+          text: 'The faded final bar is this week, still in progress — not yet comparable to the weeks before it.' }));
+      }
+      // On a bike the load measure is TSS, not the run-oriented TRIMP. Mixing
+      // the two on one axis would be two scales wearing one label.
+      const bike = weeklyTSS();
+      chartBox.appendChild(el('p', { class: 'hint',
+        style: 'margin:16px 0 0;padding-top:14px;border-top:1px solid var(--border)',
+        text: bike
+          ? 'Training stress — an hour at FTP is 100 points, and harder counts for much more.'
+          : 'Training load — heart-rate weighted, so hard minutes count for more.' }));
+      chartBox.appendChild(lineChart(bike || DATA.weekly, bike ? 'tss' : 'load',
+        bike ? 'Weekly training stress' : 'Weekly training load'));
+    }
+  }
+  render();
+  card.appendChild(chartBox);
+  return card;
+}
+
+/** Weekly TSS on the same week buckets the volume chart uses.
+ *  Null when there is not enough cycling to score. */
+function weeklyTSS() {
+  const ridesOnly = (RAW_ACTIVITIES || []).filter(a => a.type === 'cycling');
+  if (ridesOnly.length < 3) return null;
+  const totals = {};
+  ridesOnly.forEach(a => {
+    if (!a.start) return;
+    const monday = Analytics.mondayOf(new Date(a.start)).toISOString().slice(0, 10);
+    totals[monday] = (totals[monday] || 0) +
+      Cycling.rideTSS(a, PROFILE.ftp, PROFILE.restHr, PROFILE.maxHr).tss;
+  });
+  return DATA.weekly.map(w => Object.assign({}, w, { tss: Math.round(totals[w.week] || 0) }));
+}
+
+function heatCard() {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Consistency' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: (RAW_ACTIVITIES || []).some(a => a.type === 'cycling')
+      ? 'Daily training stress. Darker is harder.'
+      : 'Daily training load. Darker is harder.' }));
+  const wrap = el('div', { class: 'hm-wrap' });
+  wrap.appendChild(heatmap(DATA.heatmap));
+  card.appendChild(wrap);
+
+  const legend = el('div', { class: 'hm-legend' });
+  legend.appendChild(el('span', { text: 'Rest' }));
+  for (let i = 0; i <= 6; i++) {
+    legend.appendChild(el('span', { class: 'sw', style: `background:var(--ramp-${i})` }));
+  }
+  legend.appendChild(el('span', { text: 'Hardest' }));
+  card.appendChild(legend);
+  return card;
+}
+
+function emptyState() {
+  const card = el('div', { class: 'card' });
+  const box = el('div', { class: 'empty' });
+  box.appendChild(el('p', { style: 'font-size:17px;color:var(--text);font-weight:560;margin:0 0 8px',
+                            text: 'No activities yet' }));
+  box.appendChild(el('p', { style: 'margin:0 0 20px',
+    text: 'Connect your accounts and pull your history, then rebuild this page.' }));
+  ['./wk auth strava', './wk auth garmin', './wk sync', './wk web'].forEach(c => {
+    const line = el('p', { style: 'margin:6px 0' });
+    line.appendChild(el('code', { text: c }));
+    box.appendChild(line);
+  });
+  card.appendChild(box);
+  return card;
+}
+
+/* ------------------------------------------------------------------ import */
+
+const STORE_KEY = 'training-hub-data';
+
+function saveLocal(payload) {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+    return true;
+  } catch (e) {
+    // Private browsing, or a history too big for the 5MB quota. The page still
+    // works for this visit; it just will not remember.
+    return false;
+  }
+}
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function clearLocal() {
+  try { localStorage.removeItem(STORE_KEY); } catch (e) { /* nothing to do */ }
+}
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('That file could not be read.'));
+    r.readAsText(file);
+  });
+}
+
+function readArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('That file could not be read.'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+const isFit = f => /\.fit$/i.test(f.name);
+
+/**
+ * Take whatever was dropped: a CSV of history, one or more .FIT recordings, or
+ * both together. The CSV gives breadth, a .FIT gives depth — where they cover
+ * the same ride, the .FIT wins, because it was measured second by second.
+ */
+async function handleFiles(files, unitPref) {
+  const list = Array.from(files);
+  const fits = list.filter(isFit);
+  const csvs = list.filter(f => !isFit(f));
+
+  let activities = [];
+  let csvResult = null;
+  let unit = unitPref || 'mi';
+
+  for (const file of csvs) {
+    const text = await readFile(file);
+    csvResult = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
+    activities = activities.concat(csvResult.activities);
+    unit = csvResult.unit;
+  }
+
+  const curves = [];
+  const fitRides = [];
+  for (const file of fits) {
+    const buf = await readArrayBuffer(file);
+    const ride = Fit.parse(buf);
+    ride.name = ride.name || file.name.replace(/\.fit$/i, '');
+    fitRides.push(ride);
+    if (ride.streams && ride.streams.power) {
+      curves.push(Fit.powerCurve(ride.streams.power));
+    }
+  }
+  activities = activities.concat(fitRides);
+
+  if (!activities.length) {
+    throw new Error('Nothing readable in those files.');
+  }
+
+  // A .FIT copy of a ride replaces the CSV row for the same session.
+  const merged = Importer.dedupe(activities.map(a =>
+    a.source === 'fit' ? Object.assign({}, a, { source: 'garmin', _fit: true }) : a))
+    .map(a => (a._fit ? Object.assign({}, a, { source: 'fit' }) : a));
+
+  const payload = Analytics.buildPayload(merged, {
+    unit: unit === 'km' ? 'km' : (unit === 'm' ? 'km' : 'mi'),
+  });
+  payload.curve = curves.length ? Fit.mergeCurves(curves) : null;
+  payload.imported = {
+    source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
+    filename: list.length === 1 ? list[0].name : `${list.length} files`,
+    rows: activities.length,
+    unique: merged.length,
+    unit: unit,
+    unitCertain: csvResult ? csvResult.unitCertain : true,
+    displayUnit: payload.unit,
+    skipped: csvResult ? csvResult.skipped : 0,
+    fitCount: fits.length,
+  };
+  return payload;
+}
+
+async function handleFile(file, unitPref) {
+  const text = await readFile(file);
+  const result = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
+  if (!result.activities.length) {
+    throw new Error(
+      'No activities could be read out of that file. It parsed, but every row ' +
+      'was missing a usable date or distance.');
+  }
+  const activities = Importer.dedupe(result.activities);
+  const payload = Analytics.buildPayload(activities, {
+    unit: result.unit === 'km' ? 'km' : 'mi',
+  });
+  payload.imported = {
+    source: result.source,
+    filename: file.name,
+    rows: result.activities.length,
+    unique: activities.length,
+    unit: result.unit,
+    unitCertain: result.unitCertain,
+    displayUnit: payload.unit,
+    skipped: result.skipped,
+  };
+  return payload;
+}
+
+function importScreen(errorMessage) {
+  const wrap = el('div', { class: 'landing' });
+
+  const hero = el('div', { class: 'hero' });
+  hero.appendChild(el('p', { class: 'eyebrow', text: 'For cyclists' }));
+  hero.appendChild(el('h2', { text: 'See what your riding is actually doing' }));
+  hero.appendChild(el('p', { class: 'lede',
+    text: 'Add your rides and get your FTP, fitness and freshness — plus workouts ' +
+          'and a training plan built around them.' }));
+
+  // Three steps, so the whole thing is legible before reading a word of detail.
+  const steps = el('div', { class: 'steps-row' });
+  [['Export your rides', 'From Garmin or Strava. Takes a minute.'],
+   ['Drop the file here', 'Nothing is uploaded — it opens in your browser.'],
+   ['Get your numbers', 'Fitness, workouts and a plan, straight away.']]
+    .forEach(([title, body], i) => {
+      const s = el('div', { class: 'stepcard' });
+      s.appendChild(el('span', { class: 'n', text: String(i + 1) }));
+      const t = el('span', { class: 't' });
+      t.appendChild(el('b', { text: title }));
+      t.appendChild(document.createTextNode(body));
+      s.appendChild(t);
+      steps.appendChild(s);
+    });
+  hero.appendChild(steps);
+
+  const drop = el('div', { class: 'drop', tabindex: '0', role: 'button',
+                           'aria-label': 'Add your rides' });
+  drop.appendChild(el('p', { class: 'big', text: 'Drop your rides here' }));
+  drop.appendChild(el('p', { class: 'small', text: 'a .CSV of your history, or .FIT files' }));
+  const choose = el('button', { class: 'btn', type: 'button', text: 'Choose files' });
+  drop.appendChild(choose);
+  hero.appendChild(drop);
+
+  let unitPref = 'mi';
+  hero.appendChild(el('p', { class: 'hint',
+    style: 'margin:18px 0 0;text-align:center',
+    text: 'Nothing leaves your browser. No account, no password.' }));
+  wrap.appendChild(hero);
+
+  if (errorMessage) {
+    const box = el('div', { class: 'err', style: 'margin-top:24px' });
+    box.appendChild(el('strong', { text: 'That file did not load. ' }));
+    box.appendChild(document.createTextNode(errorMessage));
+    wrap.appendChild(box);
+  }
+
+  /* Everything below is available but folded away — a rider who just wants to
+     get going never has to read it. */
+  const more = el('details', { class: 'more' });
+  more.appendChild(el('summary', { text: 'How to export your rides' }));
+  const howInner = el('div', { class: 'inner' });
+  const howto = el('div', { class: 'howto' });
+
+  const guide = (title, items) => {
+    const c = el('div', { class: 'card' });
+    c.appendChild(el('h4', { style: 'margin:0 0 10px;font-size:14px;font-weight:620', text: title }));
+    const ol = el('ol');
+    items.forEach(item => {
+      const li = el('li');
+      if (Array.isArray(item)) {
+        li.appendChild(document.createTextNode(item[0]));
+        li.appendChild(el('a', { href: item[2], target: '_blank', rel: 'noopener', text: item[1] }));
+        if (item[3]) li.appendChild(document.createTextNode(item[3]));
+      } else li.appendChild(document.createTextNode(item));
+      ol.appendChild(li);
+    });
+    c.appendChild(ol);
+    return c;
+  };
+
+  howto.appendChild(guide('Garmin Connect — your whole history', [
+    ['Open ', 'your activity list', 'https://connect.garmin.com/modern/activities', '.'],
+    'Scroll until every ride you want is showing — it only exports what is loaded.',
+    'Click the export icon, top right. You get a CSV.']));
+  howto.appendChild(guide('Garmin Connect — one ride, in full detail', [
+    'Open a single ride.',
+    'Gear icon, top right, then Export to FIT.',
+    'That file has your full power data — better numbers than the CSV.']));
+  howInner.appendChild(howto);
+
+  const stravaBox = el('div', { class: 'card', style: 'margin-top:16px' });
+  stravaBox.appendChild(el('h4', { style: 'margin:0 0 10px;font-size:14px;font-weight:620', text: 'Strava' }));
+  const sl = el('ol');
+  const s1 = el('li');
+  s1.appendChild(document.createTextNode('Go to '));
+  s1.appendChild(el('a', { href: 'https://www.strava.com/athlete/delete_your_account',
+                           target: '_blank', rel: 'noopener', text: 'Download your account' }));
+  s1.appendChild(document.createTextNode(' and request your archive.'));
+  sl.appendChild(s1);
+  sl.appendChild(el('li', { text: 'Strava emails it over, usually within a few hours.' }));
+  sl.appendChild(el('li', { text: 'Unzip it and drop in activities.csv.' }));
+  stravaBox.appendChild(sl);
+  howInner.appendChild(stravaBox);
+
+  const unitBox = el('div', { class: 'card', style: 'margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap' });
+  unitBox.appendChild(el('span', { style: 'font-size:13.5px;color:var(--text-2)',
+    text: 'A Garmin CSV does not record whether its distances are miles or kilometres. Mine are in' }));
+  unitBox.appendChild(seg(['mi', 'km'], 'mi', v => { unitPref = v; },
+    v => v === 'mi' ? 'Miles' : 'Kilometres'));
+  unitBox.appendChild(el('span', { class: 'hint', style: 'margin:0;width:100%',
+    text: 'You can switch this after loading if the numbers look wrong.' }));
+  howInner.appendChild(unitBox);
+  more.appendChild(howInner);
+  wrap.appendChild(more);
+
+  const more2 = el('details', { class: 'more', style: 'margin-top:0' });
+  more2.appendChild(el('summary', { text: 'Where your data goes, and what it can and cannot tell you' }));
+  const inner2 = el('div', { class: 'inner' });
+  const pair = el('div', { class: 'honest' });
+
+  const privacy = el('div', { class: 'card' });
+  privacy.appendChild(el('h4', { style: 'margin:0 0 10px;font-size:15px;font-weight:620', text: 'Where your data goes' }));
+  const p1 = el('p');
+  p1.appendChild(el('strong', { text: 'Nowhere. ' }));
+  p1.appendChild(document.createTextNode(
+    'There is no server behind this page. Your file is read and charted by code running ' +
+    'in your own browser, and kept only in that browser so it survives a reload. ' +
+    'Clear removes it.'));
+  privacy.appendChild(p1);
+  privacy.appendChild(el('p', { text:
+    'That is why there is no login — nothing to sign up for, and nothing anyone could leak.' }));
+  pair.appendChild(privacy);
+
+  const limits = el('div', { class: 'card' });
+  limits.appendChild(el('h4', { style: 'margin:0 0 10px;font-size:15px;font-weight:620', text: 'CSV or .FIT' }));
+  const l1 = el('p');
+  l1.appendChild(document.createTextNode('A '));
+  l1.appendChild(el('strong', { text: 'CSV' }));
+  l1.appendChild(document.createTextNode(
+    ' has one line per ride, so your FTP has to be estimated from ride averages and ' +
+    'usually reads a little low.'));
+  limits.appendChild(l1);
+  const l2 = el('p');
+  l2.appendChild(document.createTextNode('A '));
+  l2.appendChild(el('strong', { text: '.FIT' }));
+  l2.appendChild(document.createTextNode(
+    ' has the whole recording, second by second. That gives a measured FTP, a real ' +
+    'power curve, and exact time in each zone. Drop both in together if you have them.'));
+  limits.appendChild(l2);
+  pair.appendChild(limits);
+  inner2.appendChild(pair);
+  more2.appendChild(inner2);
+  wrap.appendChild(more2);
+
+  /* ---------------------------------------------------------- wiring */
+  const input = el('input', { type: 'file', class: 'hidden-input', multiple: 'multiple',
+                              accept: '.csv,.fit,text/csv,text/plain' });
+  wrap.appendChild(input);
+
+  const load = async (files) => {
+    if (!files || !files.length) return;
+    drop.classList.remove('over');
+    try {
+      const payload = await handleFiles(files, unitPref);
+      const remembered = saveLocal(payload);
+      payload.imported.remembered = remembered;
+      render(payload);
+    } catch (err) {
+      render(null, err.message || String(err));
+    }
+  };
+
+  choose.addEventListener('click', () => input.click());
+  drop.addEventListener('click', e => { if (e.target === drop) input.click(); });
+  drop.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+  });
+  input.addEventListener('change', () => load(input.files));
+  ['dragenter', 'dragover'].forEach(ev =>
+    window.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    window.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  window.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files);
+  });
+
+  return wrap;
+}
+
+function detectedBar(payload) {
+  const i = payload.imported;
+  if (!i) return null;
+  const bar = el('div', { class: 'detected' });
+  const text = el('span', { class: 'grow' });
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const origin = i.source === 'fit'
+    ? plural(i.fitCount || i.unique, '.FIT ride')
+    : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`;
+  const parts = [origin, plural(i.unique, 'session')];
+  if (i.source !== 'fit' && i.fitCount) {
+    parts.push(plural(i.fitCount, '.FIT ride') + ' with full power data');
+  }
+  if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicate${i.rows - i.unique === 1 ? '' : 's'} merged`);
+  if (i.skipped) parts.push(plural(i.skipped, 'row') + ' skipped');
+  text.appendChild(el('strong', { style: 'color:var(--text)', text: i.filename }));
+  text.appendChild(document.createTextNode('  ·  ' + parts.join('  ·  ')));
+  bar.appendChild(text);
+
+  // The one thing a CSV cannot tell us. If the distances look wrong, this is
+  // the control that fixes them.
+  if (!i.unitCertain && i.source !== 'fit') {
+    bar.appendChild(el('span', { text: 'Distances read as' }));
+    bar.appendChild(seg(['mi', 'km'], i.displayUnit, v => {
+      if (v === i.displayUnit) return;
+      reinterpretUnits(payload, v);
+    }, v => v === 'mi' ? 'Miles' : 'Kilometres'));
+  }
+  if (i.remembered === false) {
+    bar.appendChild(el('span', { class: 'pill mute', text: 'not saved on this device' }));
+  }
+  return bar;
+}
+
+/** Miles and kilometres are indistinguishable in a Garmin CSV, so switching
+ *  rescales the source distances rather than just relabelling the axis. */
+function reinterpretUnits(payload, unit) {
+  const factor = unit === 'km'
+    ? 1000 / Importer.M_PER_MILE          // numbers were miles, are kilometres
+    : Importer.M_PER_MILE / 1000;
+  const acts = payload.activities.map(r => ({
+    id: r.id, source: r.source, name: r.name, type: r.type,
+    start: r.date + 'T12:00:00Z',
+    distance_m: (r.distance * (payload.unit === 'mi' ? Importer.M_PER_MILE : 1000)) * factor,
+    moving_s: r.seconds, elapsed_s: r.seconds,
+    elevation_m: r.elevation, avg_hr: r.hr,
+    avg_speed_mps: r.seconds
+      ? (r.distance * (payload.unit === 'mi' ? Importer.M_PER_MILE : 1000)) * factor / r.seconds
+      : null,
+  }));
+  const next = Analytics.buildPayload(acts, { unit: unit });
+  next.imported = Object.assign({}, payload.imported, { displayUnit: unit });
+  saveLocal(next);
+  render(next);
+}
+
+/* ------------------------------------------------------------------ render */
+
+const hasDataFor = p => !!(p && p.totals && p.totals.activities);
+
+function render(payload, errorMessage) {
+  const app = $('#app');
+  app.innerHTML = '';
+  hideTip();
+
+  const hasData = payload && payload.totals && payload.totals.activities;
+  $('#import-btn').hidden = !hasData;
+  $('#clear-btn').hidden = !hasData;
+
+  const cli = $('#cli-hint');
+  if (cli) cli.hidden = !(DATA && DATA.generated && !DATA.imported);
+  const note = $('#source-note');
+  if (note) note.hidden = !!hasDataFor(payload);
+
+  if (!hasData) {
+    $('#gen').textContent = '';
+    $('#range-sub').textContent = 'nothing loaded yet';
+    app.appendChild(importScreen(errorMessage));
+    return;
+  }
+
+  DATA = payload;
+  drawDashboard();
+}
+
+function drawDashboard() {
+  const app = $('#app');
+  app.innerHTML = '';
+  hideTip();
+  const t = DATA.totals;
+  RAW_ACTIVITIES = DATA.raw || [];
+
+  $('#gen').textContent = DATA.imported
+    ? 'Loaded from ' + DATA.imported.filename
+    : 'Built ' + new Date(DATA.generated).toLocaleString();
+  const cliHint = $('#cli-hint');
+  if (cliHint) cliHint.hidden = !!DATA.imported;
+  $('#range-sub').textContent =
+    `${fmt(t.activities)} session${t.activities === 1 ? '' : 's'} since ${t.first}`;
+
+  if (DATA.demo_note) {
+    const b = el('div', { class: 'demo' });
+    b.appendChild(el('span', { class: 'dot' }));
+    b.appendChild(el('div', { html: DATA.demo_note }));
+    app.appendChild(b);
+  }
+  const detected = detectedBar(DATA);
+  if (detected) app.appendChild(detected);
+
+  app.appendChild(tabBar());
+  if (TAB === 'workout') { app.appendChild(workoutView()); return; }
+  if (TAB === 'plan') { app.appendChild(planView()); return; }
+
+  const setup = setupCard();
+  if (setup) app.appendChild(setup);
+
+  app.appendChild(bikeKpiRow());
+
+  const main = el('div', { class: 'grid main' });
+  const left = el('div', { class: 'stack' });
+  left.appendChild(fitnessCard());
+  left.appendChild(volumeCard());
+  left.appendChild(heatCard());
+
+  const right = el('div', { class: 'stack' });
+  right.appendChild(recommendCard());
+  right.appendChild(profileCard());
+  const zoneCard = zoneDistributionCard();
+  if (zoneCard) right.appendChild(zoneCard);
+  const curveCard = powerCurveCard();
+  if (curveCard) left.appendChild(curveCard);
+  const powerCard = powerProfileCard();
+  if (powerCard) right.appendChild(powerCard);
+  if (!DATA.imported) right.appendChild(planCard());
+
+  main.appendChild(left); main.appendChild(right);
+  app.appendChild(main);
+  app.appendChild(el('div', { style: 'margin-top:18px' }, [activityTable()]));
+}
+
+let RAW_ACTIVITIES = [];
+
+/** The four numbers a cyclist actually steers by. */
+function bikeKpiRow() {
+  const row = el('div', { class: 'grid kpis' });
+  const pmc = Cycling.pmc(RAW_ACTIVITIES, {
+    ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
+  const today = pmc.today;
+
+  if (PROFILE.ftp) {
+    const wkg = Cycling.wattsPerKg(PROFILE.ftp, PROFILE.weightKg);
+    row.appendChild(tile('FTP', String(PROFILE.ftp), 'W',
+      el('span', { text: wkg ? `${wkg} W/kg` : 'add your weight for W/kg' })));
+  } else {
+    row.appendChild(tile('FTP', '—', '',
+      el('span', { text: 'set it below to unlock zones and TSS' })));
+  }
+
+  const form = today ? today.form : null;
+  const v = Cycling.formVerdict(form);
+  row.appendChild(tile('Freshness', form == null ? '—' : (form > 0 ? '+' : '') + Math.round(form), '',
+    pill(v.label, v.kind)));
+
+  row.appendChild(tile('Fitness', today ? String(Math.round(today.ctl)) : '—', '',
+    el('span', { text: 'how much riding you have banked' })));
+
+  const sp = Cycling.speedStats(RAW_ACTIVITIES, imperial());
+  if (sp) {
+    row.appendChild(tile('Avg speed', String(sp.average), sp.unit,
+      el('span', { text: `best ride ${sp.best} ${sp.unit} on ${sp.bestDate}` })));
+  } else if (PROFILE.ftp && PROFILE.weightKg) {
+    const vo2 = Cycling.vo2maxEstimate(PROFILE.ftp, PROFILE.weightKg);
+    row.appendChild(tile('VO2 max', String(vo2), '',
+      el('span', { text: 'estimated, ml/kg/min' })));
+  } else {
+    row.appendChild(tile('Rides', String(rides().length), '',
+      el('span', { text: 'in this file' })));
+  }
+  return row;
+}
+
+function fitnessCard() {
+  const card = el('div', { class: 'card' });
+  const head = el('div', { style: 'display:flex;align-items:flex-start;gap:16px' });
+  const titles = el('div', { style: 'flex:1' });
+  titles.appendChild(el('h2', { text: 'Fitness and freshness' }));
+  titles.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+    text: 'Blue is the fitness you have built up, orange is how tired the last week has ' +
+          'left you, green is the gap — how fresh you should feel today.' }));
+  head.appendChild(titles);
+
+  const pmc = Cycling.pmc(RAW_ACTIVITIES, {
+    ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
+
+  let showTable = false;
+  const toggle = el('button', { class: 'ghost', type: 'button', text: 'Table' });
+  head.appendChild(toggle);
+  card.appendChild(head);
+
+  const body = el('div', { style: 'margin-top:18px' });
+  function render() {
+    body.innerHTML = '';
+    if (!pmc.series.length) {
+      body.appendChild(el('p', { class: 'hint', text: 'No rides to build a fitness curve from yet.' }));
+      return;
+    }
+    if (showTable) {
+      const rows = pmc.series.slice(-60).reverse();
+      const table = el('table');
+      const thead = el('thead'); const tr = el('tr');
+      ['Date', 'TSS', 'Fitness', 'Fatigue', 'Form'].forEach((h, i) =>
+        tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
+      thead.appendChild(tr);
+      const tbody = el('tbody');
+      rows.forEach(p => {
+        const r = el('tr');
+        r.appendChild(el('td', { class: 'num', text: p.date }));
+        [p.tss, p.ctl, p.atl, p.form].forEach(v =>
+          r.appendChild(el('td', { class: 'r num', text: fmt(v, 1) })));
+        tbody.appendChild(r);
+      });
+      table.appendChild(thead); table.appendChild(tbody);
+      body.appendChild(el('div', { class: 'tbl-wrap' }, [table]));
+    } else {
+      body.appendChild(pmcChart(pmc.series));
+      if (pmc.verdict) {
+        body.appendChild(el('p', { class: 'hint', style: 'margin:14px 0 0',
+          text: pmc.verdict.advice }));
+      }
+      if (!PROFILE.ftp) {
+        body.appendChild(el('p', { class: 'hint', style: 'margin:8px 0 0',
+          text: 'Without an FTP these are estimated from heart rate and duration. ' +
+                'Setting FTP makes them power-based and far more accurate.' }));
+      }
+    }
+  }
+  toggle.addEventListener('click', () => {
+    showTable = !showTable;
+    toggle.textContent = showTable ? 'Chart' : 'Table';
+    render();
+  });
+  render();
+  card.appendChild(body);
+  return card;
+}
+
+function zoneDistributionCard() {
+  const dist = Cycling.zoneDistribution(RAW_ACTIVITIES, PROFILE.ftp, 42);
+  if (!dist) return null;
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Where the time goes' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'How your last six weeks split across the zones.' }));
+  card.appendChild(zoneBar(dist, PROFILE.ftp));
+  return card;
+}
+
+/** The power curve. Duration runs on a log axis because the interesting range
+ *  spans five seconds to an hour, and a linear axis would bury everything
+ *  under a minute against the right-hand edge. */
+function powerCurveCard() {
+  if (!DATA.curve || DATA.curve.length < 3) return null;
+  const card = el('div', { class: 'card' });
+  const head = el('div', { style: 'display:flex;align-items:flex-start;gap:16px' });
+  const titles = el('div', { style: 'flex:1' });
+  titles.appendChild(el('h2', { text: 'Power curve' }));
+  titles.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+    text: 'The best average you held for each duration, measured second by second ' +
+          'from your .FIT files.' }));
+  head.appendChild(titles);
+
+  let showTable = false;
+  const toggle = el('button', { class: 'ghost', type: 'button', text: 'Table' });
+  head.appendChild(toggle);
+  card.appendChild(head);
+
+  const body = el('div', { style: 'margin-top:18px' });
+  const pts = DATA.curve;
+
+  function render() {
+    body.innerHTML = '';
+    if (showTable) {
+      const table = el('table');
+      const thead = el('thead'); const tr = el('tr');
+      ['Duration', 'Watts', '% of FTP', 'W/kg'].forEach((h, i) =>
+        tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
+      thead.appendChild(tr);
+      const tbody = el('tbody');
+      pts.forEach(pt => {
+        const r = el('tr');
+        r.appendChild(el('td', { class: 'num', text: durLabel(pt.seconds) }));
+        r.appendChild(el('td', { class: 'r num', text: pt.watts + ' W' }));
+        r.appendChild(el('td', { class: 'r num',
+          text: PROFILE.ftp ? Math.round(100 * pt.watts / PROFILE.ftp) + '%' : '—' }));
+        r.appendChild(el('td', { class: 'r num',
+          text: PROFILE.weightKg ? (pt.watts / PROFILE.weightKg).toFixed(1) : '—' }));
+        tbody.appendChild(r);
+      });
+      table.appendChild(thead); table.appendChild(tbody);
+      body.appendChild(el('div', { class: 'tbl-wrap' }, [table]));
+      return;
+    }
+
+    const W = 720, H = 250, L = 48, R = 20, T = 18, B = 34;
+    const iw = W - L - R, ih = H - T - B;
+    const scale = niceScale(Math.max.apply(null, pts.map(p => p.watts)), 4);
+    const minLog = Math.log10(pts[0].seconds);
+    const maxLog = Math.log10(pts[pts.length - 1].seconds);
+    const x = s => L + ((Math.log10(s) - minLog) / (maxLog - minLog)) * iw;
+    const y = v => T + ih - (v / scale.ceil) * ih;
+
+    const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                            preserveAspectRatio: 'xMidYMid meet', role: 'img',
+                            'aria-label': 'Best average power by duration' });
+    scale.ticks.forEach(t => {
+      svg.appendChild(el('line', { class: 'gridline', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+      svg.appendChild(el('text', { class: 'axis', x: L - 9, y: y(t) + 4,
+                                   'text-anchor': 'end', text: fmt(t) }));
+    });
+
+    // Threshold reference: where FTP sits on this curve.
+    if (PROFILE.ftp && PROFILE.ftp <= scale.ceil) {
+      svg.appendChild(el('line', { x1: L, x2: W - R, y1: y(PROFILE.ftp), y2: y(PROFILE.ftp),
+                                   stroke: 'var(--series-2)', 'stroke-width': 1.5,
+                                   'stroke-dasharray': '5 4', 'stroke-opacity': .8 }));
+      // Anchored left: the curve ends at the right edge, and a label there
+      // lands on top of the last data point.
+      svg.appendChild(el('text', { class: 'axis', x: L + 6, y: y(PROFILE.ftp) - 7,
+                                   'text-anchor': 'start', fill: 'var(--series-2)',
+                                   'font-weight': '620', text: 'FTP ' + PROFILE.ftp + ' W' }));
+    }
+
+    svg.appendChild(el('path', {
+      d: 'M' + pts.map(p => `${x(p.seconds).toFixed(1)},${y(p.watts).toFixed(1)}`).join(' L'),
+      fill: 'none', stroke: 'var(--series-1)', 'stroke-width': 2,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    pts.forEach(p => {
+      const dot = el('circle', { cx: x(p.seconds), cy: y(p.watts), r: 4.5,
+                                 fill: 'var(--series-1)', stroke: 'var(--surface)',
+                                 'stroke-width': 2 });
+      hoverable(dot, durLabel(p.seconds), [
+        ['Best average', p.watts + ' W'],
+        ['% of FTP', PROFILE.ftp ? Math.round(100 * p.watts / PROFILE.ftp) + '%' : '—'],
+        ['W/kg', PROFILE.weightKg ? (p.watts / PROFILE.weightKg).toFixed(2) : '—'],
+      ]);
+      svg.appendChild(dot);
+    });
+
+    // Label only the anchors a rider reads the curve by.
+    [5, 60, 300, 1200].forEach(s => {
+      const pt = pts.find(p => p.seconds === s);
+      if (!pt) return;
+      svg.appendChild(el('text', { class: 'axis', x: x(s), y: y(pt.watts) - 11,
+                                   'text-anchor': 'middle', fill: 'var(--text)',
+                                   'font-weight': '640', text: pt.watts }));
+    });
+    pts.forEach((p, i) => {
+      if (i % 2 && i !== pts.length - 1) return;
+      svg.appendChild(el('text', { class: 'axis', x: x(p.seconds), y: H - 10,
+                                   'text-anchor': 'middle', text: durLabel(p.seconds) }));
+    });
+    body.appendChild(svg);
+  }
+
+  toggle.addEventListener('click', () => {
+    showTable = !showTable;
+    toggle.textContent = showTable ? 'Chart' : 'Table';
+    render();
+  });
+  render();
+  card.appendChild(body);
+  return card;
+}
+
+function durLabel(s) {
+  if (s < 60) return s + 's';
+  if (s < 3600) return (s / 60) + 'min';
+  return (s / 3600) + 'h';
+}
+
+function powerProfileCard() {
+  const profile = Cycling.powerProfile(RAW_ACTIVITIES);
+  if (!profile.length) return null;
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Best sustained power' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Your best ride at each kind of length.' }));
+  profile.forEach(b => {
+    const row = el('div', { class: 'plan-day' });
+    row.appendChild(el('span', { class: 'd', style: 'width:96px', text: b.band }));
+    const w = el('span', { class: 'w num', style: 'flex:1' });
+    w.appendChild(el('strong', { style: 'color:var(--text)', text: b.watts + ' W' }));
+    if (PROFILE.ftp) {
+      w.appendChild(document.createTextNode(`  ${Math.round(100 * b.watts / PROFILE.ftp)}% FTP`));
+    }
+    row.appendChild(w);
+    row.appendChild(el('span', { class: 'd num', style: 'text-align:right', text: b.date }));
+    hoverable(row, b.name || b.band, [
+      ['Power', b.watts + ' W'],
+      ['Basis', b.normalized ? 'normalized power' : 'ride average'],
+      ['Duration', Analytics.fmtDuration(b.duration)],
+    ]);
+    card.appendChild(row);
+  });
+  return card;
+}
+
+/* ------------------------------------------------------------------ theme */
+(function themeToggle() {
+  const KEY = 'training-hub-theme';
+  let stored = null;
+  try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+  if (stored) document.documentElement.setAttribute('data-theme', stored);
+  $('#theme-btn').addEventListener('click', () => {
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    const now = document.documentElement.getAttribute('data-theme')
+      || (dark ? 'dark' : 'light');
+    const next = now === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
+  });
+})();
+
+/* ==================================================================== bike
+ * The cycling views: rider profile, power dashboard, workout builder, plan.
+ */
+
+const PROFILE_KEY = 'training-hub-profile';
+const DEFAULT_PROFILE = { ftp: null, weightKg: null, restHr: 50, maxHr: 190, sex: 'unspecified' };
+let PROFILE = Object.assign({}, DEFAULT_PROFILE);
+let TAB = 'dashboard';
+
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (raw) PROFILE = Object.assign({}, DEFAULT_PROFILE, JSON.parse(raw));
+  } catch (e) { /* private mode; defaults stand */ }
+}
+function saveProfile() {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(PROFILE)); } catch (e) { /* ignore */ }
+}
+
+const rides = () => (RAW_ACTIVITIES || []).filter(a => a.type === 'cycling');
+const imperial = () => !DATA || DATA.unit !== 'km';
+
+function download(filename, text, mime) {
+  const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+/* ------------------------------------------------------------------ chart */
+
+/** Fitness, fatigue and form on one timeline. Three series, so they are
+ *  direct-labelled at the right edge and backed by a table toggle — aqua sits
+ *  under 3:1 against the light surface and must not carry meaning alone. */
+function pmcChart(series) {
+  const W = 720, H = 260, L = 44, R = 56, T = 16, B = 28;
+  const iw = W - L - R, ih = H - T - B;
+  const pts = series.slice(-182);
+  if (pts.length < 2) return el('p', { class: 'hint', text: 'Not enough history yet for a fitness curve.' });
+
+  const maxV = Math.max(...pts.map(p => Math.max(p.ctl, p.atl)), 10);
+  const minV = Math.min(...pts.map(p => p.form), 0);
+  const scale = niceScale(maxV, 4);
+  const lo = Math.min(minV, 0), hi = scale.ceil;
+  const y = v => T + ih - ((v - lo) / (hi - lo)) * ih;
+  const x = i => L + (i / (pts.length - 1)) * iw;
+
+  const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                          preserveAspectRatio: 'xMidYMid meet', role: 'img',
+                          'aria-label': 'Fitness, fatigue and form over time' });
+
+  scale.ticks.concat(lo < 0 ? [lo] : []).forEach(t => {
+    if (t < lo || t > hi) return;
+    svg.appendChild(el('line', { class: 'gridline', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+    svg.appendChild(el('text', { class: 'axis', x: L - 8, y: y(t) + 4,
+                                 'text-anchor': 'end', text: fmt(t) }));
+  });
+  if (lo < 0) {
+    svg.appendChild(el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0),
+                                 stroke: 'var(--border-strong)', 'stroke-width': 1 }));
+  }
+
+  const line = (key, colour) => {
+    const d = pts.map((p, i) => `${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join(' L');
+    svg.appendChild(el('path', { d: 'M' + d, fill: 'none', stroke: colour,
+                                 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+    const last = pts[pts.length - 1];
+    svg.appendChild(el('circle', { cx: x(pts.length - 1), cy: y(last[key]), r: 4,
+                                   fill: colour, stroke: 'var(--surface)', 'stroke-width': 2 }));
+    return last[key];
+  };
+  const ctl = line('ctl', 'var(--series-1)');
+  const atl = line('atl', 'var(--series-2)');
+  const form = line('form', 'var(--series-3)');
+
+  // Direct labels at the right edge, nudged apart so they never collide.
+  const labels = [
+    { v: ctl, t: 'Fitness ' + Math.round(ctl) },
+    { v: atl, t: 'Fatigue ' + Math.round(atl) },
+    { v: form, t: 'Form ' + Math.round(form) },
+  ].sort((a, b) => a.v - b.v);
+  let prevY = Infinity;
+  labels.slice().reverse().forEach(l => {
+    let ly = y(l.v) + 4;
+    if (ly - prevY < 14 && ly > prevY) ly = prevY + 14;
+    if (prevY - ly < 14 && prevY !== Infinity) ly = prevY + 14;
+    prevY = ly;
+    svg.appendChild(el('text', { class: 'axis', x: W - R + 6, y: ly,
+                                 fill: 'var(--text-2)', text: l.t }));
+  });
+
+  [0, Math.floor(pts.length / 2), pts.length - 1].forEach(i => {
+    svg.appendChild(el('text', { class: 'axis', x: x(i), y: H - 8,
+                                 'text-anchor': i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'middle',
+                                 text: shortDate(pts[i].date) }));
+  });
+
+  pts.forEach((p, i) => {
+    const hit = el('rect', { x: x(i) - iw / pts.length / 2, y: T,
+                             width: iw / pts.length, height: ih, fill: 'transparent' });
+    hoverable(hit, shortDate(p.date), [
+      ['Fitness (CTL)', fmt(p.ctl, 1)], ['Fatigue (ATL)', fmt(p.atl, 1)],
+      ['Form (TSB)', fmt(p.form, 1)], ['TSS that day', p.tss ? fmt(p.tss) : 'rest'],
+    ]);
+    svg.appendChild(hit);
+  });
+  return svg;
+}
+
+/** Zone distribution. Zones are ordered, so this is a sequential ramp rather
+ *  than seven categorical hues — darker means harder. */
+function zoneBar(dist, ftp) {
+  const wrap = el('div', {});
+  const W = 100;
+  const bar = el('div', { style: 'display:flex;height:26px;border-radius:6px;overflow:hidden;gap:2px' });
+  dist.rows.forEach(r => {
+    const step = Math.min(6, Math.max(1, r.n - 1));
+    const seg = el('div', { style: `flex:${r.pct};background:var(--ramp-${step});min-width:2px` });
+    hoverable(seg, `Zone ${r.n} — ${r.name}`, [
+      ['Share', r.pct + '%'],
+      ['Time', Analytics.fmtDuration(r.seconds)],
+      ['Watts', ftp ? `${Math.round(Cycling.ZONES[r.n - 1].lo * ftp)}-${Math.round(Cycling.ZONES[r.n - 1].hi * ftp)} W` : '—'],
+    ]);
+    bar.appendChild(seg);
+  });
+  wrap.appendChild(bar);
+
+  const legend = el('div', { class: 'legend', style: 'margin:14px 0 0' });
+  dist.rows.forEach(r => {
+    const k = el('div', { class: 'key' });
+    k.appendChild(el('span', { class: 'swatch',
+      style: `background:var(--ramp-${Math.min(6, Math.max(1, r.n - 1))})` }));
+    k.appendChild(el('span', { text: `Z${r.n} ${r.name} · ${r.pct}%` }));
+    legend.appendChild(k);
+  });
+  wrap.appendChild(legend);
+  if (dist.unpowered > 0) {
+    wrap.appendChild(el('p', { class: 'hint', style: 'margin:10px 0 0',
+      text: Analytics.fmtDuration(dist.unpowered) + ' of riding had no power data and is not counted here.' }));
+  }
+  return wrap;
+}
+
+/* ---------------------------------------------------------------- profile */
+
+/** Asked once, right after a file lands: the two numbers that turn a pile of
+ *  rides into personal numbers. Skippable, and it never comes back once the
+ *  rider has answered or dismissed it. */
+function setupCard() {
+  if (PROFILE.ftp && PROFILE.weightKg) return null;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('training-hub-setup-done') === '1'; } catch (e) {}
+  if (dismissed) return null;
+
+  const measured = DATA.curve ? Fit.ftpFromCurve(DATA.curve) : null;
+  const est = measured ? { ftp: measured.ftp, measured: true } : Cycling.estimateFTP(rides());
+
+  const card = el('div', { class: 'card setup', style: 'margin-bottom:20px' });
+  card.appendChild(el('h2', { text: 'Two numbers and you are set up' }));
+  card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+    text: est
+      ? (est.measured
+          ? `We measured your FTP at ${est.ftp} watts from your ride data. Add your weight ` +
+            'and everything on this page becomes yours.'
+          : `Your rides suggest an FTP of around ${est.ftp} watts. Correct it if you know ` +
+            'better, add your weight, and everything on this page becomes yours.')
+      : 'Add your FTP and weight and everything on this page becomes yours. If you do not ' +
+        'know your FTP, there is a 20-minute test in the Build a workout tab.' }));
+
+  const row = el('div', { class: 'row' });
+  const mkField = (key, label, hint, value, attrs) => {
+    const f = el('div', { class: 'field' });
+    f.appendChild(el('label', { for: 's-' + key, text: label }));
+    const input = el('input', Object.assign(
+      { id: 's-' + key, type: 'number', value: value == null ? '' : value }, attrs));
+    f.appendChild(input);
+    f.appendChild(el('span', { class: 'unit-hint', text: hint }));
+    row.appendChild(f);
+    return input;
+  };
+  const ftpInput = mkField('ftp', 'Your FTP', 'watts',
+    PROFILE.ftp || (est ? est.ftp : ''), { min: 50, max: 600 });
+  const wInput = mkField('weight', 'Your weight', 'kg',
+    PROFILE.weightKg, { min: 30, max: 200, step: 0.1 });
+
+  const save = el('button', { class: 'btn', type: 'button', text: 'Save' });
+  save.addEventListener('click', () => {
+    const f = Number(ftpInput.value), w = Number(wInput.value);
+    if (Number.isFinite(f) && f > 0) PROFILE.ftp = Math.round(f);
+    if (Number.isFinite(w) && w > 0) PROFILE.weightKg = w;
+    saveProfile();
+    try { localStorage.setItem('training-hub-setup-done', '1'); } catch (e) {}
+    drawDashboard();
+  });
+  row.appendChild(save);
+
+  const skip = el('button', { class: 'skip', type: 'button', text: 'Not now' });
+  skip.addEventListener('click', () => {
+    try { localStorage.setItem('training-hub-setup-done', '1'); } catch (e) {}
+    drawDashboard();
+  });
+  row.appendChild(skip);
+  card.appendChild(row);
+  return card;
+}
+
+function profileCard() {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Rider' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'The power you can hold for about an hour. Your zones, your effort scores and ' +
+          'every workout here are worked out from it.' }));
+
+  const fields = el('div', { class: 'fields' });
+  const mk = (key, label, hint, attrs) => {
+    const f = el('div', { class: 'field' });
+    f.appendChild(el('label', { for: 'p-' + key, text: label }));
+    const input = el('input', Object.assign(
+      { id: 'p-' + key, type: 'number', value: PROFILE[key] == null ? '' : PROFILE[key] }, attrs || {}));
+    input.addEventListener('change', () => {
+      const v = input.value === '' ? null : Number(input.value);
+      PROFILE[key] = (v != null && Number.isFinite(v) && v > 0) ? v : null;
+      saveProfile();
+      drawDashboard();
+    });
+    f.appendChild(input);
+    if (hint) f.appendChild(el('span', { class: 'unit-hint', text: hint }));
+    fields.appendChild(f);
+  };
+  mk('ftp', 'FTP', 'watts', { min: 50, max: 600, step: 1 });
+  mk('weightKg', 'Weight', 'kg', { min: 30, max: 200, step: 0.1 });
+  mk('restHr', 'Resting HR', 'bpm', { min: 30, max: 100 });
+  mk('maxHr', 'Max HR', 'bpm', { min: 120, max: 230 });
+  card.appendChild(fields);
+
+  // Offer a number to start from, clearly labelled as a guess.
+  if (!PROFILE.ftp) {
+    const measured = DATA.curve ? Fit.ftpFromCurve(DATA.curve) : null;
+    const est = measured
+      ? { ftp: measured.ftp, from: `measured ${measured.from}`, watts: measured.watts,
+          source: 'your power stream', date: null, measured: true }
+      : Cycling.estimateFTP(rides());
+    const box = el('div', { class: 'estimate' });
+    if (est && est.measured) {
+      box.appendChild(el('strong', { text: `Measured ${est.ftp} W. ` }));
+      box.appendChild(document.createTextNode(
+        `Your best continuous ${measured.from} was ${est.watts} W, taken second by second ` +
+        'from the ride itself — the conventional 95% of that is your FTP. This is a real ' +
+        'measurement, not an estimate from averages.'));
+      const use = el('button', { class: 'chip', type: 'button',
+                                 text: `Use ${est.ftp} W`, style: 'margin-top:10px' });
+      use.addEventListener('click', () => { PROFILE.ftp = est.ftp; saveProfile(); drawDashboard(); });
+      box.appendChild(el('div', {}, [use]));
+    } else if (est) {
+      box.appendChild(el('strong', { text: `Looks like roughly ${est.ftp} W. ` }));
+      box.appendChild(document.createTextNode(
+        `Taken from your best ${est.from} — ${est.watts} W ${est.source} on ${est.date}. ` +
+        'Ride averages include coasting, so this usually reads low. Treat it as a starting ' +
+        'point and replace it after a real test.'));
+      const use = el('button', { class: 'chip', type: 'button',
+                                 text: `Use ${est.ftp} W`, style: 'margin-top:10px' });
+      use.addEventListener('click', () => {
+        PROFILE.ftp = est.ftp; saveProfile(); drawDashboard();
+      });
+      box.appendChild(el('div', {}, [use]));
+    } else {
+      box.appendChild(document.createTextNode(
+        'No ride in the file is long and hard enough to estimate FTP from. Enter it above, ' +
+        'or ride the 20-minute test in the Workout tab.'));
+    }
+    card.appendChild(box);
+  } else if (PROFILE.weightKg) {
+    const vo2 = Cycling.vo2maxEstimate(PROFILE.ftp, PROFILE.weightKg);
+    const strip = el('div', { class: 'estimate' });
+    strip.appendChild(document.createTextNode(
+      `${Cycling.wattsPerKg(PROFILE.ftp, PROFILE.weightKg)} W/kg. Estimated VO2 max ${vo2} ` +
+      `ml/kg/min — from the ACSM cycling equation at about 120% of FTP, not a lab test.`));
+    card.appendChild(strip);
+  }
+  return card;
+}
+
+/* --------------------------------------------------------- recommendation */
+
+function recommendCard() {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'Ride today' }));
+
+  let rec;
+  try {
+    rec = Coach.recommend(RAW_ACTIVITIES, PROFILE);
+  } catch (e) {
+    card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
+    return card;
+  }
+
+  const verdict = Cycling.formVerdict(rec.form);
+  const head = el('div', { style: 'display:flex;align-items:center;gap:10px;margin:2px 0 14px;flex-wrap:wrap' });
+  head.appendChild(el('strong', { style: 'font-size:16px;letter-spacing:-.02em',
+                                  text: rec.workout.name }));
+  head.appendChild(el('span', { class: 'pill ' + verdict.kind, text: verdict.label }));
+  if (rec.workout.tss) {
+    head.appendChild(el('span', { class: 'pill mute',
+      text: `${Math.round(rec.workout.seconds / 60)} min · ${rec.workout.tss} TSS` }));
+  }
+  card.appendChild(head);
+
+  card.appendChild(el('p', { class: 'rec-why', text: rec.why }));
+  if (rec.note) card.appendChild(el('p', { class: 'rec-note', text: rec.note }));
+  if (rec.pattern) {
+    card.appendChild(el('p', { class: 'rec-note', style: 'margin-top:10px', text: rec.pattern }));
+  }
+
+  const open = el('button', { class: 'btn', type: 'button', style: 'margin-top:16px',
+                              text: 'Open this workout' });
+  open.addEventListener('click', () => {
+    PENDING_WORKOUT = rec.workout;
+    PENDING_TEXT = rec.workout.name;
+    switchTab('workout');
+  });
+  card.appendChild(open);
+  return card;
+}
+
+/* ---------------------------------------------------------- workout view */
+
+let PENDING_WORKOUT = null;
+let PENDING_TEXT = '';
+
+function stepRows(workout, ftp) {
+  const box = el('div', { class: 'steps' });
+  const colour = s => {
+    const mid = (s.lo + s.hi) / 2;
+    const z = Cycling.ZONES.find(z => mid <= z.hi) || Cycling.ZONES[6];
+    return `var(--ramp-${Math.min(6, Math.max(1, z.n - 1))})`;
+  };
+  const dur = s => {
+    const m = Math.floor(s.seconds / 60), sec = s.seconds % 60;
+    return sec ? `${m}:${String(sec).padStart(2, '0')}` : `${m} min`;
+  };
+  const power = s => {
+    if (!ftp) return `${Math.round(s.lo * 100)}-${Math.round(s.hi * 100)}% FTP`;
+    const a = Workouts.watts(s.lo, ftp), b = Workouts.watts(s.hi, ftp);
+    return a === b ? `${a} W` : `${Math.min(a, b)}-${Math.max(a, b)} W`;
+  };
+  const row = (s, child) => {
+    const r = el('div', { class: 'st' + (child ? ' child' : '') });
+    // Bar width tracks duration; colour tracks the zone.
+    const width = Math.max(3, Math.min(120, Math.round(s.seconds / 12)));
+    r.appendChild(el('span', { class: 'bar', style: `width:${width}px;background:${colour(s)}` }));
+    r.appendChild(el('span', { class: 'dur', text: dur(s) }));
+    r.appendChild(el('span', { class: 'pw', text: power(s) }));
+    // An explicit "4x8min" names its steps "8 min", which the duration column
+    // already says — so the label is dropped when it adds nothing.
+    const label = (s.label && s.label.replace(/\s+/g, '') === dur(s).replace(/\s+/g, ''))
+      ? null : s.label;
+    r.appendChild(el('span', { class: 'lb',
+      text: [label, s.cadence ? '@ ' + s.cadence : null].filter(Boolean).join('  ') }));
+    return r;
+  };
+  const walk = steps => steps.forEach(s => {
+    if (s.repeat) {
+      box.appendChild(el('div', { class: 'st rep-head', text: `${s.repeat} x` }));
+      s.steps.forEach(c => box.appendChild(row(c, true)));
+    } else box.appendChild(row(s, false));
+  });
+  walk(workout.steps);
+  return box;
+}
+
+function workoutCard(workout) {
+  const ftp = PROFILE.ftp;
+  const card = el('div', { class: 'card' });
+
+  const head = el('div', { class: 'wo-head' });
+  head.appendChild(el('h3', { text: workout.name }));
+  const stats = el('div', { class: 'wo-stats' });
+  const stat = (label, value) => {
+    const s = el('span');
+    s.appendChild(document.createTextNode(label + ' '));
+    s.appendChild(el('b', { text: value }));
+    stats.appendChild(s);
+  };
+  stat('Duration', Math.round(workout.seconds / 60) + ' min');
+  if (workout.tss) stat('TSS', String(workout.tss));
+  if (workout.if) stat('IF', workout.if.toFixed(2));
+  head.appendChild(stats);
+  card.appendChild(head);
+
+  if (workout.interpretation) {
+    card.appendChild(el('p', { class: 'hint', style: 'margin:-6px 0 14px', text: workout.interpretation }));
+  }
+  if (workout.blurb) {
+    card.appendChild(el('p', { class: 'rec-note', style: 'margin:0 0 18px', text: workout.blurb }));
+  }
+  if (!ftp) {
+    card.appendChild(el('div', { class: 'estimate', style: 'margin:0 0 16px',
+      text: 'Set your FTP on the Dashboard tab and these become watt targets instead of percentages.' }));
+  }
+
+  card.appendChild(stepRows(workout, ftp));
+
+  const actions = el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)' });
+  const slug = workout.name.replace(/[^\w]+/g, '-').toLowerCase();
+  const dl = (label, filename, text, mime) => {
+    const b = el('button', { class: 'ghost', type: 'button', text: label });
+    b.addEventListener('click', () => download(filename, text, mime));
+    actions.appendChild(b);
+  };
+  dl('Zwift (.zwo)', slug + '.zwo', Workouts.toZWO(workout, ftp), 'application/xml');
+  dl('Trainer (.mrc)', slug + '.mrc', Workouts.toCourseFile(workout, ftp, false));
+  if (ftp) dl('Watts (.erg)', slug + '.erg', Workouts.toCourseFile(workout, ftp, true));
+  dl('Plain text', slug + '.txt',
+     workout.name + '\n\n' + Workouts.describe(workout, ftp) +
+     (workout.tss ? `\n\n  ~${Math.round(workout.seconds / 60)} min, ${workout.tss} TSS` : '') + '\n');
+  card.appendChild(actions);
+  return card;
+}
+
+function workoutView() {
+  const wrap = el('div', {});
+  const card = el('div', { class: 'card', style: 'margin-bottom:18px' });
+  card.appendChild(el('h2', { text: 'Build a workout' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Say what you want in your own words, or write the intervals out. ' +
+          'Targets come back as watts from your FTP.' }));
+
+  const box = el('textarea', { class: 'prompt', id: 'wo-input',
+    placeholder: 'e.g. 2x20 at threshold  ·  90 minute endurance ride  ·  4x8min @ 110%  ·  short vo2 session' });
+  box.value = PENDING_TEXT || '';
+  card.appendChild(box);
+
+  const row = el('div', { style: 'display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap' });
+  const go = el('button', { class: 'btn', type: 'button', text: 'Build it' });
+  row.appendChild(go);
+  if (PROFILE.ftp) {
+    row.appendChild(el('span', { class: 'hint', style: 'margin:0',
+      text: `Using FTP ${PROFILE.ftp} W` }));
+  }
+  card.appendChild(row);
+
+  const chips = el('div', { class: 'chips' });
+  ['2x20 at threshold', '90 minute endurance ride', 'short vo2 session',
+   'sweet spot 60 min', 'over-unders', '6x30s sprints', 'ftp test', '45 min recovery']
+    .forEach(t => {
+      const c = el('button', { class: 'chip', type: 'button', text: t });
+      c.addEventListener('click', () => { box.value = t; build(); });
+      chips.appendChild(c);
+    });
+  card.appendChild(chips);
+  wrap.appendChild(card);
+
+  const result = el('div', {});
+  wrap.appendChild(result);
+
+  function build() {
+    result.innerHTML = '';
+    PENDING_TEXT = box.value;
+    try {
+      const w = Workouts.fromText(box.value, { ftp: PROFILE.ftp });
+      PENDING_WORKOUT = w;
+      result.appendChild(workoutCard(w));
+    } catch (err) {
+      const e = el('div', { class: 'err' });
+      e.appendChild(el('strong', { text: 'Could not build that. ' }));
+      e.appendChild(document.createTextNode(err.message));
+      result.appendChild(e);
+    }
+  }
+  go.addEventListener('click', build);
+  box.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') build();
+  });
+
+  if (PENDING_WORKOUT) result.appendChild(workoutCard(PENDING_WORKOUT));
+  return wrap;
+}
+
+/* ------------------------------------------------------------- plan view */
+
+let PENDING_PLAN = null;
+
+function planView() {
+  const wrap = el('div', {});
+  const card = el('div', { class: 'card', style: 'margin-bottom:18px' });
+  card.appendChild(el('h2', { text: 'Build a training plan' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'A block that ramps from the volume you are actually riding, with a recovery ' +
+          'week every fourth week and a taper into your event.' }));
+
+  const hoursNow = Coach.weeklyHours(RAW_ACTIVITIES) || 6;
+  const fields = el('div', { class: 'fields' });
+  const state = {
+    weeks: 12,
+    hours: Math.round(hoursNow * 10) / 10,
+    event: '',
+    name: 'Training block',
+  };
+  const mk = (key, label, hint, attrs) => {
+    const f = el('div', { class: 'field' });
+    f.appendChild(el('label', { text: label }));
+    const input = el('input', Object.assign({ value: state[key] }, attrs || {}));
+    input.addEventListener('change', () => {
+      state[key] = input.type === 'number' ? Number(input.value) : input.value;
+    });
+    f.appendChild(input);
+    if (hint) f.appendChild(el('span', { class: 'unit-hint', text: hint }));
+    fields.appendChild(f);
+  };
+  mk('weeks', 'Weeks', '4 to 24', { type: 'number', min: 4, max: 24 });
+  mk('hours', 'Hours a week now', 'your current volume', { type: 'number', min: 2, max: 25, step: 0.5 });
+  mk('event', 'Event date', 'optional', { type: 'date' });
+  mk('name', 'Name', '', { type: 'text' });
+  card.appendChild(fields);
+
+  const go = el('button', { class: 'btn', type: 'button', text: 'Build the plan',
+                            style: 'margin-top:16px' });
+  card.appendChild(go);
+  if (!PROFILE.ftp) {
+    card.appendChild(el('div', { class: 'estimate', style: 'margin-top:14px',
+      text: 'Without an FTP the plan still lays out the weeks, but sessions come back as ' +
+            'percentages rather than watts. Set it on the Dashboard tab.' }));
+  }
+  wrap.appendChild(card);
+
+  const result = el('div', {});
+  wrap.appendChild(result);
+
+  function renderPlan(plan) {
+    result.innerHTML = '';
+    const head = el('div', { class: 'card', style: 'margin-bottom:18px' });
+    head.appendChild(el('h2', { text: plan.name }));
+    const totalTss = plan.weeks.reduce((s, w) => s + w.tss, 0);
+    head.appendChild(el('p', { class: 'hint',
+      text: `${plan.weeks.length} weeks · ${Math.round(totalTss).toLocaleString()} TSS total` +
+            (plan.eventDate ? ` · finishing ${plan.eventDate}` : '') }));
+
+    const legend = el('div', { class: 'week-row', style: 'border-bottom:1px solid var(--border-strong);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)' });
+    ['Week', 'Phase', 'Hours', 'TSS', 'Sessions'].forEach(h =>
+      legend.appendChild(el('span', { text: h })));
+    head.appendChild(legend);
+
+    plan.weeks.forEach(w => {
+      const row = el('div', { class: 'week-row' + (w.recovery ? ' is-recovery' : '') });
+      row.appendChild(el('span', { class: 'wk num', text: String(w.week) }));
+      row.appendChild(el('span', { text: w.phase }));
+      row.appendChild(el('span', { class: 'num', text: w.hours + 'h' }));
+      row.appendChild(el('span', { class: 'num', text: String(w.tss) }));
+      const sessions = el('div', { class: 'sessions' });
+      w.days.forEach(d => {
+        const s = el('button', { class: 'sess', type: 'button',
+                                 text: `${d.day} ${d.name}` });
+        s.addEventListener('click', () => {
+          PENDING_WORKOUT = d.workout;
+          PENDING_TEXT = d.name;
+          switchTab('workout');
+        });
+        hoverable(s, `${d.day} — ${d.name}`, [
+          ['Duration', d.minutes + ' min'],
+          ['TSS', d.tss == null ? '—' : String(d.tss)],
+        ]);
+        sessions.appendChild(s);
+      });
+      row.appendChild(sessions);
+      head.appendChild(row);
+      if (w.blurb) {
+        head.appendChild(el('p', { class: 'hint',
+          style: 'margin:-2px 0 8px;padding-left:64px', text: w.blurb }));
+      }
+    });
+
+    const actions = el('div', { style: 'display:flex;gap:8px;margin-top:20px;flex-wrap:wrap' });
+    const txt = el('button', { class: 'ghost', type: 'button', text: 'Download as text' });
+    txt.addEventListener('click', () => download(
+      plan.name.replace(/[^\w]+/g, '-').toLowerCase() + '.txt', planText(plan)));
+    actions.appendChild(txt);
+    head.appendChild(actions);
+    result.appendChild(head);
+  }
+
+  go.addEventListener('click', () => {
+    PENDING_PLAN = Coach.buildPlan({
+      weeks: state.weeks, ftp: PROFILE.ftp, weeklyHours: state.hours,
+      eventDate: state.event || null, name: state.name || 'Training block',
+    });
+    renderPlan(PENDING_PLAN);
+  });
+  if (PENDING_PLAN) renderPlan(PENDING_PLAN);
+  return wrap;
+}
+
+function planText(plan) {
+  const out = [plan.name, '='.repeat(plan.name.length), ''];
+  if (plan.eventDate) out.push('Event: ' + plan.eventDate);
+  if (plan.ftp) out.push('FTP: ' + plan.ftp + ' W');
+  out.push('');
+  plan.weeks.forEach(w => {
+    out.push(`Week ${w.week} — ${w.phase}${w.date ? '  (' + w.date + ')' : ''}   ${w.hours}h, ${w.tss} TSS`);
+    out.push('  ' + w.blurb);
+    w.days.forEach(d => {
+      out.push(`    ${d.day}  ${d.name} — ${d.minutes} min${d.tss ? ', ' + d.tss + ' TSS' : ''}`);
+      out.push(Workouts.describe(d.workout, plan.ftp).split('\n').map(l => '    ' + l).join('\n'));
+    });
+    out.push('');
+  });
+  return out.join('\n');
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+function switchTab(name) {
+  TAB = name;
+  drawDashboard();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function tabBar() {
+  const bar = el('div', { class: 'tabs', role: 'tablist' });
+  [['dashboard', 'Dashboard'], ['workout', 'Build a workout'], ['plan', 'Training plan']]
+    .forEach(([key, label]) => {
+      const b = el('button', { type: 'button', role: 'tab',
+                               'aria-selected': String(TAB === key), text: label });
+      b.addEventListener('click', () => switchTab(key));
+      bar.appendChild(b);
+    });
+  return bar;
+}
+
+/* ------------------------------------------------------------------ start */
+(function start() {
+  loadProfile();
+  $('#import-btn').addEventListener('click', () => render(null));
+  $('#clear-btn').addEventListener('click', () => {
+    clearLocal();
+    DATA = null;
+    render(null);
+  });
+
+  // Data can arrive three ways: baked in by `./wk web`, remembered from a file
+  // this browser loaded before, or dropped on the page in a moment's time.
+  const baked = DATA && DATA.totals && DATA.totals.activities ? DATA : null;
+  render(baked || loadLocal());
+})();
+</script>
+</body>
+</html>

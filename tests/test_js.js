@@ -268,3 +268,95 @@ check('load builds across the block', plan.weeks[6].tss > plan.weeks[0].tss, tru
 check('every day has a session', plan.weeks.every(w => w.days.length > 0), true);
 check('the last week lands on the event', plan.weeks[11].date, '2026-11-15');
 check('short plans are still legal', Co.buildPlan({ weeks: 4, ftp: 250 }).weeks.length, 4);
+
+/* ------------------------------------------------------------------ FIT */
+const Fit = require(path.join(__dirname, '..', 'hub', 'static', 'fit.js'));
+
+/** Build a real FIT file in memory, so the parser is tested against the actual
+ *  binary layout rather than a stand-in. */
+function makeFit(powerSamples) {
+  const recs = [];
+  const push = (...bytes) => recs.push(Buffer.from(bytes));
+  const u16 = v => { const b = Buffer.alloc(2); b.writeUInt16LE(v); return b; };
+  const u32 = v => { const b = Buffer.alloc(4); b.writeUInt32LE(v); return b; };
+
+  // definition: record (global 20) with timestamp, power, heart_rate
+  push(0x40, 0, 0); recs.push(u16(20)); push(3);
+  push(253, 4, 0x86, 7, 2, 0x84, 3, 1, 0x02);
+
+  const t0 = 1000000;
+  powerSamples.forEach((w, i) => {
+    push(0x00);
+    recs.push(u32(t0 + i));
+    recs.push(u16(w));
+    push(Math.min(199, 100 + Math.floor(w / 3)));
+  });
+
+  // definition + data: session (global 18)
+  push(0x41, 0, 0); recs.push(u16(18)); push(4);
+  push(2, 4, 0x86, 5, 1, 0x00, 8, 4, 0x86, 9, 4, 0x86);
+  push(0x01);
+  recs.push(u32(t0)); push(2);
+  recs.push(u32(powerSamples.length * 1000)); recs.push(u32(4000000));
+
+  const body = Buffer.concat(recs);
+  const header = Buffer.alloc(12);
+  header.writeUInt8(12, 0); header.writeUInt8(0x20, 1);
+  header.writeUInt16LE(2140, 2); header.writeUInt32LE(body.length, 4);
+  header.write('.FIT', 8, 'ascii');
+  const all = Buffer.concat([header, body]);
+  return all.buffer.slice(all.byteOffset, all.byteOffset + all.byteLength);
+}
+
+const samples = [];
+for (let i = 0; i < 600; i++) samples.push(150);
+for (let i = 0; i < 1200; i++) samples.push(280);
+for (let i = 0; i < 600; i++) samples.push(120);
+
+const fitRide = Fit.parse(makeFit(samples));
+check('sport decoded', fitRide.type, 'cycling');
+check('every sample read', fitRide.samples, 2400);
+check('timer time in seconds', fitRide.moving_s, 2400);
+check('distance scaled from centimetres', fitRide.distance_m, 40000);
+check('power stream kept', fitRide.streams.power.length, 2400);
+check('max power found', fitRide.max_watts, 280);
+check('heart rate averaged', fitRide.avg_hr > 100, true);
+check('source marked as fit', fitRide.source, 'fit');
+
+// Normalized power must exceed the plain average on a variable ride.
+check('NP beats the average', fitRide.np > fitRide.avg_watts, true);
+check('a steady effort has NP near its own average',
+      Math.abs(Fit.normalizedPower(new Array(600).fill(200)) - 200) <= 1, true);
+check('too short for a 30s window', Fit.normalizedPower([100, 110]), null);
+
+const curve = Fit.powerCurve(samples);
+const at = s => (curve.find(p => p.seconds === s) || {}).watts;
+check('best 20 minutes is the sustained block', at(1200), 280);
+check('best 5 seconds is the peak', at(5), 280);
+check('an hour is longer than the ride, so absent', at(3600), undefined);
+check('the curve never rises with duration',
+      curve.every((p, i) => i === 0 || p.watts <= curve[i - 1].watts), true);
+
+const measured = Fit.ftpFromCurve(curve);
+check('FTP is 95% of the measured 20', measured.ftp, 266);
+check('and says where it came from', measured.from, '20 min');
+
+const merged = Fit.mergeCurves([
+  [{ seconds: 60, watts: 300 }, { seconds: 300, watts: 250 }],
+  [{ seconds: 60, watts: 320 }, { seconds: 1200, watts: 240 }],
+]);
+check('merging keeps the best at each duration',
+      merged.map(p => p.seconds + ':' + p.watts).join(','), '60:320,300:250,1200:240');
+
+let fitErr = null;
+try { Fit.parse(new ArrayBuffer(8)); } catch (e) { fitErr = e.message; }
+check('a tiny file is rejected', /too small/.test(fitErr || ''), true);
+try {
+  const bad = Buffer.alloc(40); bad.writeUInt8(12, 0); bad.write('XXXX', 8, 'ascii');
+  Fit.parse(bad.buffer.slice(bad.byteOffset, bad.byteOffset + 40));
+} catch (e) { fitErr = e.message; }
+check('a non-FIT file is rejected by its header', /not a \.FIT/.test(fitErr || ''), true);
+
+const zoneSecs = Fit.zoneSeconds(samples, 266, Cy.ZONES);
+check('zone seconds total the ride', zoneSecs.reduce((a, b) => a + b, 0), 2400);
+check('the 280W block lands at threshold', zoneSecs[3], 1200);

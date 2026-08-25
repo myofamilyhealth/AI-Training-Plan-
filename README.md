@@ -188,8 +188,22 @@ The dashboard is built around power, because that is what a bike measures:
   a formula, not a lab test).
 - **Power zones, zone distribution and best sustained power** by duration band.
 
-A CSV carries one row per ride, never the second-by-second stream, so there is
-no true mean-maximal power curve here and nothing pretends there is.
+### Drop in a .FIT file for the real numbers
+
+A CSV carries one row per ride — an average, sometimes a normalized power
+someone else computed. A **.FIT** file carries the whole recording, a sample a
+second, and that changes what is possible:
+
+| From a CSV | From a .FIT |
+|---|---|
+| FTP *estimated* from ride averages, reads low | FTP **measured** from your best continuous 20 minutes |
+| Normalized power as exported, or nothing | Normalized power computed from the stream |
+| Each ride dropped whole into one zone | Real time-in-zone, sample by sample |
+| No power curve possible | **Mean maximal power curve**, 1 s to an hour |
+
+Drop them together: the CSV gives breadth, the .FIT gives depth, and where both
+describe the same ride the .FIT wins. Several .FIT files merge into one curve,
+keeping the best at each duration.
 
 ### Building workouts
 
@@ -304,6 +318,7 @@ hub/
     body.html          the page's markup
     style.css          its styles, both themes
     importer.js        reads a Garmin or Strava CSV in the browser
+    fit.js             decodes .FIT binaries: streams, power curve, real NP
     analytics.js       the same maths as analyze.py, in JavaScript
     cycling.js         FTP, TSS, power zones, fitness and fatigue
     workouts.js        the session library, the text parser, and exports

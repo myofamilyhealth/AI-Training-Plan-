@@ -132,8 +132,16 @@ Python and the JavaScript suites together.
 - **coach.js** — recommendation rules and plan layout. Every recommendation
   must carry a `why` naming the rule that fired. Never return advice without it.
 
-A CSV has one row per ride, not a power stream, so a real mean-maximal power
-curve is impossible here. Do not add one, and do not let a label imply one.
+Two input paths with different fidelity, and the difference matters:
+
+- **CSV** (`importer.js`) — one row per ride. FTP is estimated from averages and
+  reads low; each ride falls whole into one zone; no power curve is possible.
+- **.FIT** (`fit.js`) — the full recording. FTP is measured from the best
+  continuous 20 minutes, normalized power is computed from the stream, and a
+  mean maximal power curve is real.
+
+Never let a CSV-derived figure be presented with .FIT-level confidence. Where a
+number could come from either, say which it was.
 
 ## A hard constraint on Strava
 

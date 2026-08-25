@@ -173,6 +173,12 @@ def render(payload: dict | None, standalone: bool = True,
         # A personal training page on a public URL should not be indexed.
         # This is politeness to crawlers, not access control.
         '<meta name="robots" content="noindex, nofollow">\n'
+        # Google Fonts is a progressive enhancement: display=swap means the
+        # system stack renders immediately and the page still works offline.
+        '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
+        'family=Archivo:wght@400;500;600;700;800&display=swap">\n'
         f'<title>{title}</title>\n'
         f'<style>{STYLE}</style>\n'
         '</head>\n<body>\n'

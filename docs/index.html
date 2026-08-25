@@ -5,17 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
 <title>Training Hub</title>
 <style>:root {
   color-scheme: light;
-  --bg:            #f6f6f4;
-  --surface:       #fcfcfb;
-  --surface-2:     #f0efec;
-  --border:        #e3e2dd;
-  --border-strong: #d3d2cc;
-  --text:          #14140f;
-  --text-2:        #52514e;
-  --text-3:        #86857e;
+  --bg:            #eef1f5;
+  --surface:       #ffffff;
+  --surface-2:     #e7ecf1;
+  --border:        #dfe5ec;
+  --border-strong: #c7d0da;
+  --text:          #0d1418;
+  --text-2:        #47535e;
+  --text-3:        #77838e;
   --series-1:      #2a78d6;
   --series-2:      #eb6834;
   --series-3:      #1baf7a;
@@ -23,7 +26,8 @@
   --warn:          #b8730a;
   --crit:          #c4362f;
   --grid:          #e8e7e3;
-  --shadow:        0 1px 2px rgba(16,16,12,.05), 0 4px 16px rgba(16,16,12,.04);
+  --shadow:        0 1px 1px rgba(13,20,24,.04), 0 2px 6px rgba(13,20,24,.04), 0 8px 24px rgba(13,20,24,.05);
+  --shadow-lift:   0 2px 4px rgba(13,20,24,.06), 0 12px 32px rgba(13,20,24,.10);
   --ramp-0:  #eceae5;
   --ramp-1:  #cde2fb;
   --ramp-2:  #9ec5f4;
@@ -35,14 +39,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg:            #131312;
-    --surface:       #1a1a19;
-    --surface-2:     #232322;
-    --border:        #2e2e2c;
-    --border-strong: #3d3d3a;
-    --text:          #f7f7f5;
-    --text-2:        #c3c2b7;
-    --text-3:        #8b8a82;
+    --bg:            #0b0f13;
+    --surface:       #141a20;
+    --surface-2:     #1c242b;
+    --border:        #232c34;
+    --border-strong: #35414b;
+    --text:          #f0f5f8;
+    --text-2:        #aeb9c3;
+    --text-3:        #78848e;
     --series-1:      #3987e5;
     --series-2:      #d95926;
     --series-3:      #199e70;
@@ -50,7 +54,8 @@
     --warn:          #d99a2b;
     --crit:          #e66767;
     --grid:          #292928;
-    --shadow:        0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+    --shadow:        0 1px 1px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.24), 0 8px 24px rgba(0,0,0,.22);
+    --shadow-lift:   0 2px 4px rgba(0,0,0,.35), 0 14px 36px rgba(0,0,0,.40);
     --ramp-0:  #262625;
     --ramp-1:  #16324f;
     --ramp-2:  #184f95;
@@ -62,14 +67,14 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg:            #131312;
-  --surface:       #1a1a19;
-  --surface-2:     #232322;
-  --border:        #2e2e2c;
-  --border-strong: #3d3d3a;
-  --text:          #f7f7f5;
-  --text-2:        #c3c2b7;
-  --text-3:        #8b8a82;
+  --bg:      #0b0f13;
+  --surface:     #141a20;
+  --surface-2:   #1c242b;
+  --border:    #232c34;
+  --border-strong: #35414b;
+  --text:      #f0f5f8;
+  --text-2:    #aeb9c3;
+  --text-3:    #78848e;
   --series-1:      #3987e5;
   --series-2:      #d95926;
   --series-3:      #199e70;
@@ -77,7 +82,8 @@
   --warn:          #d99a2b;
   --crit:          #e66767;
   --grid:          #292928;
-  --shadow:        0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+  --shadow:        0 1px 1px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.24), 0 8px 24px rgba(0,0,0,.22);
+    --shadow-lift:   0 2px 4px rgba(0,0,0,.35), 0 14px 36px rgba(0,0,0,.40);
   --ramp-0:  #262625;
   --ramp-1:  #16324f;
   --ramp-2:  #184f95;
@@ -89,21 +95,28 @@
 
 * { box-sizing: border-box; }
 
+/* Archivo carries the numbers — it has true tabular figures and real weight at
+   the top end, which a page made mostly of measurements needs. The system stack
+   behind it is a genuine fallback, so the page still reads correctly offline. */
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
-               Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: Archivo, ui-sans-serif, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.55;
+  letter-spacing: -.006em;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "cv05" 1;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Every figure on this page lines up in a column somewhere. */
+.num, table, .value, .tile .value, .wo-stats b { font-variant-numeric: tabular-nums; }
 
 .num { font-variant-numeric: tabular-nums; }
 
-.wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px 72px; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px 88px; }
 
 /* ---------------------------------------------------------------- header */
 header.top {
@@ -119,7 +132,7 @@ header.top {
 }
 .brand { display: flex; align-items: baseline; gap: 12px; }
 .brand h1 {
-  margin: 0; font-size: 19px; font-weight: 640; letter-spacing: -.022em;
+  margin: 0; font-size: 19px; font-weight: 720; letter-spacing: -.032em;
 }
 .brand .sub { color: var(--text-3); font-size: 13px; }
 .spacer { flex: 1; }
@@ -137,20 +150,20 @@ header.top {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--shadow);
-  padding: 20px 22px;
+  padding: 22px 24px;
 }
 .card h2 {
-  margin: 0 0 2px; font-size: 13px; font-weight: 600;
-  letter-spacing: .01em; color: var(--text);
+  margin: 0 0 3px; font-size: 13.5px; font-weight: 620;
+  letter-spacing: -.008em; color: var(--text);
 }
-.card .hint { margin: 0 0 18px; font-size: 12.5px; color: var(--text-3); }
+.card .hint { margin: 0 0 18px; font-size: 12.5px; line-height: 1.55; color: var(--text-3); }
 
-.grid { display: grid; gap: 18px; }
+.grid { display: grid; gap: 20px; }
 .kpis { grid-template-columns: repeat(4, 1fr); margin-bottom: 18px; }
 .main { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); align-items: start; }
-.stack { display: grid; gap: 18px; }
+.stack { display: grid; gap: 20px; }
 
 @media (max-width: 1180px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
@@ -162,19 +175,20 @@ header.top {
 }
 
 /* ---------------------------------------------------------------- stat tile */
+.tile { padding: 24px 26px 22px; }
 .tile .label {
-  font-size: 12px; font-weight: 560; letter-spacing: .04em;
+  font-size: 11px; font-weight: 680; letter-spacing: .11em;
   text-transform: uppercase; color: var(--text-3);
 }
 .tile .value {
-  margin-top: 10px; font-size: 38px; line-height: 1.05;
-  font-weight: 620; letter-spacing: -.032em;
+  margin-top: 14px; font-size: 52px; line-height: .95;
+  font-weight: 700; letter-spacing: -.045em;
 }
 .tile .value .unit {
-  font-size: 16px; font-weight: 500; color: var(--text-3);
-  letter-spacing: -.01em; margin-left: 3px;
+  font-size: 17px; font-weight: 550; color: var(--text-3);
+  letter-spacing: -.01em; margin-left: 5px;
 }
-.tile .foot { margin-top: 9px; font-size: 12.5px; color: var(--text-2); }
+.tile .foot { margin-top: 14px; font-size: 12.5px; color: var(--text-2); }
 .delta { font-weight: 560; }
 .delta.up { color: var(--good); }
 .delta.down { color: var(--crit); }
@@ -837,6 +851,296 @@ footer.foot a:hover { color: var(--text); }
                 inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Importer = api;
+})(typeof self !== 'undefined' ? self : this);
+
+/* Reading a .FIT file in the browser.
+ *
+ * This is where the real numbers come from. A CSV carries one row per ride —
+ * an average, maybe a normalized power someone else computed. A .FIT carries
+ * the whole recording, usually a sample per second, which is what actually
+ * supports a power curve, a true normalized power, and an FTP taken from a
+ * measured twenty minutes instead of guessed at from an average.
+ *
+ * Only the parts needed for that are decoded: the file header, the definition
+ * and data records, and the record/session/file_id messages. Everything else
+ * is skipped by length, which keeps this small and tolerant of the fields any
+ * given head unit happens to write.
+ */
+(function (root) {
+  'use strict';
+
+  // FIT counts seconds from 1989-12-31, not 1970.
+  const FIT_EPOCH_OFFSET = 631065600;
+
+  // base type -> [size in bytes, reader name, "invalid" sentinel]
+  const BASE_TYPES = {
+    0x00: [1, 'getUint8', 0xff],          // enum
+    0x01: [1, 'getInt8', 0x7f],
+    0x02: [1, 'getUint8', 0xff],
+    0x83: [2, 'getInt16', 0x7fff],
+    0x84: [2, 'getUint16', 0xffff],
+    0x85: [4, 'getInt32', 0x7fffffff],
+    0x86: [4, 'getUint32', 0xffffffff],
+    0x07: [1, 'getUint8', 0x00],          // string, handled bytewise
+    0x88: [4, 'getFloat32', null],
+    0x89: [8, 'getFloat64', null],
+    0x0a: [1, 'getUint8', 0x00],
+    0x8b: [2, 'getUint16', 0x0000],
+    0x8c: [4, 'getUint32', 0x00000000],
+    0x0d: [1, 'getUint8', 0xff],          // byte
+    0x8e: [8, null, null],                // sint64 — skipped
+    0x8f: [8, null, null],
+    0x90: [8, null, null],
+  };
+
+  const RECORD = 20, SESSION = 18, FILE_ID = 0;
+
+  // Only the fields this page uses; the rest are stepped over.
+  const RECORD_FIELDS = {
+    3: ['heart_rate', 1, 0], 4: ['cadence', 1, 0], 5: ['distance', 100, 0],
+    6: ['speed', 1000, 0], 7: ['power', 1, 0], 2: ['altitude', 5, 500],
+    73: ['speed', 1000, 0], 78: ['altitude', 5, 500], 253: ['timestamp', 1, 0],
+  };
+  const SESSION_FIELDS = {
+    2: ['start_time', 1, 0], 5: ['sport', 1, 0], 7: ['total_elapsed_time', 1000, 0],
+    8: ['total_timer_time', 1000, 0], 9: ['total_distance', 100, 0],
+    11: ['total_calories', 1, 0], 14: ['avg_speed', 1000, 0], 15: ['max_speed', 1000, 0],
+    16: ['avg_heart_rate', 1, 0], 17: ['max_heart_rate', 1, 0],
+    20: ['avg_power', 1, 0], 21: ['max_power', 1, 0], 22: ['total_ascent', 1, 0],
+    34: ['normalized_power', 1, 0], 35: ['training_stress_score', 10, 0],
+    36: ['intensity_factor', 1000, 0], 254: ['message_index', 1, 0],
+  };
+  const SPORTS = { 0: 'other', 1: 'running', 2: 'cycling', 5: 'swimming', 11: 'walking', 17: 'hiking' };
+
+  function parse(buffer) {
+    const view = new DataView(buffer);
+    if (buffer.byteLength < 14) throw new Error('That file is too small to be a .FIT recording.');
+
+    const headerSize = view.getUint8(0);
+    const dataSize = view.getUint32(4, true);
+    const magic = String.fromCharCode(view.getUint8(8), view.getUint8(9),
+                                      view.getUint8(10), view.getUint8(11));
+    if (magic !== '.FIT') throw new Error('That is not a .FIT file — its header is missing the .FIT marker.');
+
+    const end = Math.min(headerSize + dataSize, buffer.byteLength);
+    let pos = headerSize;
+    const definitions = {};
+    const records = [];
+    const sessions = [];
+    let fileTime = null;
+
+    while (pos < end) {
+      const header = view.getUint8(pos++);
+
+      // A compressed-timestamp record reuses the previous definition and packs
+      // a 5-bit time offset into the header.
+      const compressed = (header & 0x80) !== 0;
+      const localType = compressed ? (header >> 5) & 0x03 : header & 0x0f;
+
+      if (!compressed && (header & 0x40)) {
+        // Definition message.
+        pos++;                                        // reserved
+        const littleEndian = view.getUint8(pos++) === 0;
+        const globalNum = view.getUint16(pos, littleEndian); pos += 2;
+        const fieldCount = view.getUint8(pos++);
+        const fields = [];
+        for (let i = 0; i < fieldCount; i++) {
+          fields.push({ num: view.getUint8(pos), size: view.getUint8(pos + 1),
+                        type: view.getUint8(pos + 2) });
+          pos += 3;
+        }
+        let devFields = [];
+        if (header & 0x20) {
+          const devCount = view.getUint8(pos++);
+          for (let i = 0; i < devCount; i++) {
+            devFields.push({ size: view.getUint8(pos + 1) });
+            pos += 3;
+          }
+        }
+        definitions[localType] = { globalNum, littleEndian, fields, devFields };
+        continue;
+      }
+
+      const def = definitions[localType];
+      if (!def) break;                                // data before its definition
+
+      const out = {};
+      const map = def.globalNum === RECORD ? RECORD_FIELDS
+                : def.globalNum === SESSION ? SESSION_FIELDS : null;
+
+      def.fields.forEach(f => {
+        const spec = BASE_TYPES[f.type];
+        const entry = map ? map[f.num] : null;
+        if (!spec || !spec[1] || !entry) { pos += f.size; return; }
+
+        const [size, reader, invalid] = spec;
+        // Arrays are declared by a size larger than the base type; only the
+        // first element is ever needed here.
+        let value;
+        try { value = view[reader](pos, def.littleEndian); }
+        catch (e) { pos += f.size; return; }
+        pos += f.size;
+        if (invalid != null && value === invalid) return;
+
+        const [name, scale, offset] = entry;
+        out[name] = value / scale - offset;
+      });
+      def.devFields.forEach(f => { pos += f.size; });
+
+      if (def.globalNum === RECORD) records.push(out);
+      else if (def.globalNum === SESSION) sessions.push(out);
+      else if (def.globalNum === FILE_ID && out.timestamp) fileTime = out.timestamp;
+    }
+
+    if (!records.length && !sessions.length) {
+      throw new Error('No ride data could be read out of that .FIT file.');
+    }
+    return buildActivity(records, sessions, fileTime);
+  }
+
+  function fitTimeToISO(t) {
+    if (t == null) return null;
+    return new Date((t + FIT_EPOCH_OFFSET) * 1000).toISOString();
+  }
+
+  /** Turn the decoded messages into the same activity shape the CSV path
+   *  produces, plus the streams a CSV can never carry. */
+  function buildActivity(records, sessions, fileTime) {
+    const s = sessions[0] || {};
+    const power = records.map(r => (r.power == null ? 0 : r.power));
+    const hasPower = power.some(p => p > 0);
+    const hr = records.map(r => r.heart_rate || null);
+    const cadence = records.map(r => r.cadence || null);
+    const speed = records.map(r => r.speed || null);
+
+    const start = fitTimeToISO(s.start_time != null ? s.start_time : (records[0] || {}).timestamp)
+               || fitTimeToISO(fileTime);
+    const moving = s.total_timer_time || s.total_elapsed_time || records.length;
+
+    const np = hasPower ? normalizedPower(power) : null;
+
+    return {
+      id: 'fit-' + (start || Date.now()),
+      source: 'fit',
+      name: null,
+      type: SPORTS[s.sport] || 'cycling',
+      start: start,
+      distance_m: s.total_distance || null,
+      moving_s: moving,
+      elapsed_s: s.total_elapsed_time || moving,
+      elevation_m: s.total_ascent || null,
+      avg_hr: s.avg_heart_rate || avg(hr),
+      max_hr: s.max_heart_rate || null,
+      avg_watts: s.avg_power || (hasPower ? Math.round(avg(power)) : null),
+      max_watts: s.max_power || (hasPower ? Math.max.apply(null, power) : null),
+      // A normalized power computed from the stream beats one copied out of a
+      // summary, so ours wins when we have the samples to do it.
+      np: np || s.normalized_power || null,
+      tss: s.training_stress_score || null,
+      intensity: s.intensity_factor || null,
+      avg_cadence: s.avg_cadence || avg(cadence),
+      avg_speed_mps: s.avg_speed || avg(speed) ||
+        (s.total_distance && moving ? s.total_distance / moving : null),
+      calories: s.total_calories || null,
+      // The part that only a .FIT can give.
+      streams: hasPower ? { power: power, seconds: records.length } : null,
+      samples: records.length,
+    };
+  }
+
+  function avg(list) {
+    const clean = list.filter(v => v != null && v > 0);
+    return clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : null;
+  }
+
+  /**
+   * Normalized power: a 30-second rolling average, raised to the fourth power,
+   * averaged, then the fourth root. The fourth power is what makes surges cost
+   * more than their duration suggests, which is the whole point of the metric.
+   */
+  function normalizedPower(power) {
+    if (power.length < 30) return null;
+    let sum = 0;
+    const rolled = [];
+    for (let i = 0; i < power.length; i++) {
+      sum += power[i];
+      if (i >= 30) sum -= power[i - 30];
+      if (i >= 29) rolled.push(sum / 30);
+    }
+    if (!rolled.length) return null;
+    const fourth = rolled.reduce((t, v) => t + Math.pow(v, 4), 0) / rolled.length;
+    return Math.round(Math.pow(fourth, 0.25));
+  }
+
+  // The durations a rider actually talks about.
+  const CURVE_DURATIONS = [1, 5, 15, 30, 60, 120, 300, 480, 600, 1200, 1800, 3600];
+
+  /**
+   * Mean maximal power: for each duration, the best average the rider held for
+   * that long anywhere in the ride. A prefix sum makes each window O(n), so the
+   * whole curve is cheap even for a long ride.
+   */
+  function powerCurve(power, durations) {
+    durations = durations || CURVE_DURATIONS;
+    const n = power.length;
+    if (!n) return [];
+    const prefix = new Float64Array(n + 1);
+    for (let i = 0; i < n; i++) prefix[i + 1] = prefix[i] + power[i];
+
+    return durations.filter(d => d <= n).map(d => {
+      let best = 0;
+      for (let i = 0; i + d <= n; i++) {
+        const mean = (prefix[i + d] - prefix[i]) / d;
+        if (mean > best) best = mean;
+      }
+      return { seconds: d, watts: Math.round(best) };
+    });
+  }
+
+  /** Merge curves from several rides, keeping the best at each duration. */
+  function mergeCurves(curves) {
+    const best = new Map();
+    curves.forEach(curve => curve.forEach(p => {
+      const cur = best.get(p.seconds);
+      if (!cur || p.watts > cur.watts) best.set(p.seconds, p);
+    }));
+    return [...best.values()].sort((a, b) => a.seconds - b.seconds);
+  }
+
+  /**
+   * FTP from a measured twenty minutes, at the conventional 95%.
+   *
+   * This is the real thing rather than the CSV estimate: it comes from the best
+   * continuous twenty minutes in the recording, not from a ride average that
+   * includes every coast and traffic light.
+   */
+  function ftpFromCurve(curve) {
+    const twenty = curve.find(p => p.seconds === 1200);
+    if (twenty) return { ftp: Math.round(twenty.watts * 0.95), from: '20 min', watts: twenty.watts };
+    const hour = curve.find(p => p.seconds === 3600);
+    if (hour) return { ftp: hour.watts, from: '60 min', watts: hour.watts };
+    return null;
+  }
+
+  /** Seconds spent in each power zone — the real distribution, sample by
+   *  sample, rather than a whole ride dropped into one bucket. */
+  function zoneSeconds(power, ftp, zones) {
+    if (!ftp) return null;
+    const out = zones.map(z => 0);
+    power.forEach(w => {
+      if (w <= 0) { out[0] += 1; return; }
+      const pct = w / ftp;
+      for (let i = 0; i < zones.length; i++) {
+        if (pct <= zones[i].hiPct || i === zones.length - 1) { out[i] += 1; break; }
+      }
+    });
+    return out;
+  }
+
+  const api = { parse, powerCurve, mergeCurves, ftpFromCurve, normalizedPower,
+                zoneSeconds, CURVE_DURATIONS, fitTimeToISO };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Fit = api;
 })(typeof self !== 'undefined' ? self : this);
 
 /* The same training maths as hub/analyze.py, in the browser.
@@ -2796,6 +3100,78 @@ function readFile(file) {
   });
 }
 
+function readArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('That file could not be read.'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+const isFit = f => /\.fit$/i.test(f.name);
+
+/**
+ * Take whatever was dropped: a CSV of history, one or more .FIT recordings, or
+ * both together. The CSV gives breadth, a .FIT gives depth — where they cover
+ * the same ride, the .FIT wins, because it was measured second by second.
+ */
+async function handleFiles(files, unitPref) {
+  const list = Array.from(files);
+  const fits = list.filter(isFit);
+  const csvs = list.filter(f => !isFit(f));
+
+  let activities = [];
+  let csvResult = null;
+  let unit = unitPref || 'mi';
+
+  for (const file of csvs) {
+    const text = await readFile(file);
+    csvResult = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
+    activities = activities.concat(csvResult.activities);
+    unit = csvResult.unit;
+  }
+
+  const curves = [];
+  const fitRides = [];
+  for (const file of fits) {
+    const buf = await readArrayBuffer(file);
+    const ride = Fit.parse(buf);
+    ride.name = ride.name || file.name.replace(/\.fit$/i, '');
+    fitRides.push(ride);
+    if (ride.streams && ride.streams.power) {
+      curves.push(Fit.powerCurve(ride.streams.power));
+    }
+  }
+  activities = activities.concat(fitRides);
+
+  if (!activities.length) {
+    throw new Error('Nothing readable in those files.');
+  }
+
+  // A .FIT copy of a ride replaces the CSV row for the same session.
+  const merged = Importer.dedupe(activities.map(a =>
+    a.source === 'fit' ? Object.assign({}, a, { source: 'garmin', _fit: true }) : a))
+    .map(a => (a._fit ? Object.assign({}, a, { source: 'fit' }) : a));
+
+  const payload = Analytics.buildPayload(merged, {
+    unit: unit === 'km' ? 'km' : (unit === 'm' ? 'km' : 'mi'),
+  });
+  payload.curve = curves.length ? Fit.mergeCurves(curves) : null;
+  payload.imported = {
+    source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
+    filename: list.length === 1 ? list[0].name : `${list.length} files`,
+    rows: activities.length,
+    unique: merged.length,
+    unit: unit,
+    unitCertain: csvResult ? csvResult.unitCertain : true,
+    displayUnit: payload.unit,
+    skipped: csvResult ? csvResult.skipped : 0,
+    fitCount: fits.length,
+  };
+  return payload;
+}
+
 async function handleFile(file, unitPref) {
   const text = await readFile(file);
   const result = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
@@ -2835,8 +3211,9 @@ function importScreen(errorMessage) {
 
   const drop = el('div', { class: 'drop', tabindex: '0', role: 'button',
                            'aria-label': 'Choose a CSV export to load' });
-  drop.appendChild(el('p', { class: 'big', text: 'Drop your CSV here' }));
-  drop.appendChild(el('p', { class: 'small', text: 'or pick it from your computer' }));
+  drop.appendChild(el('p', { class: 'big', text: 'Drop your files here' }));
+  drop.appendChild(el('p', { class: 'small',
+    text: 'A CSV of your history, .FIT files for individual rides, or both at once' }));
   const choose = el('button', { class: 'btn', type: 'button', text: 'Choose file' });
   drop.appendChild(choose);
 
@@ -3005,15 +3382,15 @@ function importScreen(errorMessage) {
   wrap.appendChild(honest);
 
   /* ---------------------------------------------------------- wiring */
-  const input = el('input', { type: 'file', class: 'hidden-input',
-                              accept: '.csv,text/csv,text/plain' });
+  const input = el('input', { type: 'file', class: 'hidden-input', multiple: 'multiple',
+                              accept: '.csv,.fit,text/csv,text/plain' });
   wrap.appendChild(input);
 
-  const load = async (file) => {
-    if (!file) return;
+  const load = async (files) => {
+    if (!files || !files.length) return;
     drop.classList.remove('over');
     try {
-      const payload = await handleFile(file, unitPref);
+      const payload = await handleFiles(files, unitPref);
       const remembered = saveLocal(payload);
       payload.imported.remembered = remembered;
       render(payload);
@@ -3027,14 +3404,14 @@ function importScreen(errorMessage) {
   drop.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
   });
-  input.addEventListener('change', () => load(input.files[0]));
+  input.addEventListener('change', () => load(input.files));
   // The whole window is a drop target, so a dragged file never misses.
   ['dragenter', 'dragover'].forEach(ev =>
     window.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev =>
     window.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   window.addEventListener('drop', e => {
-    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]);
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files);
   });
 
   return wrap;
@@ -3045,19 +3422,23 @@ function detectedBar(payload) {
   if (!i) return null;
   const bar = el('div', { class: 'detected' });
   const text = el('span', { class: 'grow' });
-  const parts = [
-    `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`,
-    `${i.unique} sessions`,
-  ];
-  if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicates merged`);
-  if (i.skipped) parts.push(`${i.skipped} rows skipped`);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const origin = i.source === 'fit'
+    ? plural(i.fitCount || i.unique, '.FIT ride')
+    : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`;
+  const parts = [origin, plural(i.unique, 'session')];
+  if (i.source !== 'fit' && i.fitCount) {
+    parts.push(plural(i.fitCount, '.FIT ride') + ' with full power data');
+  }
+  if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicate${i.rows - i.unique === 1 ? '' : 's'} merged`);
+  if (i.skipped) parts.push(plural(i.skipped, 'row') + ' skipped');
   text.appendChild(el('strong', { style: 'color:var(--text)', text: i.filename }));
   text.appendChild(document.createTextNode('  ·  ' + parts.join('  ·  ')));
   bar.appendChild(text);
 
   // The one thing a CSV cannot tell us. If the distances look wrong, this is
   // the control that fixes them.
-  if (!i.unitCertain) {
+  if (!i.unitCertain && i.source !== 'fit') {
     bar.appendChild(el('span', { text: 'Distances read as' }));
     bar.appendChild(seg(['mi', 'km'], i.displayUnit, v => {
       if (v === i.displayUnit) return;
@@ -3133,7 +3514,8 @@ function drawDashboard() {
     : 'Built ' + new Date(DATA.generated).toLocaleString();
   const cliHint = $('#cli-hint');
   if (cliHint) cliHint.hidden = !!DATA.imported;
-  $('#range-sub').textContent = `${fmt(t.activities)} sessions since ${t.first}`;
+  $('#range-sub').textContent =
+    `${fmt(t.activities)} session${t.activities === 1 ? '' : 's'} since ${t.first}`;
 
   if (DATA.demo_note) {
     const b = el('div', { class: 'demo' });
@@ -3161,6 +3543,8 @@ function drawDashboard() {
   right.appendChild(profileCard());
   const zoneCard = zoneDistributionCard();
   if (zoneCard) right.appendChild(zoneCard);
+  const curveCard = powerCurveCard();
+  if (curveCard) left.appendChild(curveCard);
   const powerCard = powerProfileCard();
   if (powerCard) right.appendChild(powerCard);
   if (!DATA.imported) right.appendChild(planCard());
@@ -3286,6 +3670,130 @@ function zoneDistributionCard() {
           'power — a CSV has no second-by-second data to do better.' }));
   card.appendChild(zoneBar(dist, PROFILE.ftp));
   return card;
+}
+
+/** The power curve. Duration runs on a log axis because the interesting range
+ *  spans five seconds to an hour, and a linear axis would bury everything
+ *  under a minute against the right-hand edge. */
+function powerCurveCard() {
+  if (!DATA.curve || DATA.curve.length < 3) return null;
+  const card = el('div', { class: 'card' });
+  const head = el('div', { style: 'display:flex;align-items:flex-start;gap:16px' });
+  const titles = el('div', { style: 'flex:1' });
+  titles.appendChild(el('h2', { text: 'Power curve' }));
+  titles.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+    text: 'The best average you held for each duration, measured second by second ' +
+          'from your .FIT files.' }));
+  head.appendChild(titles);
+
+  let showTable = false;
+  const toggle = el('button', { class: 'ghost', type: 'button', text: 'Table' });
+  head.appendChild(toggle);
+  card.appendChild(head);
+
+  const body = el('div', { style: 'margin-top:18px' });
+  const pts = DATA.curve;
+
+  function render() {
+    body.innerHTML = '';
+    if (showTable) {
+      const table = el('table');
+      const thead = el('thead'); const tr = el('tr');
+      ['Duration', 'Watts', '% of FTP', 'W/kg'].forEach((h, i) =>
+        tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
+      thead.appendChild(tr);
+      const tbody = el('tbody');
+      pts.forEach(pt => {
+        const r = el('tr');
+        r.appendChild(el('td', { class: 'num', text: durLabel(pt.seconds) }));
+        r.appendChild(el('td', { class: 'r num', text: pt.watts + ' W' }));
+        r.appendChild(el('td', { class: 'r num',
+          text: PROFILE.ftp ? Math.round(100 * pt.watts / PROFILE.ftp) + '%' : '—' }));
+        r.appendChild(el('td', { class: 'r num',
+          text: PROFILE.weightKg ? (pt.watts / PROFILE.weightKg).toFixed(1) : '—' }));
+        tbody.appendChild(r);
+      });
+      table.appendChild(thead); table.appendChild(tbody);
+      body.appendChild(el('div', { class: 'tbl-wrap' }, [table]));
+      return;
+    }
+
+    const W = 720, H = 250, L = 48, R = 20, T = 18, B = 34;
+    const iw = W - L - R, ih = H - T - B;
+    const scale = niceScale(Math.max.apply(null, pts.map(p => p.watts)), 4);
+    const minLog = Math.log10(pts[0].seconds);
+    const maxLog = Math.log10(pts[pts.length - 1].seconds);
+    const x = s => L + ((Math.log10(s) - minLog) / (maxLog - minLog)) * iw;
+    const y = v => T + ih - (v / scale.ceil) * ih;
+
+    const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                            preserveAspectRatio: 'xMidYMid meet', role: 'img',
+                            'aria-label': 'Best average power by duration' });
+    scale.ticks.forEach(t => {
+      svg.appendChild(el('line', { class: 'gridline', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+      svg.appendChild(el('text', { class: 'axis', x: L - 9, y: y(t) + 4,
+                                   'text-anchor': 'end', text: fmt(t) }));
+    });
+
+    // Threshold reference: where FTP sits on this curve.
+    if (PROFILE.ftp && PROFILE.ftp <= scale.ceil) {
+      svg.appendChild(el('line', { x1: L, x2: W - R, y1: y(PROFILE.ftp), y2: y(PROFILE.ftp),
+                                   stroke: 'var(--series-2)', 'stroke-width': 1.5,
+                                   'stroke-dasharray': '5 4', 'stroke-opacity': .8 }));
+      // Anchored left: the curve ends at the right edge, and a label there
+      // lands on top of the last data point.
+      svg.appendChild(el('text', { class: 'axis', x: L + 6, y: y(PROFILE.ftp) - 7,
+                                   'text-anchor': 'start', fill: 'var(--series-2)',
+                                   'font-weight': '620', text: 'FTP ' + PROFILE.ftp + ' W' }));
+    }
+
+    svg.appendChild(el('path', {
+      d: 'M' + pts.map(p => `${x(p.seconds).toFixed(1)},${y(p.watts).toFixed(1)}`).join(' L'),
+      fill: 'none', stroke: 'var(--series-1)', 'stroke-width': 2,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    pts.forEach(p => {
+      const dot = el('circle', { cx: x(p.seconds), cy: y(p.watts), r: 4.5,
+                                 fill: 'var(--series-1)', stroke: 'var(--surface)',
+                                 'stroke-width': 2 });
+      hoverable(dot, durLabel(p.seconds), [
+        ['Best average', p.watts + ' W'],
+        ['% of FTP', PROFILE.ftp ? Math.round(100 * p.watts / PROFILE.ftp) + '%' : '—'],
+        ['W/kg', PROFILE.weightKg ? (p.watts / PROFILE.weightKg).toFixed(2) : '—'],
+      ]);
+      svg.appendChild(dot);
+    });
+
+    // Label only the anchors a rider reads the curve by.
+    [5, 60, 300, 1200].forEach(s => {
+      const pt = pts.find(p => p.seconds === s);
+      if (!pt) return;
+      svg.appendChild(el('text', { class: 'axis', x: x(s), y: y(pt.watts) - 11,
+                                   'text-anchor': 'middle', fill: 'var(--text)',
+                                   'font-weight': '640', text: pt.watts }));
+    });
+    pts.forEach((p, i) => {
+      if (i % 2 && i !== pts.length - 1) return;
+      svg.appendChild(el('text', { class: 'axis', x: x(p.seconds), y: H - 10,
+                                   'text-anchor': 'middle', text: durLabel(p.seconds) }));
+    });
+    body.appendChild(svg);
+  }
+
+  toggle.addEventListener('click', () => {
+    showTable = !showTable;
+    toggle.textContent = showTable ? 'Chart' : 'Table';
+    render();
+  });
+  render();
+  card.appendChild(body);
+  return card;
+}
+
+function durLabel(s) {
+  if (s < 60) return s + 's';
+  if (s < 3600) return (s / 60) + 'min';
+  return (s / 3600) + 'h';
 }
 
 function powerProfileCard() {
@@ -3509,9 +4017,23 @@ function profileCard() {
 
   // Offer a number to start from, clearly labelled as a guess.
   if (!PROFILE.ftp) {
-    const est = Cycling.estimateFTP(rides());
+    const measured = DATA.curve ? Fit.ftpFromCurve(DATA.curve) : null;
+    const est = measured
+      ? { ftp: measured.ftp, from: `measured ${measured.from}`, watts: measured.watts,
+          source: 'your power stream', date: null, measured: true }
+      : Cycling.estimateFTP(rides());
     const box = el('div', { class: 'estimate' });
-    if (est) {
+    if (est && est.measured) {
+      box.appendChild(el('strong', { text: `Measured ${est.ftp} W. ` }));
+      box.appendChild(document.createTextNode(
+        `Your best continuous ${measured.from} was ${est.watts} W, taken second by second ` +
+        'from the ride itself — the conventional 95% of that is your FTP. This is a real ' +
+        'measurement, not an estimate from averages.'));
+      const use = el('button', { class: 'chip', type: 'button',
+                                 text: `Use ${est.ftp} W`, style: 'margin-top:10px' });
+      use.addEventListener('click', () => { PROFILE.ftp = est.ftp; saveProfile(); drawDashboard(); });
+      box.appendChild(el('div', {}, [use]));
+    } else if (est) {
       box.appendChild(el('strong', { text: `Looks like roughly ${est.ftp} W. ` }));
       box.appendChild(document.createTextNode(
         `Taken from your best ${est.from} — ${est.watts} W ${est.source} on ${est.date}. ` +

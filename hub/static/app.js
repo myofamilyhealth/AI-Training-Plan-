@@ -637,6 +637,78 @@ function readFile(file) {
   });
 }
 
+function readArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('That file could not be read.'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+const isFit = f => /\.fit$/i.test(f.name);
+
+/**
+ * Take whatever was dropped: a CSV of history, one or more .FIT recordings, or
+ * both together. The CSV gives breadth, a .FIT gives depth — where they cover
+ * the same ride, the .FIT wins, because it was measured second by second.
+ */
+async function handleFiles(files, unitPref) {
+  const list = Array.from(files);
+  const fits = list.filter(isFit);
+  const csvs = list.filter(f => !isFit(f));
+
+  let activities = [];
+  let csvResult = null;
+  let unit = unitPref || 'mi';
+
+  for (const file of csvs) {
+    const text = await readFile(file);
+    csvResult = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
+    activities = activities.concat(csvResult.activities);
+    unit = csvResult.unit;
+  }
+
+  const curves = [];
+  const fitRides = [];
+  for (const file of fits) {
+    const buf = await readArrayBuffer(file);
+    const ride = Fit.parse(buf);
+    ride.name = ride.name || file.name.replace(/\.fit$/i, '');
+    fitRides.push(ride);
+    if (ride.streams && ride.streams.power) {
+      curves.push(Fit.powerCurve(ride.streams.power));
+    }
+  }
+  activities = activities.concat(fitRides);
+
+  if (!activities.length) {
+    throw new Error('Nothing readable in those files.');
+  }
+
+  // A .FIT copy of a ride replaces the CSV row for the same session.
+  const merged = Importer.dedupe(activities.map(a =>
+    a.source === 'fit' ? Object.assign({}, a, { source: 'garmin', _fit: true }) : a))
+    .map(a => (a._fit ? Object.assign({}, a, { source: 'fit' }) : a));
+
+  const payload = Analytics.buildPayload(merged, {
+    unit: unit === 'km' ? 'km' : (unit === 'm' ? 'km' : 'mi'),
+  });
+  payload.curve = curves.length ? Fit.mergeCurves(curves) : null;
+  payload.imported = {
+    source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
+    filename: list.length === 1 ? list[0].name : `${list.length} files`,
+    rows: activities.length,
+    unique: merged.length,
+    unit: unit,
+    unitCertain: csvResult ? csvResult.unitCertain : true,
+    displayUnit: payload.unit,
+    skipped: csvResult ? csvResult.skipped : 0,
+    fitCount: fits.length,
+  };
+  return payload;
+}
+
 async function handleFile(file, unitPref) {
   const text = await readFile(file);
   const result = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
@@ -676,8 +748,9 @@ function importScreen(errorMessage) {
 
   const drop = el('div', { class: 'drop', tabindex: '0', role: 'button',
                            'aria-label': 'Choose a CSV export to load' });
-  drop.appendChild(el('p', { class: 'big', text: 'Drop your CSV here' }));
-  drop.appendChild(el('p', { class: 'small', text: 'or pick it from your computer' }));
+  drop.appendChild(el('p', { class: 'big', text: 'Drop your files here' }));
+  drop.appendChild(el('p', { class: 'small',
+    text: 'A CSV of your history, .FIT files for individual rides, or both at once' }));
   const choose = el('button', { class: 'btn', type: 'button', text: 'Choose file' });
   drop.appendChild(choose);
 
@@ -846,15 +919,15 @@ function importScreen(errorMessage) {
   wrap.appendChild(honest);
 
   /* ---------------------------------------------------------- wiring */
-  const input = el('input', { type: 'file', class: 'hidden-input',
-                              accept: '.csv,text/csv,text/plain' });
+  const input = el('input', { type: 'file', class: 'hidden-input', multiple: 'multiple',
+                              accept: '.csv,.fit,text/csv,text/plain' });
   wrap.appendChild(input);
 
-  const load = async (file) => {
-    if (!file) return;
+  const load = async (files) => {
+    if (!files || !files.length) return;
     drop.classList.remove('over');
     try {
-      const payload = await handleFile(file, unitPref);
+      const payload = await handleFiles(files, unitPref);
       const remembered = saveLocal(payload);
       payload.imported.remembered = remembered;
       render(payload);
@@ -868,14 +941,14 @@ function importScreen(errorMessage) {
   drop.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
   });
-  input.addEventListener('change', () => load(input.files[0]));
+  input.addEventListener('change', () => load(input.files));
   // The whole window is a drop target, so a dragged file never misses.
   ['dragenter', 'dragover'].forEach(ev =>
     window.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev =>
     window.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   window.addEventListener('drop', e => {
-    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]);
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files);
   });
 
   return wrap;
@@ -886,19 +959,23 @@ function detectedBar(payload) {
   if (!i) return null;
   const bar = el('div', { class: 'detected' });
   const text = el('span', { class: 'grow' });
-  const parts = [
-    `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`,
-    `${i.unique} sessions`,
-  ];
-  if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicates merged`);
-  if (i.skipped) parts.push(`${i.skipped} rows skipped`);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const origin = i.source === 'fit'
+    ? plural(i.fitCount || i.unique, '.FIT ride')
+    : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`;
+  const parts = [origin, plural(i.unique, 'session')];
+  if (i.source !== 'fit' && i.fitCount) {
+    parts.push(plural(i.fitCount, '.FIT ride') + ' with full power data');
+  }
+  if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicate${i.rows - i.unique === 1 ? '' : 's'} merged`);
+  if (i.skipped) parts.push(plural(i.skipped, 'row') + ' skipped');
   text.appendChild(el('strong', { style: 'color:var(--text)', text: i.filename }));
   text.appendChild(document.createTextNode('  ·  ' + parts.join('  ·  ')));
   bar.appendChild(text);
 
   // The one thing a CSV cannot tell us. If the distances look wrong, this is
   // the control that fixes them.
-  if (!i.unitCertain) {
+  if (!i.unitCertain && i.source !== 'fit') {
     bar.appendChild(el('span', { text: 'Distances read as' }));
     bar.appendChild(seg(['mi', 'km'], i.displayUnit, v => {
       if (v === i.displayUnit) return;
@@ -974,7 +1051,8 @@ function drawDashboard() {
     : 'Built ' + new Date(DATA.generated).toLocaleString();
   const cliHint = $('#cli-hint');
   if (cliHint) cliHint.hidden = !!DATA.imported;
-  $('#range-sub').textContent = `${fmt(t.activities)} sessions since ${t.first}`;
+  $('#range-sub').textContent =
+    `${fmt(t.activities)} session${t.activities === 1 ? '' : 's'} since ${t.first}`;
 
   if (DATA.demo_note) {
     const b = el('div', { class: 'demo' });
@@ -1002,6 +1080,8 @@ function drawDashboard() {
   right.appendChild(profileCard());
   const zoneCard = zoneDistributionCard();
   if (zoneCard) right.appendChild(zoneCard);
+  const curveCard = powerCurveCard();
+  if (curveCard) left.appendChild(curveCard);
   const powerCard = powerProfileCard();
   if (powerCard) right.appendChild(powerCard);
   if (!DATA.imported) right.appendChild(planCard());
@@ -1127,6 +1207,130 @@ function zoneDistributionCard() {
           'power — a CSV has no second-by-second data to do better.' }));
   card.appendChild(zoneBar(dist, PROFILE.ftp));
   return card;
+}
+
+/** The power curve. Duration runs on a log axis because the interesting range
+ *  spans five seconds to an hour, and a linear axis would bury everything
+ *  under a minute against the right-hand edge. */
+function powerCurveCard() {
+  if (!DATA.curve || DATA.curve.length < 3) return null;
+  const card = el('div', { class: 'card' });
+  const head = el('div', { style: 'display:flex;align-items:flex-start;gap:16px' });
+  const titles = el('div', { style: 'flex:1' });
+  titles.appendChild(el('h2', { text: 'Power curve' }));
+  titles.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
+    text: 'The best average you held for each duration, measured second by second ' +
+          'from your .FIT files.' }));
+  head.appendChild(titles);
+
+  let showTable = false;
+  const toggle = el('button', { class: 'ghost', type: 'button', text: 'Table' });
+  head.appendChild(toggle);
+  card.appendChild(head);
+
+  const body = el('div', { style: 'margin-top:18px' });
+  const pts = DATA.curve;
+
+  function render() {
+    body.innerHTML = '';
+    if (showTable) {
+      const table = el('table');
+      const thead = el('thead'); const tr = el('tr');
+      ['Duration', 'Watts', '% of FTP', 'W/kg'].forEach((h, i) =>
+        tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
+      thead.appendChild(tr);
+      const tbody = el('tbody');
+      pts.forEach(pt => {
+        const r = el('tr');
+        r.appendChild(el('td', { class: 'num', text: durLabel(pt.seconds) }));
+        r.appendChild(el('td', { class: 'r num', text: pt.watts + ' W' }));
+        r.appendChild(el('td', { class: 'r num',
+          text: PROFILE.ftp ? Math.round(100 * pt.watts / PROFILE.ftp) + '%' : '—' }));
+        r.appendChild(el('td', { class: 'r num',
+          text: PROFILE.weightKg ? (pt.watts / PROFILE.weightKg).toFixed(1) : '—' }));
+        tbody.appendChild(r);
+      });
+      table.appendChild(thead); table.appendChild(tbody);
+      body.appendChild(el('div', { class: 'tbl-wrap' }, [table]));
+      return;
+    }
+
+    const W = 720, H = 250, L = 48, R = 20, T = 18, B = 34;
+    const iw = W - L - R, ih = H - T - B;
+    const scale = niceScale(Math.max.apply(null, pts.map(p => p.watts)), 4);
+    const minLog = Math.log10(pts[0].seconds);
+    const maxLog = Math.log10(pts[pts.length - 1].seconds);
+    const x = s => L + ((Math.log10(s) - minLog) / (maxLog - minLog)) * iw;
+    const y = v => T + ih - (v / scale.ceil) * ih;
+
+    const svg = el('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`,
+                            preserveAspectRatio: 'xMidYMid meet', role: 'img',
+                            'aria-label': 'Best average power by duration' });
+    scale.ticks.forEach(t => {
+      svg.appendChild(el('line', { class: 'gridline', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+      svg.appendChild(el('text', { class: 'axis', x: L - 9, y: y(t) + 4,
+                                   'text-anchor': 'end', text: fmt(t) }));
+    });
+
+    // Threshold reference: where FTP sits on this curve.
+    if (PROFILE.ftp && PROFILE.ftp <= scale.ceil) {
+      svg.appendChild(el('line', { x1: L, x2: W - R, y1: y(PROFILE.ftp), y2: y(PROFILE.ftp),
+                                   stroke: 'var(--series-2)', 'stroke-width': 1.5,
+                                   'stroke-dasharray': '5 4', 'stroke-opacity': .8 }));
+      // Anchored left: the curve ends at the right edge, and a label there
+      // lands on top of the last data point.
+      svg.appendChild(el('text', { class: 'axis', x: L + 6, y: y(PROFILE.ftp) - 7,
+                                   'text-anchor': 'start', fill: 'var(--series-2)',
+                                   'font-weight': '620', text: 'FTP ' + PROFILE.ftp + ' W' }));
+    }
+
+    svg.appendChild(el('path', {
+      d: 'M' + pts.map(p => `${x(p.seconds).toFixed(1)},${y(p.watts).toFixed(1)}`).join(' L'),
+      fill: 'none', stroke: 'var(--series-1)', 'stroke-width': 2,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    pts.forEach(p => {
+      const dot = el('circle', { cx: x(p.seconds), cy: y(p.watts), r: 4.5,
+                                 fill: 'var(--series-1)', stroke: 'var(--surface)',
+                                 'stroke-width': 2 });
+      hoverable(dot, durLabel(p.seconds), [
+        ['Best average', p.watts + ' W'],
+        ['% of FTP', PROFILE.ftp ? Math.round(100 * p.watts / PROFILE.ftp) + '%' : '—'],
+        ['W/kg', PROFILE.weightKg ? (p.watts / PROFILE.weightKg).toFixed(2) : '—'],
+      ]);
+      svg.appendChild(dot);
+    });
+
+    // Label only the anchors a rider reads the curve by.
+    [5, 60, 300, 1200].forEach(s => {
+      const pt = pts.find(p => p.seconds === s);
+      if (!pt) return;
+      svg.appendChild(el('text', { class: 'axis', x: x(s), y: y(pt.watts) - 11,
+                                   'text-anchor': 'middle', fill: 'var(--text)',
+                                   'font-weight': '640', text: pt.watts }));
+    });
+    pts.forEach((p, i) => {
+      if (i % 2 && i !== pts.length - 1) return;
+      svg.appendChild(el('text', { class: 'axis', x: x(p.seconds), y: H - 10,
+                                   'text-anchor': 'middle', text: durLabel(p.seconds) }));
+    });
+    body.appendChild(svg);
+  }
+
+  toggle.addEventListener('click', () => {
+    showTable = !showTable;
+    toggle.textContent = showTable ? 'Chart' : 'Table';
+    render();
+  });
+  render();
+  card.appendChild(body);
+  return card;
+}
+
+function durLabel(s) {
+  if (s < 60) return s + 's';
+  if (s < 3600) return (s / 60) + 'min';
+  return (s / 3600) + 'h';
 }
 
 function powerProfileCard() {
@@ -1350,9 +1554,23 @@ function profileCard() {
 
   // Offer a number to start from, clearly labelled as a guess.
   if (!PROFILE.ftp) {
-    const est = Cycling.estimateFTP(rides());
+    const measured = DATA.curve ? Fit.ftpFromCurve(DATA.curve) : null;
+    const est = measured
+      ? { ftp: measured.ftp, from: `measured ${measured.from}`, watts: measured.watts,
+          source: 'your power stream', date: null, measured: true }
+      : Cycling.estimateFTP(rides());
     const box = el('div', { class: 'estimate' });
-    if (est) {
+    if (est && est.measured) {
+      box.appendChild(el('strong', { text: `Measured ${est.ftp} W. ` }));
+      box.appendChild(document.createTextNode(
+        `Your best continuous ${measured.from} was ${est.watts} W, taken second by second ` +
+        'from the ride itself — the conventional 95% of that is your FTP. This is a real ' +
+        'measurement, not an estimate from averages.'));
+      const use = el('button', { class: 'chip', type: 'button',
+                                 text: `Use ${est.ftp} W`, style: 'margin-top:10px' });
+      use.addEventListener('click', () => { PROFILE.ftp = est.ftp; saveProfile(); drawDashboard(); });
+      box.appendChild(el('div', {}, [use]));
+    } else if (est) {
       box.appendChild(el('strong', { text: `Looks like roughly ${est.ftp} W. ` }));
       box.appendChild(document.createTextNode(
         `Taken from your best ${est.from} — ${est.watts} W ${est.source} on ${est.date}. ` +

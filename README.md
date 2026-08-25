@@ -27,6 +27,33 @@ Plan: Fall Half
     Tue 09-01  Intervals  <- today
 ```
 
+## The website: anyone, their own data
+
+<https://myofamilyhealth.github.io/AI-Training-Plan-/> is a tool anybody can
+use. You export your activity history from Garmin or Strava, drop the CSV on
+the page, and it charts it.
+
+**Nothing is uploaded.** There is no server behind that page — the CSV is read
+and analysed by JavaScript in your own browser, and remembered only in that
+browser's local storage. Close the tab and it is still yours; press Clear and
+it is gone. No account, no login, no password, and nobody else can see it.
+
+That design is a response to three real constraints rather than a preference:
+
+- **Strava's API forbids AI use.** Its [API policy](https://www.strava.com/legal/api_policy)
+  bars using Strava Data "in connection with the development, training,
+  evaluation, or operation of any AI Application", naming
+  "ingestion into a context window or working memory" specifically.
+- **Strava's API forbids easy multi-user access.** Admission to the Developer
+  Program is at Strava's discretion, tiered by user count, with fees at the
+  Standard tier.
+- **Garmin has no consumer API you can get.** The official program needs
+  business approval and is not accepting new sign-ups. The unofficial route
+  requires a Garmin password, which is not something to collect from strangers.
+
+A file the athlete exported themselves sidesteps all three: it is their data,
+handed over by them, never touching an API or a server.
+
 ## Why it is shaped this way
 
 Claude Code can already run shell commands and read files. So the simplest
@@ -132,11 +159,13 @@ To update the published page:
 git add docs/index.html && git commit -m "Update dashboard" && git push
 ```
 
-**Read this before you publish real data.** This repository is public, so
-anything in `docs/index.html` is readable by anyone with the URL — every
-session, its date, distance, pace and heart rate. The page carries a `noindex`
-tag so search engines skip it, but that is politeness to crawlers, not access
-control. Two ways to keep it private:
+**Read this before you publish real data.** The published page is normally
+empty of data — visitors bring their own. But `./wk web` bakes *your* synced
+activities into `docs/index.html`, and this repository is public, so committing
+that build publishes every session, date, distance, pace and heart rate to
+anyone with the URL. Build it, look at it, and only commit it if you mean to.
+The page carries a `noindex` tag so search engines skip it, but that is
+politeness to crawlers, not access control. Two ways to keep it private:
 
 - Make the repository private. Pages on a private repo needs a paid GitHub
   plan, but the site then requires a login.
@@ -222,7 +251,13 @@ hub/
   analyze.py           load, acute:chronic, easy/hard split, trends, bests
   plan.py              markdown plans -> scheduled sessions
   web.py               shapes the dashboard's data
-  _template.py         the dashboard's markup, styles and SVG charts
+  _template.py         loads the static assets below
+  static/
+    body.html          the page's markup
+    style.css          its styles, both themes
+    importer.js        reads a Garmin or Strava CSV in the browser
+    analytics.js       the same maths as analyze.py, in JavaScript
+    app.js             charts, tables, and the import screen
 docs/
   index.html           the built dashboard, served by GitHub Pages
 training/

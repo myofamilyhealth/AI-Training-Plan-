@@ -130,5 +130,7 @@ def format_pace(mps: float, imperial: bool = True) -> str:
     if mps <= 0:
         return "—"
     per = M_PER_MILE if imperial else M_PER_KM
-    secs = per / mps
-    return f"{int(secs // 60)}:{int(round(secs % 60)):02d}/{'mi' if imperial else 'km'}"
+    # Round to whole seconds BEFORE splitting: rounding the remainder instead
+    # turns 239.999 s into "3:60" rather than "4:00".
+    total = int(round(per / mps))
+    return f"{total // 60}:{total % 60:02d}/{'mi' if imperial else 'km'}"

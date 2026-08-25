@@ -138,7 +138,8 @@ def build_payload(activities: list[dict], rest_hr: float = 50, max_hr: float = 1
     }
 
 
-def render(payload: dict, standalone: bool = True, title: str = "Training Hub") -> str:
+def render(payload: dict | None, standalone: bool = True,
+           title: str = "Training Hub") -> str:
     """Assemble the page.
 
     `standalone` wraps the content in a full HTML document for opening off the
@@ -148,7 +149,7 @@ def render(payload: dict, standalone: bool = True, title: str = "Training Hub") 
     """
     from ._template import BODY, SCRIPT, STYLE
 
-    blob = json.dumps(payload, separators=(",", ":"))
+    blob = json.dumps(payload, separators=(",", ":")) if payload is not None else "null"
     # </script> inside the data would close the tag early; the escape is inert
     # to JSON.parse but no longer matches the closing-tag pattern.
     blob = blob.replace("</", "<\\/")
@@ -181,7 +182,9 @@ def render(payload: dict, standalone: bool = True, title: str = "Training Hub") 
 
 def build(out: Path | str | None = None, standalone: bool = True, **kw) -> Path:
     activities = store.deduped(store.load_activities())
-    payload = build_payload(activities, **kw)
+    # With nothing synced, ship the page with no payload at all: it then offers
+    # the visitor its import screen instead of an empty dashboard.
+    payload = build_payload(activities, **kw) if activities else None
     html = render(payload, standalone=standalone)
 
     # docs/ rather than site/: it is the folder GitHub Pages can serve straight

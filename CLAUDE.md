@@ -104,6 +104,32 @@ Append session notes to `training/log/YYYY-MM.md`. Data says what happened;
 the log says how it felt and what you concluded. Write down the reasoning
 behind plan changes so the next conversation inherits it.
 
+## The page has two lives
+
+`docs/index.html` is both the athlete's personal dashboard and a public tool.
+
+- Built by `./wk web` with synced data, it renders that data directly.
+- Served from GitHub Pages with no data baked in, it shows an import screen:
+  any visitor drops in their own Garmin or Strava CSV and it is parsed,
+  analysed and charted **entirely in their browser**. Nothing is uploaded.
+
+`hub/static/analytics.js` deliberately mirrors `hub/analyze.py` — the CLI and
+the browser must not disagree about someone's acute:chronic ratio. Change one
+and change the other, then run the tests: `python3 tests/test_core.py` runs the
+Python and the JavaScript suites together.
+
+## A hard constraint on Strava
+
+Strava's API policy forbids using Strava Data "in connection with the
+development, training, evaluation, or operation of any AI Application", and
+names "ingestion into a context window or working memory" among the prohibited
+uses. Reading API-synced Strava activities into your context is exactly that.
+
+So: analyse what `./wk sync` pulls from **Garmin** freely. For Strava, prefer
+the athlete's own exported archive over API-synced data, and if they want
+Claude connected to Strava properly, point them at Strava's own MCP connector
+rather than working around the policy.
+
 ## House rules
 
 - Never commit `.env` or `.secrets/`. Both are gitignored; keep it that way.

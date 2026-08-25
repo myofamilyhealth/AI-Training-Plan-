@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from hub import analyze, store, workout as W
 from hub.units import (
-    ParseError, format_duration, format_pace, parse_distance,
+    M_PER_MILE, ParseError, format_duration, format_pace, parse_distance,
     parse_duration, parse_pace, parse_pace_range,
 )
 
@@ -41,6 +41,9 @@ check("1:05:00 is hh:mm:ss", parse_duration("1:05:00"), 3900)
 close("7:30/mi", parse_pace("7:30/mi"), 3.5763)
 close("4:00/km", parse_pace("4:00/km"), 4.1667)
 check("pace round-trips", format_pace(parse_pace("6:45/mi")), "6:45/mi")
+# Rounding the seconds remainder rather than the total gives "3:60/km".
+check("pace never shows 60 seconds", format_pace(1000 / 240, imperial=False), "4:00/km")
+check("imperial pace at a minute boundary", format_pace(M_PER_MILE / 480), "8:00/mi")
 check("duration round-trips", format_duration(3725), "1:02:05")
 
 low, high = parse_pace_range("7:00-7:30/mi")
@@ -198,6 +201,22 @@ check("fragment still has a title", "<title>" in fragment, True)
 empty = web.build_payload([], weeks=4)
 check("empty payload has no activities", empty["totals"]["activities"], 0)
 check("empty payload still renders", "<!doctype html>" in web.render(empty), True)
+
+# ------------------------------------------------------------------ javascript
+# The browser does the same maths on an imported CSV, so its suite runs here too
+# and a missing node is reported rather than silently skipping coverage.
+import shutil
+import subprocess
+
+if shutil.which("node"):
+    js = subprocess.run([shutil.which("node"), str(Path(__file__).parent / "test_js.js")],
+                        capture_output=True, text=True)
+    if js.returncode != 0:
+        failures.append("javascript suite failed:\n" + (js.stdout or js.stderr).strip())
+    else:
+        print(js.stdout.strip())
+else:
+    print("note: node not installed — the browser-side suite did not run")
 
 # ------------------------------------------------------------------ report
 if failures:

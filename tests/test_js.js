@@ -465,3 +465,31 @@ check('different goals give different plans',
 const week1 = climb.weeks[4].days.map(d => d.key).join(',');
 const week2 = climb.weeks[5].days.map(d => d.key).join(',');
 check('consecutive build weeks differ', week1 !== week2, true);
+
+/* ------------------------------------------- totals and course guidance */
+check('every session says where to ride it',
+      Lib.SESSIONS.filter(s => !s.course || s.course.length < 30).map(s => s.key).join(','), '');
+
+const tb = Wk.timeBreakdown(Wk.fromText('threshold 75 min', { ftp: 250 }), 250);
+check('the parts add up to the whole',
+      tb.warmup + tb.work + tb.easy + tb.cooldown, tb.total);
+check('zone times add up to the whole',
+      tb.zones.reduce((t, z) => t + z.seconds, 0), tb.total);
+check('threshold work is counted as quality', tb.quality > 0, true);
+check('quality percentage is consistent',
+      tb.qualityPct, Math.round(100 * tb.quality / tb.total));
+check('the hardest zone is threshold', tb.hardestZone.key, 'threshold');
+
+const easy = Wk.timeBreakdown(Wk.fromText('endurance 120 min', { ftp: 250 }), 250);
+check('an endurance ride has no quality time', easy.quality, 0);
+check('a sprint session peaks at zone 7',
+      Wk.timeBreakdown(Wk.fromText('sprints', { ftp: 250 }), 250).hardestZone.n, 7);
+check('every built session reports a breakdown that totals correctly',
+      Lib.SESSIONS.every(s => {
+        const w = Wk.fromText(s.name, { ftp: 250 });
+        const d = Wk.timeBreakdown(w, 250);
+        return d.total === w.seconds &&
+               d.zones.reduce((t, z) => t + z.seconds, 0) === d.total;
+      }), true);
+check('a workout carries its course description through',
+      Wk.fromText('climb repeats', { ftp: 250 }).course.length > 30, true);

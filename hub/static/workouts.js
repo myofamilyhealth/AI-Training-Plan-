@@ -21,7 +21,6 @@
 
   const Lib = (typeof module !== 'undefined' && module.exports)
     ? require('./library.js') : root.Library;
-
   const step = Lib.step;
   const LIBRARY = Lib.SESSIONS;
 
@@ -198,6 +197,7 @@
     return finish({
       name: w.name, focus: w.focus, blurb: w.blurb, key: w.key,
       why: w.why,
+      course: w.course,
       terrain: w.terrain,
       interpretation: `Matched "${best.k}" to ${w.name}, built to fill ${mins} minutes` +
         (minutes ? '' : modifier !== 1 ? ` (${modifier < 1 ? 'short' : 'long'} version)` : '') +
@@ -394,7 +394,47 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
 `;
   }
 
-  const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile,
+  /**
+   * Where the time actually goes.
+   *
+   * "70 minutes" tells a rider very little — 70 minutes with 12 of them hard is
+   * a different afternoon from 70 with 45 hard. This splits the session by what
+   * each step is for, and by the zone its target lands in.
+   */
+  function timeBreakdown(workout, ftp) {
+    const flat = flatten(workout.steps);
+    const total = flat.reduce((t, s) => t + s.seconds, 0);
+
+    const byRole = { warmup: 0, work: 0, interval: 0, recovery: 0, rest: 0, cooldown: 0 };
+    flat.forEach(s => { byRole[s.role] = (byRole[s.role] || 0) + s.seconds; });
+
+    // Zone by the midpoint of each step's target band.
+    const byZone = Cy.ZONES.map(z => ({ n: z.n, key: z.key, name: z.name, seconds: 0 }));
+    flat.forEach(s => {
+      const mid = (s.lo + s.hi) / 2;
+      let idx = Cy.ZONES.findIndex(z => mid <= z.hi);
+      if (idx === -1) idx = Cy.ZONES.length - 1;
+      byZone[idx].seconds += s.seconds;
+    });
+
+    // "Quality" is the work you came for: everything at or above tempo.
+    const quality = byZone.filter(z => z.n >= 3).reduce((t, z) => t + z.seconds, 0);
+    const hardest = byZone.filter(z => z.seconds > 0).pop();
+
+    return {
+      total: total,
+      warmup: byRole.warmup, cooldown: byRole.cooldown,
+      work: byRole.work + byRole.interval,
+      easy: byRole.recovery + byRole.rest,
+      quality: quality,
+      qualityPct: total ? Math.round(100 * quality / total) : 0,
+      zones: byZone.filter(z => z.seconds > 0),
+      hardestZone: hardest || null,
+      steps: flat.length,
+    };
+  }
+
+  const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile, timeBreakdown,
                 detectTerrain, forTerrain, TERRAIN,
                 flatten, totalSeconds, estimateTSS, averageIntensity, watts,
                 parseTarget, parseDurationMinutes, finish, step };

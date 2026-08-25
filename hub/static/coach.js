@@ -356,7 +356,7 @@
         const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp });
         return {
           day: day, key: key, name: entry.name, focus: entry.focus,
-          why: entry.why, zone: entry.zone,
+          why: entry.why, zone: entry.zone, course: entry.course,
           minutes: Math.round(w.seconds / 60), tss: w.tss || null, workout: w,
         };
       });

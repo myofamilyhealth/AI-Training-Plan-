@@ -550,6 +550,37 @@ footer.foot a:hover { color: var(--text); }
   text-underline-offset: 2px; padding: 10px 2px;
 }
 .setup .skip:hover { color: var(--text-2); }
+
+/* ------------------------------------------------------- workout totals */
+.totals { margin: 18px 0 4px; }
+.totals .bar {
+  display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px;
+}
+.totals .bar > div { min-width: 2px; }
+.totals .grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px; margin-top: 16px;
+}
+.totals .cell .k {
+  font-size: 10.5px; font-weight: 680; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.totals .cell .v {
+  font-size: 19px; font-weight: 660; letter-spacing: -.025em; margin-top: 3px;
+}
+.totals .cell .s { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+
+.course-note {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin: 18px 0 0;
+  font-size: 13.5px; line-height: 1.55; color: var(--text-2);
+}
+.course-note b {
+  color: var(--text); font-weight: 620; display: block; margin-bottom: 3px;
+  font-size: 12.5px; letter-spacing: .01em;
+}
+.course-note .pin { flex: none; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -1844,6 +1875,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'recovery', name: 'Recovery spin', focus: 'recovery', zone: 1,
     defaultMinutes: 45, terrain: ['flat', 'indoor'],
     keywords: ['recovery', 'easy spin', 'rest day', 'active recovery', 'shake out', 'legs out', 'spin out'],
+    course: 'Anywhere flat and unhurried. Avoid hills entirely — a climb turns a recovery ride into a tempo ride whether you intend it or not.',
     blurb: 'Genuinely easy. The point is blood flow, not training.',
     why: 'Below 55% of FTP there is no meaningful training stimulus — that is the ' +
          'intention. Light spinning moves blood through legs that are repairing ' +
@@ -1854,6 +1886,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'openers', name: 'Openers', focus: 'pre-race', zone: 5,
     defaultMinutes: 40, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['openers', 'opener', 'day before', 'pre race', 'pre-race', 'primer', 'sharpener'],
+    course: 'A quiet, familiar stretch. You want no decisions to make and nothing that forces an effort you did not plan.',
     blurb: 'Short and sharp, the day before an event. Wakes the legs without costing anything.',
     why: 'A handful of brief efforts raises muscle temperature and recruits fast-twitch ' +
          'fibres, so race day does not start flat. Kept short enough that the fatigue ' +
@@ -1871,6 +1904,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'endurance', name: 'Endurance ride', focus: 'endurance', zone: 2,
     defaultMinutes: 120, terrain: ['flat', 'rolling', 'hilly'],
     keywords: ['endurance', 'base', 'zone 2', 'z2', 'aerobic', 'steady', 'easy ride', 'long ride', 'miles'],
+    course: 'Rolling countryside is ideal. Gentle hills are fine as long as you shift down and ride over them rather than attacking them.',
     blurb: 'The bulk of a cyclist’s year. Conversational, all day.',
     why: 'Low intensity is where mitochondrial density and capillary supply are built, ' +
          'and it is the 80% of the 80/20 distribution that repeatedly shows up in how ' +
@@ -1881,6 +1915,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'durability', name: 'Durability ride', focus: 'fatigue resistance', zone: 2,
     defaultMinutes: 210, terrain: ['flat', 'rolling', 'hilly'],
     keywords: ['durability', 'fatigue resistance', 'deep', 'long endurance', 'century', 'gran fondo', 'back end'],
+    course: 'A long loop that brings you home past the three-hour mark, with the terrain for the sweet spot blocks in the last third. Carry more food than you think.',
     blurb: 'A long ride with the hard work deliberately placed at the end, when you are already tired.',
     why: 'Durability — how much of your threshold survives four hours in — predicts real ' +
          'race outcomes better than a fresh FTP test does. Training it means being tired ' +
@@ -1899,6 +1934,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'fasted', name: 'Fasted endurance', focus: 'metabolic', zone: 2,
     defaultMinutes: 90, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['fasted', 'fat burning', 'metabolic', 'low carb', 'train low', 'empty stomach'],
+    course: 'Flat and close to home. Judgement fades when glycogen does, so keep the route simple and be ready to cut it short.',
     blurb: 'Steady endurance before breakfast. Keep it genuinely easy — this is not a hard session.',
     why: 'Riding with low glycogen amplifies the signalling that builds fat oxidation. ' +
          'The cost is that quality drops, so it belongs on easy days only, and never ' +
@@ -1909,6 +1945,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'surges', name: 'Endurance with surges', focus: 'endurance', zone: 2,
     defaultMinutes: 105, terrain: ['rolling', 'hilly'],
     keywords: ['surges', 'endurance with', 'punchy endurance', 'bursts', 'rolling ride'],
+    course: 'Rolling terrain, or a group ride. Use the natural rises for the surges rather than forcing them on the flat.',
     blurb: 'An easy ride broken up by short hard efforts — what a group ride actually looks like.',
     why: 'Brief surges out of an aerobic base rehearse the accelerations that decide real ' +
          'rides, while leaving the session low enough in cost to repeat weekly.',
@@ -1926,6 +1963,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'tempo', name: 'Tempo', focus: 'tempo', zone: 3,
     defaultMinutes: 90, terrain: ['flat', 'rolling'],
     keywords: ['tempo', 'zone 3', 'z3', 'moderate', 'steady state'],
+    course: 'A long, uninterrupted stretch — a false flat, a valley road, a wide shoulder. Junctions every two minutes will ruin it.',
     blurb: 'Firm but sustainable. Useful when time is short, easy to overdo.',
     why: 'Tempo builds aerobic capacity faster per hour than endurance, but it accumulates ' +
          'fatigue without the sharp stimulus of threshold work. Too much of a week here is ' +
@@ -1942,6 +1980,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'tempocadence', name: 'Tempo cadence ladder', focus: 'tempo', zone: 3,
     defaultMinutes: 75, terrain: ['flat', 'indoor'],
     keywords: ['cadence ladder', 'tempo cadence', 'cadence work', 'pedalling', 'pedaling'],
+    course: 'Flat and traffic-free, or the trainer. Changing cadence by 35 rpm while holding power needs a road you can stop thinking about.',
     blurb: 'Tempo power held while cadence steps up and down. Trains a smooth stroke under load.',
     why: 'Holding one power across a wide cadence range recruits different fibre ' +
          'populations and improves efficiency at cadences you would otherwise avoid.',
@@ -1961,6 +2000,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'sweetspot', name: 'Sweet spot', focus: 'sweet spot', zone: 3,
     defaultMinutes: 75, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['sweet spot', 'sweetspot', 'ss', 'sub-threshold', 'sub threshold'],
+    course: 'A steady false flat or a long shallow drag is perfect. Gentle uphill helps you hold the power without freewheeling.',
     blurb: 'Just under threshold. Most of the adaptation of threshold work, noticeably less cost.',
     why: 'At 88–94% of FTP the PGC-1α signalling that drives mitochondrial growth is ' +
          'strong, while the fatigue is low enough to repeat two or three times a week. ' +
@@ -1977,6 +2017,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'ssladder', name: 'Sweet spot ladder', focus: 'sweet spot', zone: 3,
     defaultMinutes: 75, fixed: true, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['sweet spot ladder', 'ladder', 'pyramid', 'ss ladder'],
+    course: 'Somewhere you can ride 15 minutes without stopping. A long climb at 3-5% or a quiet flat road.',
     blurb: 'Intervals that lengthen then shorten. The same work, but it feels different.',
     why: 'Varying interval length at one intensity keeps the session mentally tractable ' +
          'and biases the longest effort toward the middle, when you are warm but not spent.',
@@ -1991,6 +2032,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'ssextended', name: 'Extended sweet spot', focus: 'sweet spot', zone: 3,
     defaultMinutes: 100, terrain: ['flat', 'rolling'],
     keywords: ['extended sweet spot', 'long sweet spot', 'big sweet spot', '2x30', '3x20'],
+    course: 'Twenty to thirty minutes uninterrupted, twice. A long valley road, a shallow climb, or the trainer if your roads are busy.',
     blurb: 'Long blocks at sweet spot. A serious session that still will not wreck the week.',
     why: 'Time at this intensity is what shifts the lactate curve. Longer continuous ' +
          'blocks add muscular endurance that short repeats do not.',
@@ -2008,6 +2050,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'threshold', name: 'Threshold intervals', focus: 'threshold', zone: 4,
     defaultMinutes: 75, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['threshold', 'ftp intervals', 'zone 4', 'z4', '2x20', 'lt', 'lactate threshold'],
+    course: 'A clear run of 10-20 minutes. Slight uphill is easier than flat — gradient stops you coasting when it starts to hurt.',
     blurb: 'At the line you could hold for an hour. Raises the ceiling of everything below it.',
     why: 'Work at 95–105% of FTP drives both lactate clearance and the power at which ' +
          'lactate begins to accumulate. It is the most direct way to move FTP itself.',
@@ -2023,6 +2066,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'overunder', name: 'Over-unders', focus: 'over-unders', zone: 4,
     defaultMinutes: 75, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['over under', 'over-under', 'overunder', 'over/under', 'clearance', 'lactate shuttle'],
+    course: 'Uninterrupted for 12 minutes at a time. A long steady climb is ideal, because the gradient holds the power for you.',
     blurb: 'Alternating either side of threshold. Teaches you to clear lactate while still working.',
     why: 'The "over" accumulates lactate; the "under" forces you to clear it without ' +
          'stopping. That is precisely the demand of a hard climb or a rider attacking ' +
@@ -2040,6 +2084,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'ttpace', name: 'Time trial effort', focus: 'threshold', zone: 4,
     defaultMinutes: 80, terrain: ['flat'],
     keywords: ['time trial', 'tt', 'race pace', 'sustained effort', 'solo effort', '40k'],
+    course: 'Your actual time trial course if you have one. Otherwise flat, exposed and honest — no sheltered lanes that flatter your numbers.',
     blurb: 'One long continuous effort at race pace. As much a pacing rehearsal as a workout.',
     why: 'Continuous work at threshold rehearses the pacing discipline a time trial ' +
          'demands — an evenly paced effort beats a fast start over any distance.',
@@ -2050,6 +2095,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'thresholdladder', name: 'Threshold ladder', focus: 'threshold', zone: 4,
     defaultMinutes: 60, fixed: true, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['threshold ladder', 'ftp ladder', 'stepped threshold'],
+    course: 'A long climb or a quiet flat road. You need 15 minutes clear for the first block.',
     blurb: 'Intervals that step up in intensity as they shorten.',
     why: 'Rising intensity across a session recruits progressively more fast-twitch ' +
          'fibre while the earlier, longer efforts have already loaded the aerobic system.',
@@ -2065,6 +2111,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'vo2max', name: 'VO2 max intervals', focus: 'vo2 max', zone: 5,
     defaultMinutes: 70, terrain: ['flat', 'rolling', 'hilly', 'indoor'],
     keywords: ['vo2', 'vo2max', 'vo2 max', 'zone 5', 'z5', 'max aerobic', '5x3', '4x4', '5x5'],
+    course: 'A climb of 3-5 minutes at 4-7% is the best place for these. On the flat you will fade as speed rises and drag with it.',
     blurb: 'Hard enough that breathing sets the limit. Where the aerobic ceiling moves.',
     why: 'Three to five minute efforts hold you near maximal oxygen uptake long enough to ' +
          'force adaptation. Time spent above 90% of VO2max is the currency here, which is ' +
@@ -2082,6 +2129,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'ronnestad', name: 'Rønnestad 30/15s', focus: 'vo2 max', zone: 5,
     defaultMinutes: 65, terrain: ['flat', 'indoor'],
     keywords: ['ronnestad', 'rønnestad', '30/15', '30-15', 'short intervals', 'micro intervals', 'micros'],
+    course: 'The trainer, honestly. The 15-second recoveries are too short to manage traffic, junctions or descending safely.',
     blurb: '30 seconds hard, 15 easy, thirteen times over. Three sets. Brutal and highly effective.',
     why: 'Rønnestad\u2019s work found short intervals produced higher mean power (415 W vs 367 W ' +
          'in one elite group) and more time near VO2 max than matched 4x5 min efforts — the ' +
@@ -2100,6 +2148,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'fortytwenty', name: '40/20s', focus: 'vo2 max', zone: 5,
     defaultMinutes: 60, terrain: ['flat', 'indoor'],
     keywords: ['40/20', '40-20', 'forty twenty', 'tabata style'],
+    course: 'Trainer, or a long steady climb. The 20-second recoveries leave no room for anything unexpected.',
     blurb: '40 seconds on, 20 off. Slightly longer than the 30/15 and it shows.',
     why: 'Same principle as the 30/15 — brief recoveries keep oxygen uptake high — but the ' +
          'longer work bout pushes further into anaerobic contribution, so the sets are shorter.',
@@ -2116,6 +2165,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'billat', name: '30/30s', focus: 'vo2 max', zone: 5,
     defaultMinutes: 55, terrain: ['flat', 'indoor'],
     keywords: ['30/30', '30-30', 'billat', 'thirty thirty'],
+    course: 'Trainer or a quiet climb. Even work and rest means you are never fully recovered enough to look around.',
     blurb: 'Even work and rest. The gentlest way into short-interval work.',
     why: 'Billat\u2019s original protocol: an even work-to-rest ratio accumulates time near ' +
          'VO2 max while staying manageable enough to sustain for many repetitions.',
@@ -2133,6 +2183,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'vo2long', name: 'Long VO2 max', focus: 'vo2 max', zone: 5,
     defaultMinutes: 80, terrain: ['flat', 'hilly'],
     keywords: ['long vo2', '5 minute', '6 minute', 'big vo2', 'sustained vo2'],
+    course: 'A climb of 5-6 minutes, or a long exposed flat into a headwind. Both hold the effort steadier than a fast flat road.',
     blurb: 'Five and six minute efforts. Less peak power, more time at the ceiling.',
     why: 'Longer efforts spend more absolute time above 90% of VO2 max per repetition, at ' +
          'the cost of lower power. The classic counterpart to the short-interval approach.',
@@ -2148,6 +2199,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'microbursts', name: 'Micro-bursts', focus: 'vo2 max', zone: 5,
     defaultMinutes: 60, terrain: ['flat', 'indoor'],
     keywords: ['micro burst', 'microburst', 'micro-burst', '15/15', 'bursts'],
+    course: 'Trainer, or a shallow climb. The 15-second alternation needs a surface and a gradient that never change.',
     blurb: '15 seconds very hard, 15 easy, for minutes at a time. Feels easy, then does not.',
     why: 'Very short bursts let you accumulate high-power work with far less lactate than ' +
          'continuous effort at the same average, so total time at high intensity rises.',
@@ -2167,6 +2219,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'anaerobic', name: 'Anaerobic capacity', focus: 'anaerobic', zone: 6,
     defaultMinutes: 60, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['anaerobic', 'zone 6', 'z6', 'capacity', 'attacks', '1 minute'],
+    course: 'Flat or slightly uphill, with room to recover for three minutes. A quiet loop you can repeat works well.',
     blurb: 'One minute, very hard, long recoveries. Race-winning efforts.',
     why: 'Efforts of roughly a minute sit at the peak of anaerobic energy contribution. ' +
          'Long recoveries are the point — this trains peak capacity, not repeatability.',
@@ -2182,6 +2235,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'lactatetolerance', name: 'Lactate tolerance', focus: 'anaerobic', zone: 6,
     defaultMinutes: 65, terrain: ['flat', 'indoor'],
     keywords: ['lactate tolerance', 'tolerance', '2 minute', 'pain', 'buffering'],
+    course: 'A two-minute climb, repeated. The gradient keeps the effort honest when you start to come apart.',
     blurb: 'Two minute efforts with incomplete recovery. Deeply unpleasant, and the point.',
     why: 'Starting each effort before lactate has cleared trains the buffering capacity ' +
          'that lets you go again — the difference between one good attack and five.',
@@ -2197,6 +2251,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'rsa', name: 'Repeated sprint ability', focus: 'anaerobic', zone: 6,
     defaultMinutes: 55, terrain: ['flat', 'rolling', 'indoor'],
     keywords: ['repeated sprint', 'rsa', 'repeatability', 'sprint repeats', 'covering moves'],
+    course: 'A flat, straight, quiet road with good surface. You will be sprinting repeatedly with your head down.',
     blurb: 'Short sprints on short recovery. Trains going again, not going once.',
     why: 'Repeat sprint ability depends heavily on aerobic recovery between efforts. ' +
          'Short recoveries (30 s or less) are what make this different from sprint work.',
@@ -2216,6 +2271,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'sprints', name: 'Sprints', focus: 'neuromuscular', zone: 7,
     defaultMinutes: 60, terrain: ['flat', 'rolling'],
     keywords: ['sprint', 'sprints', 'neuromuscular', 'zone 7', 'z7', 'jumps', 'peak power'],
+    course: 'Flat, straight, good tarmac, clear sightlines and no traffic. You will be at maximum speed and not looking far ahead.',
     blurb: 'All-out and short, fully recovered between. Quality over quantity.',
     why: 'Peak power is a neuromuscular quality — it needs full recovery between efforts ' +
          'to train. A 1:4 or longer work-to-rest ratio targets power; shorter ratios ' +
@@ -2232,6 +2288,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'standingstarts', name: 'Standing starts', focus: 'neuromuscular', zone: 7,
     defaultMinutes: 50, terrain: ['flat'],
     keywords: ['standing start', 'standing starts', 'from a standstill', 'acceleration', 'jump'],
+    course: 'A quiet road with room to roll to almost a stop and accelerate hard. A slight uphill helps the gear feel right.',
     blurb: 'From almost stopped, in a big gear. Raw torque and acceleration.',
     why: 'Starting from near-zero speed in a large gear demands maximal torque before ' +
          'momentum helps, which recruits high-threshold motor units nothing else reaches.',
@@ -2248,6 +2305,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'spinups', name: 'Spin-ups', focus: 'technique', zone: 2,
     defaultMinutes: 50, terrain: ['flat', 'indoor'],
     keywords: ['spin up', 'spin-ups', 'spinups', 'leg speed', 'high cadence', 'form drills', 'technique'],
+    course: 'Flat, quiet, no traffic. Legs at 120 rpm are not a good moment to meet a junction.',
     blurb: 'Cadence climbing toward your limit at low power. A skill session, not a hard one.',
     why: 'Pedalling smoothly at high cadence is a coordination skill. Training it at low ' +
          'power means the limiter is technique rather than fatigue.',
@@ -2265,6 +2323,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'torque', name: 'Big gear torque', focus: 'strength', zone: 3,
     defaultMinutes: 70, terrain: ['flat', 'rolling', 'hilly'],
     keywords: ['torque', 'big gear', 'low cadence', 'strength', 'force', 'grinding', 'muscle tension'],
+    course: 'A long steady climb at 4-6% is ideal — the gradient supplies the resistance. Flat into a headwind is the fallback.',
     blurb: 'Sub-threshold power at 50–60 rpm. Heavy on the legs, light on the lungs.',
     why: 'Power is cadence times torque; this trains the torque half. Useful preparation ' +
          'for steep climbing, where gearing runs out and cadence falls whether you like ' +
@@ -2282,6 +2341,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'torquesprint', name: 'Over-geared starts', focus: 'strength', zone: 6,
     defaultMinutes: 55, terrain: ['flat', 'hilly'],
     keywords: ['over geared', 'over-geared', 'muscle tension', 'strength endurance', 'grinder'],
+    course: 'A short ramp or a steep driveway-length pitch. You need the gradient to load the gear properly.',
     blurb: 'Short, very heavy efforts at 40–50 rpm. Strength work on the bike.',
     why: 'High force at low cadence approaches the demands of resistance training while ' +
          'staying specific to the pedal stroke. Keep these short — the joint loading is real.',
@@ -2299,6 +2359,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'sustainedclimb', name: 'Sustained climb', focus: 'climbing', zone: 4,
     defaultMinutes: 85, terrain: ['hilly', 'mountainous'],
     keywords: ['sustained climb', 'long climb', 'alpine', 'col', 'mountain', 'hc climb', 'big climb'],
+    course: 'A real climb, 20 minutes or more. If your area has nothing that long, a shallow drag ridden as an out-and-back is the substitute.',
     blurb: 'One long effort uphill at threshold. What a real mountain pass asks for.',
     why: 'A long climb is a threshold effort where you cannot freewheel, cannot draft and ' +
          'cannot recover. Rehearsing it seated at climbing cadence is the specificity that ' +
@@ -2311,6 +2372,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'climbrepeats', name: 'Climb repeats', focus: 'climbing', zone: 4,
     defaultMinutes: 80, terrain: ['hilly', 'mountainous'],
     keywords: ['climb repeats', 'hill repeats', 'hills', 'hill', 'repeats uphill', 'climbing intervals'],
+    course: 'One climb of 6-12 minutes at 5-8%, with a descent you are happy to do repeatedly. The same climb every rep is the point.',
     blurb: 'The same climb, several times, at threshold. Descend easy between.',
     why: 'Repeating one climb makes the effort measurable — same gradient, same length, so ' +
          'the only variable is you. The descent gives a genuine recovery that a flat ' +
@@ -2328,6 +2390,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'steeppitches', name: 'Steep pitches', focus: 'climbing', zone: 5,
     defaultMinutes: 65, terrain: ['hilly', 'mountainous'],
     keywords: ['steep', 'pitches', 'ramps', 'wall', 'kicker', 'short steep', 'punchy climb'],
+    course: 'A short wall — 60-90 seconds at 10% or more. A steep lane, a bridge ramp, a bad driveway. Anything you have to stand on.',
     blurb: 'Short, very steep efforts. Out of the saddle where the gradient demands it.',
     why: 'On gradients past about 10% gearing runs out and cadence collapses whether you ' +
          'want it to or not. Training the combination of high force and standing position ' +
@@ -2345,6 +2408,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'climbposition', name: 'Seated and standing climb', focus: 'climbing', zone: 4,
     defaultMinutes: 75, terrain: ['hilly', 'mountainous'],
     keywords: ['seated standing', 'out of the saddle', 'position', 'climbing technique', 'alternating'],
+    course: 'A steady climb of 8 minutes or more at 5-7%. Consistent gradient matters more than length here.',
     blurb: 'Threshold on a climb, alternating seated and standing every minute.',
     why: 'Standing recruits more upper-body and glute involvement at a small metabolic ' +
          'cost. Being able to switch without a power drop is what lets you use the change ' +
@@ -2362,6 +2426,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'summitfinish', name: 'Summit finish', focus: 'climbing', zone: 4,
     defaultMinutes: 150, terrain: ['hilly', 'mountainous'],
     keywords: ['summit finish', 'climb at the end', 'tired climb', 'final climb', 'queen stage'],
+    course: 'A long route that ends on a climb of 15-25 minutes. Plan it so turning back early is not an option.',
     blurb: 'A long endurance ride, then the climb — on the legs you actually arrive with.',
     why: 'Races are not decided on fresh legs. Placing the climb after two hours trains ' +
          'durability, which predicts real performance better than a rested threshold test.',
@@ -2379,6 +2444,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'rollinghills', name: 'Rolling hills', focus: 'climbing', zone: 5,
     defaultMinutes: 90, terrain: ['rolling', 'hilly'],
     keywords: ['rolling hills', 'undulating', 'punchy', 'lumpy', 'ardennes', 'classics'],
+    course: 'Genuinely lumpy terrain — climbs of 60-120 seconds arriving every few minutes. Classics country, not mountains.',
     blurb: 'Repeated short climbs with the descents as your only recovery.',
     why: 'Undulating terrain is a series of anaerobic efforts on an aerobic background. ' +
          'The limiter is how fast you recover on the descent, which is an aerobic quality ' +
@@ -2395,6 +2461,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'climbtorque', name: 'Over-geared climbing', focus: 'climbing', zone: 3,
     defaultMinutes: 75, terrain: ['hilly', 'mountainous'],
     keywords: ['over geared climb', 'big gear climb', 'grinding uphill', 'low cadence climb'],
+    course: 'A steady climb at 5-7% where you can hold a gear two sprockets too big. Nothing so steep that 50 rpm becomes 35.',
     blurb: 'Climbing sub-threshold in a gear that is slightly too big.',
     why: 'Deliberately under-gearing a climb rehearses the moment gearing runs out on a ' +
          'steep pitch. Build up to it — the joint loading at 50 rpm on a gradient is real.',
@@ -2413,6 +2480,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'criterium', name: 'Criterium simulation', focus: 'race', zone: 6,
     defaultMinutes: 70, terrain: ['flat', 'indoor'],
     keywords: ['crit', 'criterium', 'corners', 'surges out of corners', 'race simulation'],
+    course: 'A closed circuit if you can get one, or the trainer. On open roads the corner accelerations become a hazard rather than a session.',
     blurb: 'Repeated hard accelerations over a tempo background. What a crit actually is.',
     why: 'A criterium is not a steady effort — it is a few hundred accelerations out of ' +
          'corners strung together. Training the surge-and-settle pattern beats training ' +
@@ -2431,6 +2499,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'breakaway', name: 'Breakaway effort', focus: 'race', zone: 5,
     defaultMinutes: 75, terrain: ['flat', 'rolling'],
     keywords: ['breakaway', 'break', 'attack and settle', 'off the front', 'solo'],
+    course: 'A long open road, ideally exposed. The point is that after the first minute there is nowhere to hide.',
     blurb: 'A very hard first minute, then settle into a long effort you can hold.',
     why: 'Getting away costs an anaerobic effort; staying away is threshold work with that ' +
          'already spent. Rehearsing the transition is the difference between a break that ' +
@@ -2448,6 +2517,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'attacks', name: 'Attack and recover', focus: 'race', zone: 6,
     defaultMinutes: 70, terrain: ['flat', 'rolling'],
     keywords: ['attacks', 'covering attacks', 'race efforts', 'surges and recover', 'answering moves'],
+    course: 'Rolling roads or a circuit. You need to keep pedalling through the recoveries, so nothing with long descents.',
     blurb: 'Hard attacks with only partial recovery, over a tempo base.',
     why: 'Races are won by riders who can answer the fourth attack, not the first. ' +
          'Recovering at tempo rather than freewheeling is what makes this specific.',
@@ -2464,6 +2534,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'leadout', name: 'Leadout and sprint', focus: 'race', zone: 7,
     defaultMinutes: 60, terrain: ['flat'],
     keywords: ['leadout', 'lead out', 'finish', 'sprint finish', 'final kilometre', 'bunch sprint'],
+    course: 'A flat, straight finish road with good visibility. Treat it exactly as you would a real sprint — because that is the point.',
     blurb: 'A hard leadout then a full sprint. Sprinting fresh is not the skill.',
     why: 'A bunch sprint is launched from an already-maximal leadout. Practising the sprint ' +
          'cold trains a scenario that never happens.',
@@ -2480,6 +2551,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'gravel', name: 'Gravel and mixed surface', focus: 'race', zone: 3,
     defaultMinutes: 150, terrain: ['gravel', 'rolling', 'hilly'],
     keywords: ['gravel', 'mixed surface', 'off road', 'adventure', 'unpaved', 'dirt'],
+    course: 'Mixed surface, the rougher the better. Loose climbs and technical sections are the session, not an inconvenience.',
     blurb: 'Long, variable, with the punchy efforts that loose surfaces force on you.',
     why: 'Gravel racing is tempo with unavoidable spikes — every loose pitch and every ' +
          'technical section costs an effort you did not choose. Variability, not a steady ' +
@@ -2498,6 +2570,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'groupride', name: 'Group ride simulation', focus: 'race', zone: 4,
     defaultMinutes: 105, terrain: ['flat', 'rolling'],
     keywords: ['group ride', 'chaingang', 'chain gang', 'bunch', 'turns on the front', 'through and off'],
+    course: 'An actual chaingang if you can find one. Solo, use a flat loop and hold the turns strictly to time.',
     blurb: 'Turns on the front at threshold, sheltered between. Nothing else feels like it.',
     why: 'Through-and-off is an interval session with a fixed work-to-rest ratio you do not ' +
          'control. Rehearsing that specific rhythm is why riders who only ride solo get ' +
@@ -2517,6 +2590,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'ftptest', name: 'FTP test (20 min)', focus: 'test', zone: 4,
     defaultMinutes: 41, fixed: true, terrain: ['flat', 'hilly', 'indoor'],
     keywords: ['ftp test', '20 minute test', '20 min test', 'benchmark', 'retest', 'threshold test'],
+    course: 'A climb of 4-6% is the most reliable place for a 20-minute test — steady, no coasting, no traffic. Use the same road every time.',
     blurb: 'The classic. Your FTP is about 95% of the average you hold for the 20 minutes.',
     why: 'Twenty minutes all-out sits close enough to an hour\u2019s sustainable power that the ' +
          '95% convention holds for most riders. The five-minute opener beforehand clears the ' +
@@ -2531,6 +2605,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'ramptest', name: 'Ramp test', focus: 'test', zone: 5,
     defaultMinutes: 31, fixed: true, terrain: ['indoor'],
     keywords: ['ramp test', 'ramp', 'incremental test', 'step test'],
+    course: 'The trainer. A ramp needs power to rise in exact steps, which no road will give you.',
     blurb: 'Power rises every minute until you cannot hold it. Shorter and less brutal than a 20.',
     why: 'A ramp estimates FTP from about 75% of the best one-minute power reached. It is ' +
          'less accurate than a 20-minute test but far easier to repeat, which makes it ' +
@@ -2548,6 +2623,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'vo2test', name: '5 min power test', focus: 'test', zone: 5,
     defaultMinutes: 24, fixed: true, terrain: ['flat', 'hilly', 'indoor'],
     keywords: ['5 minute test', 'five minute test', 'vo2 test', 'aerobic power test'],
+    course: 'A climb of 5-6 minutes, or the trainer. Use the same one each time or the numbers are not comparable.',
     blurb: 'One maximal five minute effort. The best simple proxy for aerobic ceiling.',
     why: 'Five minutes is roughly the duration at which VO2 max is the binding constraint, ' +
          'so it tracks aerobic ceiling in a way a 20-minute test does not.',
@@ -2561,6 +2637,7 @@ footer.foot a:hover { color: var(--text); }
     key: 'sprinttest', name: 'Peak power test', focus: 'test', zone: 7,
     defaultMinutes: 32, fixed: true, terrain: ['flat'],
     keywords: ['peak power test', 'sprint test', 'max power', '5 second power'],
+    course: 'Flat, straight, still air, good surface. Wind changes peak power more than a month of training does.',
     blurb: 'Three all-out sprints, fully recovered. Your true peak number.',
     why: 'Peak power needs complete recovery to express. Three attempts is enough to find ' +
          'your ceiling without fatigue masking it.',
@@ -2600,7 +2677,6 @@ footer.foot a:hover { color: var(--text); }
 
   const Lib = (typeof module !== 'undefined' && module.exports)
     ? require('./library.js') : root.Library;
-
   const step = Lib.step;
   const LIBRARY = Lib.SESSIONS;
 
@@ -2777,6 +2853,7 @@ footer.foot a:hover { color: var(--text); }
     return finish({
       name: w.name, focus: w.focus, blurb: w.blurb, key: w.key,
       why: w.why,
+      course: w.course,
       terrain: w.terrain,
       interpretation: `Matched "${best.k}" to ${w.name}, built to fill ${mins} minutes` +
         (minutes ? '' : modifier !== 1 ? ` (${modifier < 1 ? 'short' : 'long'} version)` : '') +
@@ -2973,7 +3050,47 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
 `;
   }
 
-  const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile,
+  /**
+   * Where the time actually goes.
+   *
+   * "70 minutes" tells a rider very little — 70 minutes with 12 of them hard is
+   * a different afternoon from 70 with 45 hard. This splits the session by what
+   * each step is for, and by the zone its target lands in.
+   */
+  function timeBreakdown(workout, ftp) {
+    const flat = flatten(workout.steps);
+    const total = flat.reduce((t, s) => t + s.seconds, 0);
+
+    const byRole = { warmup: 0, work: 0, interval: 0, recovery: 0, rest: 0, cooldown: 0 };
+    flat.forEach(s => { byRole[s.role] = (byRole[s.role] || 0) + s.seconds; });
+
+    // Zone by the midpoint of each step's target band.
+    const byZone = Cy.ZONES.map(z => ({ n: z.n, key: z.key, name: z.name, seconds: 0 }));
+    flat.forEach(s => {
+      const mid = (s.lo + s.hi) / 2;
+      let idx = Cy.ZONES.findIndex(z => mid <= z.hi);
+      if (idx === -1) idx = Cy.ZONES.length - 1;
+      byZone[idx].seconds += s.seconds;
+    });
+
+    // "Quality" is the work you came for: everything at or above tempo.
+    const quality = byZone.filter(z => z.n >= 3).reduce((t, z) => t + z.seconds, 0);
+    const hardest = byZone.filter(z => z.seconds > 0).pop();
+
+    return {
+      total: total,
+      warmup: byRole.warmup, cooldown: byRole.cooldown,
+      work: byRole.work + byRole.interval,
+      easy: byRole.recovery + byRole.rest,
+      quality: quality,
+      qualityPct: total ? Math.round(100 * quality / total) : 0,
+      zones: byZone.filter(z => z.seconds > 0),
+      hardestZone: hardest || null,
+      steps: flat.length,
+    };
+  }
+
+  const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile, timeBreakdown,
                 detectTerrain, forTerrain, TERRAIN,
                 flatten, totalSeconds, estimateTSS, averageIntensity, watts,
                 parseTarget, parseDurationMinutes, finish, step };
@@ -3339,7 +3456,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
         const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp });
         return {
           day: day, key: key, name: entry.name, focus: entry.focus,
-          why: entry.why, zone: entry.zone,
+          why: entry.why, zone: entry.zone, course: entry.course,
           minutes: Math.round(w.seconds / 60), tss: w.tss || null, workout: w,
         };
       });
@@ -5127,6 +5244,62 @@ function workoutCard(workout) {
       text: 'Set your FTP on the Dashboard tab and these become watt targets instead of percentages.' }));
   }
 
+  // Where the ride's time actually goes, before the step list.
+  const b = Workouts.timeBreakdown(workout, ftp);
+  const totals = el('div', { class: 'totals' });
+  const bar = el('div', { class: 'bar' });
+  b.zones.forEach(z => {
+    const seg = el('div', {
+      style: `flex:${z.seconds};background:var(--ramp-${Math.min(6, Math.max(1, z.n - 1))})` });
+    hoverable(seg, `Zone ${z.n} — ${z.name}`, [
+      ['Time', Analytics.fmtDuration(z.seconds)],
+      ['Share', Math.round(100 * z.seconds / b.total) + '%'],
+      ['Watts', ftp ? `${Math.round(Cycling.ZONES[z.n - 1].lo * ftp)}-${Math.round(Cycling.ZONES[z.n - 1].hi * ftp)} W`
+                    : `${Math.round(Cycling.ZONES[z.n - 1].loPct * 100)}-${Math.round(Cycling.ZONES[z.n - 1].hiPct * 100)}% FTP`],
+    ]);
+    bar.appendChild(seg);
+  });
+  totals.appendChild(bar);
+
+  const mins = s => Math.round(s / 60) + ' min';
+  const grid = el('div', { class: 'grid' });
+  const cell = (label, value, sub) => {
+    const c = el('div', { class: 'cell' });
+    c.appendChild(el('div', { class: 'k', text: label }));
+    c.appendChild(el('div', { class: 'v num', text: value }));
+    if (sub) c.appendChild(el('div', { class: 's', text: sub }));
+    grid.appendChild(c);
+  };
+  cell('Total', mins(b.total), b.steps + ' steps');
+  cell('Hard work', mins(b.quality), b.qualityPct + '% of the ride');
+  cell('Warm up', mins(b.warmup), 'and ' + mins(b.cooldown) + ' cool down');
+  cell('Easy / recovery', mins(b.easy), b.hardestZone ? 'peaks in ' + b.hardestZone.name.toLowerCase() : '');
+  if (workout.tss) cell('Stress', String(workout.tss), 'TSS at your FTP');
+  totals.appendChild(grid);
+  card.appendChild(totals);
+
+  // Where to ride it.
+  if (workout.course) {
+    const note = el('div', { class: 'course-note' });
+    const pin = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    pin.setAttribute('width', '15'); pin.setAttribute('height', '15');
+    pin.setAttribute('viewBox', '0 0 16 16'); pin.setAttribute('class', 'pin');
+    pin.setAttribute('aria-hidden', 'true');
+    const road = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    road.setAttribute('d', 'M1 13.5 L6 2.5 L10 9 L12.5 5 L15 13.5');
+    road.setAttribute('fill', 'none'); road.setAttribute('stroke', 'var(--series-1)');
+    road.setAttribute('stroke-width', '1.6'); road.setAttribute('stroke-linejoin', 'round');
+    road.setAttribute('stroke-linecap', 'round');
+    pin.appendChild(road);
+    note.appendChild(pin);
+    const body = el('div', {});
+    body.appendChild(el('b', { text: 'Where to ride this' }));
+    body.appendChild(document.createTextNode(workout.course));
+    note.appendChild(body);
+    card.appendChild(note);
+  }
+
+  card.appendChild(el('p', { class: 'hint', style: 'margin:22px 0 8px' , text: 'The session' }));
   card.appendChild(stepRows(workout, ftp));
 
   const actions = el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)' });
@@ -5139,9 +5312,34 @@ function workoutCard(workout) {
   dl('Zwift (.zwo)', slug + '.zwo', Workouts.toZWO(workout, ftp), 'application/xml');
   dl('Trainer (.mrc)', slug + '.mrc', Workouts.toCourseFile(workout, ftp, false));
   if (ftp) dl('Watts (.erg)', slug + '.erg', Workouts.toCourseFile(workout, ftp, true));
-  dl('Plain text', slug + '.txt',
-     workout.name + '\n\n' + Workouts.describe(workout, ftp) +
-     (workout.tss ? `\n\n  ~${Math.round(workout.seconds / 60)} min, ${workout.tss} TSS` : '') + '\n');
+  const mm = s => Math.round(s / 60) + ' min';
+  const plain = [
+    workout.name,
+    '='.repeat(workout.name.length),
+    '',
+    workout.blurb || '',
+    '',
+    'TOTALS',
+    `  Duration        ${mm(b.total)}`,
+    `  Hard work       ${mm(b.quality)}  (${b.qualityPct}% of the ride)`,
+    `  Warm up         ${mm(b.warmup)}`,
+    `  Easy / recovery ${mm(b.easy)}`,
+    `  Cool down       ${mm(b.cooldown)}`,
+    workout.tss ? `  Stress          ${workout.tss} TSS at ${ftp || '—'} W FTP` : '',
+    '',
+    '  Time in zone:',
+  ].concat(b.zones.map(z => `    Zone ${z.n}  ${z.name.padEnd(16)} ${mm(z.seconds)}`))
+   .concat([
+    '',
+    workout.course ? 'WHERE TO RIDE THIS\n  ' + workout.course : '',
+    '',
+    'THE SESSION',
+    Workouts.describe(workout, ftp),
+    '',
+    workout.why ? 'WHY IT WORKS\n  ' + workout.why : '',
+    '',
+  ]).filter(l => l !== null).join('\n');
+  dl('Plain text', slug + '.txt', plain);
   card.appendChild(actions);
   return card;
 }
@@ -5354,7 +5552,11 @@ function planText(plan) {
     out.push(`Week ${w.week} — ${w.phase}${w.date ? '  (' + w.date + ')' : ''}   ${w.hours}h, ${w.tss} TSS`);
     out.push('  ' + w.blurb);
     w.days.forEach(d => {
+      const b = Workouts.timeBreakdown(d.workout, plan.ftp);
+      const mm = s => Math.round(s / 60) + ' min';
       out.push(`    ${d.day}  ${d.name} — ${d.minutes} min${d.tss ? ', ' + d.tss + ' TSS' : ''}`);
+      out.push(`          ${mm(b.quality)} of hard work (${b.qualityPct}%), ${mm(b.easy)} easy`);
+      if (d.course) out.push(`          Where: ${d.course}`);
       out.push(Workouts.describe(d.workout, plan.ftp).split('\n').map(l => '    ' + l).join('\n'));
     });
     out.push('');

@@ -1751,6 +1751,62 @@ function workoutCard(workout) {
       text: 'Set your FTP on the Dashboard tab and these become watt targets instead of percentages.' }));
   }
 
+  // Where the ride's time actually goes, before the step list.
+  const b = Workouts.timeBreakdown(workout, ftp);
+  const totals = el('div', { class: 'totals' });
+  const bar = el('div', { class: 'bar' });
+  b.zones.forEach(z => {
+    const seg = el('div', {
+      style: `flex:${z.seconds};background:var(--ramp-${Math.min(6, Math.max(1, z.n - 1))})` });
+    hoverable(seg, `Zone ${z.n} — ${z.name}`, [
+      ['Time', Analytics.fmtDuration(z.seconds)],
+      ['Share', Math.round(100 * z.seconds / b.total) + '%'],
+      ['Watts', ftp ? `${Math.round(Cycling.ZONES[z.n - 1].lo * ftp)}-${Math.round(Cycling.ZONES[z.n - 1].hi * ftp)} W`
+                    : `${Math.round(Cycling.ZONES[z.n - 1].loPct * 100)}-${Math.round(Cycling.ZONES[z.n - 1].hiPct * 100)}% FTP`],
+    ]);
+    bar.appendChild(seg);
+  });
+  totals.appendChild(bar);
+
+  const mins = s => Math.round(s / 60) + ' min';
+  const grid = el('div', { class: 'grid' });
+  const cell = (label, value, sub) => {
+    const c = el('div', { class: 'cell' });
+    c.appendChild(el('div', { class: 'k', text: label }));
+    c.appendChild(el('div', { class: 'v num', text: value }));
+    if (sub) c.appendChild(el('div', { class: 's', text: sub }));
+    grid.appendChild(c);
+  };
+  cell('Total', mins(b.total), b.steps + ' steps');
+  cell('Hard work', mins(b.quality), b.qualityPct + '% of the ride');
+  cell('Warm up', mins(b.warmup), 'and ' + mins(b.cooldown) + ' cool down');
+  cell('Easy / recovery', mins(b.easy), b.hardestZone ? 'peaks in ' + b.hardestZone.name.toLowerCase() : '');
+  if (workout.tss) cell('Stress', String(workout.tss), 'TSS at your FTP');
+  totals.appendChild(grid);
+  card.appendChild(totals);
+
+  // Where to ride it.
+  if (workout.course) {
+    const note = el('div', { class: 'course-note' });
+    const pin = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    pin.setAttribute('width', '15'); pin.setAttribute('height', '15');
+    pin.setAttribute('viewBox', '0 0 16 16'); pin.setAttribute('class', 'pin');
+    pin.setAttribute('aria-hidden', 'true');
+    const road = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    road.setAttribute('d', 'M1 13.5 L6 2.5 L10 9 L12.5 5 L15 13.5');
+    road.setAttribute('fill', 'none'); road.setAttribute('stroke', 'var(--series-1)');
+    road.setAttribute('stroke-width', '1.6'); road.setAttribute('stroke-linejoin', 'round');
+    road.setAttribute('stroke-linecap', 'round');
+    pin.appendChild(road);
+    note.appendChild(pin);
+    const body = el('div', {});
+    body.appendChild(el('b', { text: 'Where to ride this' }));
+    body.appendChild(document.createTextNode(workout.course));
+    note.appendChild(body);
+    card.appendChild(note);
+  }
+
+  card.appendChild(el('p', { class: 'hint', style: 'margin:22px 0 8px' , text: 'The session' }));
   card.appendChild(stepRows(workout, ftp));
 
   const actions = el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)' });
@@ -1763,9 +1819,34 @@ function workoutCard(workout) {
   dl('Zwift (.zwo)', slug + '.zwo', Workouts.toZWO(workout, ftp), 'application/xml');
   dl('Trainer (.mrc)', slug + '.mrc', Workouts.toCourseFile(workout, ftp, false));
   if (ftp) dl('Watts (.erg)', slug + '.erg', Workouts.toCourseFile(workout, ftp, true));
-  dl('Plain text', slug + '.txt',
-     workout.name + '\n\n' + Workouts.describe(workout, ftp) +
-     (workout.tss ? `\n\n  ~${Math.round(workout.seconds / 60)} min, ${workout.tss} TSS` : '') + '\n');
+  const mm = s => Math.round(s / 60) + ' min';
+  const plain = [
+    workout.name,
+    '='.repeat(workout.name.length),
+    '',
+    workout.blurb || '',
+    '',
+    'TOTALS',
+    `  Duration        ${mm(b.total)}`,
+    `  Hard work       ${mm(b.quality)}  (${b.qualityPct}% of the ride)`,
+    `  Warm up         ${mm(b.warmup)}`,
+    `  Easy / recovery ${mm(b.easy)}`,
+    `  Cool down       ${mm(b.cooldown)}`,
+    workout.tss ? `  Stress          ${workout.tss} TSS at ${ftp || '—'} W FTP` : '',
+    '',
+    '  Time in zone:',
+  ].concat(b.zones.map(z => `    Zone ${z.n}  ${z.name.padEnd(16)} ${mm(z.seconds)}`))
+   .concat([
+    '',
+    workout.course ? 'WHERE TO RIDE THIS\n  ' + workout.course : '',
+    '',
+    'THE SESSION',
+    Workouts.describe(workout, ftp),
+    '',
+    workout.why ? 'WHY IT WORKS\n  ' + workout.why : '',
+    '',
+  ]).filter(l => l !== null).join('\n');
+  dl('Plain text', slug + '.txt', plain);
   card.appendChild(actions);
   return card;
 }
@@ -1978,7 +2059,11 @@ function planText(plan) {
     out.push(`Week ${w.week} — ${w.phase}${w.date ? '  (' + w.date + ')' : ''}   ${w.hours}h, ${w.tss} TSS`);
     out.push('  ' + w.blurb);
     w.days.forEach(d => {
+      const b = Workouts.timeBreakdown(d.workout, plan.ftp);
+      const mm = s => Math.round(s / 60) + ' min';
       out.push(`    ${d.day}  ${d.name} — ${d.minutes} min${d.tss ? ', ' + d.tss + ' TSS' : ''}`);
+      out.push(`          ${mm(b.quality)} of hard work (${b.qualityPct}%), ${mm(b.easy)} easy`);
+      if (d.course) out.push(`          Where: ${d.course}`);
       out.push(Workouts.describe(d.workout, plan.ftp).split('\n').map(l => '    ' + l).join('\n'));
     });
     out.push('');

@@ -237,6 +237,13 @@ or **.erg** for a trainer, or plain text.
 | **Race** | criterium, breakaway, attack and recover, leadout, gravel, group ride |
 | Tests | 20-min FTP, ramp, 5-min power, peak power |
 
+Every built workout also shows **where the time goes** — total, hard work and
+what share of the ride that is, warm-up, easy/recovery, and time in each power
+zone — plus **where to ride it**. A climb repeat session asks for "a climb of
+6–12 minutes at 5–8%, with a descent you are happy to do repeatedly"; the
+Rønnestad 30/15s say "the trainer, honestly — the 15-second recoveries are too
+short to manage traffic". All of it goes into the plain-text export too.
+
 Every session carries a **why** — the adaptation it targets and where that comes
 from — shown in the workout card. A few worth calling out:
 

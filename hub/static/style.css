@@ -539,3 +539,34 @@ footer.foot a:hover { color: var(--text); }
   text-underline-offset: 2px; padding: 10px 2px;
 }
 .setup .skip:hover { color: var(--text-2); }
+
+/* ------------------------------------------------------- workout totals */
+.totals { margin: 18px 0 4px; }
+.totals .bar {
+  display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px;
+}
+.totals .bar > div { min-width: 2px; }
+.totals .grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px; margin-top: 16px;
+}
+.totals .cell .k {
+  font-size: 10.5px; font-weight: 680; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.totals .cell .v {
+  font-size: 19px; font-weight: 660; letter-spacing: -.025em; margin-top: 3px;
+}
+.totals .cell .s { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+
+.course-note {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin: 18px 0 0;
+  font-size: 13.5px; line-height: 1.55; color: var(--text-2);
+}
+.course-note b {
+  color: var(--text); font-weight: 620; display: block; margin-bottom: 3px;
+  font-size: 12.5px; letter-spacing: .01em;
+}
+.course-note .pin { flex: none; margin-top: 2px; }

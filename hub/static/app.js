@@ -663,12 +663,16 @@ async function handleFile(file, unitPref) {
 }
 
 function importScreen(errorMessage) {
-  const wrap = el('div', { class: 'intro' });
-  wrap.appendChild(el('h2', { text: 'See your training, without handing it to anyone' }));
-  wrap.appendChild(el('p', { class: 'lede',
-    text: 'Export your activity history from Garmin or Strava and drop the file below. ' +
-          'It is read in your browser and turned into the dashboard — volume, training ' +
-          'load, consistency and every session.' }));
+  const wrap = el('div', { class: 'landing' });
+
+  /* ------------------------------------------------------------- hero */
+  const hero = el('div', { class: 'hero' });
+  hero.appendChild(el('p', { class: 'eyebrow', text: 'For cyclists' }));
+  hero.appendChild(el('h2', { text: 'Your power data, read where it stays yours' }));
+  hero.appendChild(el('p', { class: 'lede',
+    text: 'Drop in an export from Garmin or Strava and get FTP, training stress, form ' +
+          'and power zones — plus a workout builder and a training plan that fit the ' +
+          'riding you are actually doing. It runs entirely in this browser.' }));
 
   const drop = el('div', { class: 'drop', tabindex: '0', role: 'button',
                            'aria-label': 'Choose a CSV export to load' });
@@ -679,63 +683,169 @@ function importScreen(errorMessage) {
 
   const unitRow = el('div', { style: 'margin-top:22px;display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap' });
   unitRow.appendChild(el('span', { class: 'small', style: 'margin:0',
-    text: 'Distances in your Garmin export are in' }));
+    text: 'Distances in a Garmin export are in' }));
   let unitPref = 'mi';
   unitRow.appendChild(seg(['mi', 'km'], 'mi', v => { unitPref = v; },
     v => v === 'mi' ? 'Miles' : 'Kilometres'));
   drop.appendChild(unitRow);
-  wrap.appendChild(drop);
+  hero.appendChild(drop);
+
+  // Three claims a visitor needs before handing over a file.
+  const assure = el('div', { class: 'assure' });
+  const tick = () => {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('width', '14'); s.setAttribute('height', '14');
+    s.setAttribute('viewBox', '0 0 16 16'); s.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M2.5 8.5l3.5 3.5 7.5-8');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'var(--good)');
+    path.setAttribute('stroke-width', '2'); path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    s.appendChild(path);
+    return s;
+  };
+  ['Nothing is uploaded', 'No account, no password', 'Works offline'].forEach(t => {
+    const s = el('span');
+    s.appendChild(tick());
+    s.appendChild(document.createTextNode(t));
+    assure.appendChild(s);
+  });
+  hero.appendChild(assure);
+  wrap.appendChild(hero);
 
   if (errorMessage) {
-    const box = el('div', { class: 'err' });
+    const box = el('div', { class: 'err', style: 'margin-top:26px' });
     box.appendChild(el('strong', { text: 'That file did not load. ' }));
     box.appendChild(document.createTextNode(errorMessage));
     wrap.appendChild(box);
   }
 
-  const howto = el('div', { class: 'howto' });
-  const garmin = el('div', { class: 'card' });
-  garmin.appendChild(el('h3', { text: 'From Garmin Connect' }));
-  const gl = el('ol');
-  [['Open ', 'connect.garmin.com', ' and go to Activities.'],
-   ['Scroll until every activity you want is loaded — it only exports what is on screen.'],
-   ['Click the export icon, top right, to download the CSV.']]
-    .forEach(parts => {
+  /* --------------------------------------------------------- features */
+  const features = el('div', { class: 'section' });
+  features.appendChild(el('h3', { text: 'What you get' }));
+  const grid = el('div', { class: 'features' });
+
+  const feature = (title, body, bullets) => {
+    const c = el('div', { class: 'card feature' });
+    c.appendChild(el('h4', { text: title }));
+    c.appendChild(el('p', { text: body }));
+    const ul = el('ul');
+    bullets.forEach(b => {
       const li = el('li');
-      li.appendChild(document.createTextNode(parts[0]));
-      if (parts.length > 1) {
-        li.appendChild(el('a', { href: 'https://connect.garmin.com/modern/activities',
-                                 target: '_blank', rel: 'noopener', text: parts[1] }));
-        li.appendChild(document.createTextNode(parts[2]));
-      }
-      gl.appendChild(li);
+      // A bullet may be plain text or [before, code, after].
+      if (Array.isArray(b)) {
+        li.appendChild(document.createTextNode(b[0]));
+        li.appendChild(el('code', { text: b[1] }));
+        if (b[2]) li.appendChild(document.createTextNode(b[2]));
+      } else li.appendChild(document.createTextNode(b));
+      ul.appendChild(li);
     });
+    c.appendChild(ul);
+    return c;
+  };
+
+  grid.appendChild(feature(
+    'A power dashboard',
+    'Built on FTP, because that is what a bike measures. Enter yours, or take the ' +
+    'estimate from your hardest sustained rides.',
+    ['Form, fitness and fatigue over time',
+     'Training stress per ride, and per week',
+     'Power zones and where your hours actually go',
+     'W/kg, estimated VO2 max, best sustained power']));
+
+  grid.appendChild(feature(
+    'A workout builder',
+    'Say what you want in your own words, or write the intervals out. Targets come ' +
+    'back in watts off your FTP.',
+    [['', '2x20 at threshold'],
+     ['', '4x8min @ 110%'],
+     ['', '90 minute endurance ride'],
+     'Export to Zwift, a trainer, or plain text']));
+
+  grid.appendChild(feature(
+    'Plans that fit you',
+    'A block that starts from the volume you are already riding rather than an ideal ' +
+    'week you will not hold.',
+    ['Recovery week every fourth week',
+     'A taper that steps down into your event',
+     'A session suggested for today, from your form',
+     'Every suggestion names the rule behind it']));
+
+  features.appendChild(grid);
+  wrap.appendChild(features);
+
+  /* ----------------------------------------------------------- export */
+  const exp = el('div', { class: 'section' });
+  exp.appendChild(el('h3', { text: 'Getting your file' }));
+  const howto = el('div', { class: 'howto' });
+
+  const garmin = el('div', { class: 'card' });
+  garmin.appendChild(el('h3', { style: 'font-size:14px;text-transform:none;letter-spacing:normal;color:var(--text);border:0;padding:0;margin:0 0 10px', text: 'From Garmin Connect' }));
+  const gl = el('ol');
+  const g1 = el('li');
+  g1.appendChild(document.createTextNode('Open '));
+  g1.appendChild(el('a', { href: 'https://connect.garmin.com/modern/activities',
+                           target: '_blank', rel: 'noopener', text: 'your activity list' }));
+  g1.appendChild(document.createTextNode('.'));
+  gl.appendChild(g1);
+  gl.appendChild(el('li', { text: 'Scroll until every ride you want is loaded — it only exports what is on screen.' }));
+  gl.appendChild(el('li', { text: 'Click the export icon, top right, to download the CSV.' }));
   garmin.appendChild(gl);
   howto.appendChild(garmin);
 
   const strava = el('div', { class: 'card' });
-  strava.appendChild(el('h3', { text: 'From Strava' }));
+  strava.appendChild(el('h3', { style: 'font-size:14px;text-transform:none;letter-spacing:normal;color:var(--text);border:0;padding:0;margin:0 0 10px', text: 'From Strava' }));
   const sl = el('ol');
-  const li1 = el('li');
-  li1.appendChild(document.createTextNode('Go to '));
-  li1.appendChild(el('a', { href: 'https://www.strava.com/athlete/delete_your_account',
-                            target: '_blank', rel: 'noopener', text: 'Download your account' }));
-  li1.appendChild(document.createTextNode(' and request an archive.'));
-  sl.appendChild(li1);
+  const s1 = el('li');
+  s1.appendChild(document.createTextNode('Go to '));
+  s1.appendChild(el('a', { href: 'https://www.strava.com/athlete/delete_your_account',
+                           target: '_blank', rel: 'noopener', text: 'Download your account' }));
+  s1.appendChild(document.createTextNode(' and request an archive.'));
+  sl.appendChild(s1);
   sl.appendChild(el('li', { text: 'Strava emails you a zip, usually within a few hours.' }));
   sl.appendChild(el('li', { text: 'Unzip it and load activities.csv from inside.' }));
   strava.appendChild(sl);
   howto.appendChild(strava);
-  wrap.appendChild(howto);
+  exp.appendChild(howto);
+  wrap.appendChild(exp);
 
-  const privacy = el('div', { class: 'privacy' });
-  privacy.appendChild(el('strong', { text: 'Your file never leaves this browser. ' }));
-  privacy.appendChild(document.createTextNode(
-    'There is no server behind this page and nothing is uploaded — the CSV is read ' +
-    'and charted locally. It is remembered on this device only, and "Clear" removes it.'));
-  wrap.appendChild(privacy);
+  /* ------------------------------------------------------------ plain */
+  const honest = el('div', { class: 'section' });
+  honest.appendChild(el('h3', { text: 'Worth knowing before you start' }));
+  const pair = el('div', { class: 'honest' });
 
-  /* wiring */
+  const privacy = el('div', { class: 'card' });
+  privacy.appendChild(el('h4', { style: 'margin:0 0 10px;font-size:15.5px;font-weight:620', text: 'Where your data goes' }));
+  const p1 = el('p');
+  p1.appendChild(el('strong', { text: 'Nowhere. ' }));
+  p1.appendChild(document.createTextNode(
+    'There is no server behind this page. The CSV is read and charted by code running ' +
+    'in your own browser, and kept in that browser\u2019s local storage so it survives a ' +
+    'reload. Clear removes it.'));
+  privacy.appendChild(p1);
+  privacy.appendChild(el('p', { text:
+    'That is also why there is no login. Nothing to sign up for, nothing to leak, and ' +
+    'no reason to trust anyone — including whoever wrote this page.' }));
+  pair.appendChild(privacy);
+
+  const limits = el('div', { class: 'card' });
+  limits.appendChild(el('h4', { style: 'margin:0 0 10px;font-size:15.5px;font-weight:620', text: 'What an export cannot tell you' }));
+  const l1 = el('p');
+  l1.appendChild(document.createTextNode('These files carry '));
+  l1.appendChild(el('strong', { text: 'one row per ride' }));
+  l1.appendChild(document.createTextNode(
+    ', never the second-by-second power stream. So there is no real mean-maximal power ' +
+    'curve here, and nothing pretends otherwise — best sustained power is shown by ' +
+    'duration band and says so.'));
+  limits.appendChild(l1);
+  limits.appendChild(el('p', { text:
+    'FTP estimates, VO2 max and heart-rate-based stress are calculations, not ' +
+    'measurements. Each one says which it is where it appears.' }));
+  pair.appendChild(limits);
+  honest.appendChild(pair);
+  wrap.appendChild(honest);
+
+  /* ---------------------------------------------------------- wiring */
   const input = el('input', { type: 'file', class: 'hidden-input',
                               accept: '.csv,text/csv,text/plain' });
   wrap.appendChild(input);
@@ -759,11 +869,14 @@ function importScreen(errorMessage) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
   });
   input.addEventListener('change', () => load(input.files[0]));
+  // The whole window is a drop target, so a dragged file never misses.
   ['dragenter', 'dragover'].forEach(ev =>
-    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    window.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev =>
-    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', e => load(e.dataTransfer.files[0]));
+    window.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  window.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files.length) load(e.dataTransfer.files[0]);
+  });
 
   return wrap;
 }
@@ -822,6 +935,8 @@ function reinterpretUnits(payload, unit) {
 
 /* ------------------------------------------------------------------ render */
 
+const hasDataFor = p => !!(p && p.totals && p.totals.activities);
+
 function render(payload, errorMessage) {
   const app = $('#app');
   app.innerHTML = '';
@@ -833,6 +948,8 @@ function render(payload, errorMessage) {
 
   const cli = $('#cli-hint');
   if (cli) cli.hidden = !(DATA && DATA.generated && !DATA.imported);
+  const note = $('#source-note');
+  if (note) note.hidden = !!hasDataFor(payload);
 
   if (!hasData) {
     $('#gen').textContent = '';

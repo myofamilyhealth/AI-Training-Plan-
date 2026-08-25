@@ -101,10 +101,10 @@ ties, because the watch measured the run first-hand.
 
 ```bash
 ./wk web --serve      # build it and open it in your browser
-./wk web              # just build it, to site/index.html
+./wk web              # just build it, to docs/index.html
 ```
 
-`site/index.html` is a **single self-contained file** — data, styles and charts
+`docs/index.html` is a **single self-contained file** — data, styles and charts
 all inlined. No build step, no server needed, no network: double-click it and it
 works. Rebuild it after a sync to refresh.
 
@@ -259,6 +259,11 @@ and Garmin accounts — never commit them, whatever this repository's visibility
 If you ever suspect a leak, revoke at <https://www.strava.com/settings/apps> and
 change your Garmin password, which invalidates the stored tokens.
 
-This repository is currently **public**, so `data/` and `site/` are gitignored
-as well — both would otherwise publish your training history. Making the repo
-private is the cleaner fix, and unlocks committing your history for Claude.
+This repository is currently **public**. `data/` is gitignored, so raw activity
+JSON and its GPS start points never leave your machine. `docs/index.html` is
+committed on purpose — it is the published dashboard — which means whatever it
+contains is world-readable. Rebuild and commit it deliberately, not by habit.
+
+Making the repo private is the cleaner fix: it unlocks committing your history
+for Claude, and puts the published site behind a login (Pages on a private repo
+needs a paid plan).

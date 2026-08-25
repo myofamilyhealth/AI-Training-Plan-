@@ -184,7 +184,9 @@ def build(out: Path | str | None = None, standalone: bool = True, **kw) -> Path:
     payload = build_payload(activities, **kw)
     html = render(payload, standalone=standalone)
 
-    out = Path(out) if out else config.ROOT / "site" / "index.html"
+    # docs/ rather than site/: it is the folder GitHub Pages can serve straight
+    # from a branch, so publishing works with or without the Actions workflow.
+    out = Path(out) if out else config.ROOT / "docs" / "index.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     return out

@@ -110,20 +110,30 @@ works. Rebuild it after a sync to refresh.
 
 ### Publishing it
 
-The dashboard is also live at
-**<https://myofamilyhealth.github.io/AI-Training-Plan-/>**, deployed from
-`site/` by `.github/workflows/pages.yml` whenever that folder changes on `main`.
+The built page lives in `docs/`, which is what GitHub Pages serves.
+
+**One-time setup.** Pages cannot switch itself on — creating the site needs
+permissions no workflow token has — so turn it on once at
+[Settings → Pages](https://github.com/myofamilyhealth/AI-Training-Plan-/settings/pages)
+and pick either source:
+
+- **Deploy from a branch** → `main` → `/docs`. Simplest; no Actions involved.
+- **GitHub Actions** → `.github/workflows/pages.yml` publishes `docs/` on
+  every push to `main` that touches it.
+
+The site then answers at
+**<https://myofamilyhealth.github.io/AI-Training-Plan-/>** within a minute or two.
 
 Building needs your credentials, so it happens on your machine, never in CI.
 To update the published page:
 
 ```bash
 ./wk sync && ./wk web
-git add site/index.html && git commit -m "Update dashboard" && git push
+git add docs/index.html && git commit -m "Update dashboard" && git push
 ```
 
 **Read this before you publish real data.** This repository is public, so
-anything in `site/index.html` is readable by anyone with the URL — every
+anything in `docs/index.html` is readable by anyone with the URL — every
 session, its date, distance, pace and heart rate. The page carries a `noindex`
 tag so search engines skip it, but that is politeness to crawlers, not access
 control. Two ways to keep it private:
@@ -131,7 +141,7 @@ control. Two ways to keep it private:
 - Make the repository private. Pages on a private repo needs a paid GitHub
   plan, but the site then requires a login.
 - Or do not publish at all: `./wk web --serve` gives you the same dashboard on
-  localhost, and `site/` never has to be committed.
+  localhost, and `docs/` never has to be committed.
 
 It gives you, at a glance:
 
@@ -213,8 +223,8 @@ hub/
   plan.py              markdown plans -> scheduled sessions
   web.py               shapes the dashboard's data
   _template.py         the dashboard's markup, styles and SVG charts
-site/
-  index.html           the built dashboard (regenerate with ./wk web)
+docs/
+  index.html           the built dashboard, served by GitHub Pages
 training/
   ATHLETE.md           goals, PRs, injuries, constraints — fill this in
   paces.md             what "easy" and "threshold" mean for you

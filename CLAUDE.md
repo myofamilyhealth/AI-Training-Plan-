@@ -28,7 +28,7 @@ paces that named efforts resolve to.
 | `./wk workout "<text>" --push --schedule 2026-09-03` | Put it on the watch. |
 | `./wk plan show` | The current plan, week by week. |
 | `./wk plan push --week 3` | Send that week's sessions to the Garmin calendar. |
-| `./wk web` | Rebuild the visual dashboard at `site/index.html`. |
+| `./wk web` | Rebuild the visual dashboard at `docs/index.html`. |
 | `./wk web --serve` | Build it and open it in a browser. |
 
 Rebuild the dashboard after any sync that changes the data — it is a static
@@ -114,13 +114,13 @@ behind plan changes so the next conversation inherits it.
   athlete makes the repo private and drops the `data/` line, committing
   `data/activities/` becomes the right call again: it is what gives a fresh
   session real history.
-- `site/` IS committed, because it is published to GitHub Pages. That means the
-  built dashboard is world-readable. Before committing a rebuilt page that now
+- `docs/` IS committed, because GitHub Pages serves it. That means the built
+  dashboard is world-readable. Before committing a rebuilt page that now
   contains real sessions, say so plainly and let the athlete decide — do not
   publish their training history on your own initiative.
 - A fresh session therefore starts with no data on disk. Run `./wk sync` before
   reading anything, rather than telling the athlete they have no training.
-- `site/index.html` is generated. Edit `hub/_template.py`, never the built file.
+- `docs/index.html` is generated. Edit `hub/_template.py`, never the built file.
 - If you change a chart, rebuild and actually look at it before saying it works:
   `./wk web` then open the file. Charts fail visually, not loudly.
 - The numbers are indicators, not diagnoses. Acute:chronic ratio and the

@@ -1,15 +1,19 @@
-# Publishes site/ to GitHub Pages.
+# Publishes docs/ to GitHub Pages.
+#
+# Only runs when Pages is set to "GitHub Actions" in Settings -> Pages. If it
+# is set to "Deploy from a branch -> main -> /docs" instead, GitHub serves the
+# folder directly and this workflow is simply unused — either source works.
 #
 # The dashboard is built locally by `./wk web`, because building it needs your
 # Strava and Garmin credentials and those never belong in CI. This workflow
-# only takes whatever site/index.html you committed and serves it.
+# only takes whatever docs/index.html you committed and serves it.
 name: Deploy dashboard
 
 on:
   push:
     branches: [main]
     paths:
-      - 'site/**'
+      - 'docs/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -33,15 +37,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure Pages
-        # enablement: true turns Pages on for the repo, so there is no
-        # settings toggle to remember.
+        # No `enablement:` here: creating a Pages site needs permissions the
+        # workflow token does not have, so Pages must be switched on once by
+        # hand in Settings -> Pages. See README, "Publishing it".
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: docs
 
       - id: deployment
         uses: actions/deploy-pages@v4

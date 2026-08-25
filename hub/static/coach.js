@@ -179,19 +179,105 @@
   const PHASES = [
     { key: 'base',  name: 'Base',  blurb: 'Volume and aerobic depth. Mostly endurance, one quality day.' },
     { key: 'build', name: 'Build', blurb: 'Two hard sessions a week around a base of endurance.' },
-    { key: 'peak',  name: 'Peak',  blurb: 'Sharper and shorter — race-specific intensity, volume easing back.' },
+    { key: 'peak',  name: 'Peak',  blurb: 'Sharper and shorter — event-specific intensity, volume easing back.' },
     { key: 'taper', name: 'Taper', blurb: 'Volume drops hard, intensity stays. You should feel twitchy.' },
   ];
 
-  // Which sessions a week is made of, per phase. Rest days are the gaps.
-  const WEEK_SHAPES = {
-    base:  [['Tue', 'sweetspot'], ['Thu', 'endurance'], ['Sat', 'endurance'], ['Sun', 'endurance']],
-    build: [['Tue', 'threshold'], ['Thu', 'vo2max'], ['Sat', 'endurance'], ['Sun', 'endurance']],
-    peak:  [['Tue', 'vo2max'], ['Thu', 'overunder'], ['Sat', 'threshold'], ['Sun', 'endurance']],
-    taper: [['Tue', 'vo2max'], ['Thu', 'threshold'], ['Sat', 'endurance']],
-    raceweek: [['Tue', 'vo2max'], ['Thu', 'recovery']],
-    recovery: [['Tue', 'endurance'], ['Thu', 'recovery'], ['Sun', 'endurance']],
+  /**
+   * What each phase draws on.
+   *
+   * Pools rather than fixed sessions: a twelve-week block that prescribes the
+   * same Tuesday session twelve times is a spreadsheet, not a plan. Rotating
+   * through a pool varies the stimulus and keeps the rider engaged, while
+   * staying inside the intensity the phase calls for.
+   */
+  const PHASE_POOLS = {
+    base: {
+      quality: ['sweetspot', 'ssextended', 'tempo', 'torque', 'ssladder'],
+      second: ['tempocadence', 'sweetspot', 'spinups'],
+      long: ['endurance', 'durability', 'surges'],
+      easy: ['endurance', 'fasted'],
+    },
+    build: {
+      quality: ['threshold', 'overunder', 'ssextended', 'thresholdladder'],
+      second: ['vo2max', 'ronnestad', 'vo2long', 'fortytwenty'],
+      long: ['durability', 'endurance', 'surges'],
+      easy: ['endurance', 'recovery'],
+    },
+    peak: {
+      quality: ['vo2max', 'ronnestad', 'microbursts', 'fortytwenty', 'billat'],
+      second: ['overunder', 'threshold', 'anaerobic', 'lactatetolerance'],
+      long: ['groupride', 'durability', 'endurance'],
+      easy: ['endurance', 'recovery'],
+    },
+    taper: {
+      quality: ['vo2max', 'ronnestad', 'openers'],
+      second: ['threshold', 'openers'],
+      long: ['endurance'],
+      easy: ['recovery', 'endurance'],
+    },
+    recovery: {
+      quality: ['tempo', 'spinups'],
+      second: ['recovery'],
+      long: ['endurance'],
+      easy: ['recovery'],
+    },
   };
+
+  /**
+   * What the event asks for, layered over the phase.
+   *
+   * A rider training for a mountain sportive and one training for a criterium
+   * both need threshold work, but almost nothing else about their weeks should
+   * look the same. These overlays replace part of each phase's pool once the
+   * block reaches build.
+   */
+  const GOALS = {
+    road: { name: 'Road racing',
+      quality: ['threshold', 'overunder', 'attacks'],
+      second: ['vo2max', 'ronnestad', 'anaerobic'],
+      long: ['groupride', 'durability'],
+      note: 'Road racing rewards repeatability — the fourth attack, not the first.' },
+    climbing: { name: 'Climbing / mountain sportive',
+      quality: ['climbrepeats', 'sustainedclimb', 'climbtorque'],
+      second: ['steeppitches', 'climbposition', 'vo2max'],
+      long: ['summitfinish', 'durability'],
+      note: 'Long climbs are threshold efforts you cannot freewheel out of, ridden on ' +
+            'tired legs. The plan puts climbing late in long rides for that reason.' },
+    criterium: { name: 'Criterium',
+      quality: ['criterium', 'attacks', 'rsa'],
+      second: ['anaerobic', 'lactatetolerance', 'microbursts'],
+      long: ['groupride', 'endurance'],
+      note: 'A crit is a few hundred accelerations out of corners. Average power is ' +
+            'the one number that never describes it.' },
+    timetrial: { name: 'Time trial',
+      quality: ['ttpace', 'threshold', 'ssextended'],
+      second: ['overunder', 'thresholdladder', 'vo2max'],
+      long: ['endurance', 'durability'],
+      note: 'A time trial is a pacing problem as much as a fitness one — the plan ' +
+            'rehearses holding one number for a long time.' },
+    gravel: { name: 'Gravel / ultra',
+      quality: ['ssextended', 'sweetspot', 'rollinghills'],
+      second: ['torque', 'threshold', 'vo2max'],
+      long: ['gravel', 'durability'],
+      note: 'Gravel is tempo with unavoidable spikes, for a very long time. Durability ' +
+            'matters more here than a high fresh FTP.' },
+    fondo: { name: 'Gran fondo',
+      quality: ['sweetspot', 'ssextended', 'climbrepeats'],
+      second: ['threshold', 'tempo', 'torque'],
+      long: ['durability', 'summitfinish'],
+      note: 'A fondo is won by whoever is still riding well in the last hour.' },
+    fitness: { name: 'General fitness',
+      quality: ['sweetspot', 'threshold', 'tempo'],
+      second: ['vo2max', 'ronnestad', 'surges'],
+      long: ['endurance', 'surges'],
+      note: 'No event to point at, so the plan keeps a broad base with regular ' +
+            'intensity rather than sharpening toward a date.' },
+  };
+
+  /** Rotate through a pool so weeks differ, deterministically. */
+  const pick = (pool, weekIndex, offset) =>
+    pool[(weekIndex + (offset || 0)) % pool.length];
 
   function phaseFor(weekIndex, totalWeeks) {
     const left = totalWeeks - weekIndex;
@@ -201,17 +287,32 @@
     return 'build';
   }
 
+  /** Merge the phase pool with the goal overlay, once the block is past base. */
+  function poolFor(phase, goalKey, weekIndex) {
+    const base = PHASE_POOLS[phase];
+    const goal = GOALS[goalKey];
+    if (!goal || phase === 'recovery' || phase === 'base') return base;
+    return {
+      quality: goal.quality.concat(base.quality),
+      second: goal.second.concat(base.second),
+      long: goal.long.concat(base.long),
+      easy: base.easy,
+    };
+  }
+
   /**
    * Lay out a block of training.
    *
-   * Every fourth week is a recovery week — the load comes off so the previous
-   * three can be absorbed. Weekly hours ramp about 8% per build week, which is
-   * roughly what people tolerate; the rider's own recent volume sets the start.
+   * Every fourth week is a recovery week, so the previous three can be
+   * absorbed. Weekly hours ramp about 8% per build week from the volume the
+   * rider is already doing, and the taper steps down into the event.
    */
   function buildPlan(opts) {
     opts = opts || {};
     const weeks = Math.max(4, Math.min(24, opts.weeks || 12));
     const ftp = opts.ftp;
+    const goalKey = GOALS[opts.goal] ? opts.goal : 'fitness';
+    const goal = GOALS[goalKey];
     const startHours = Math.max(3, opts.weeklyHours || 6);
     const eventDate = opts.eventDate ? new Date(opts.eventDate + 'T00:00:00Z') : null;
 
@@ -221,36 +322,50 @@
       const recovery = (i + 1) % 4 === 0 && i < weeks - 3;
       const phase = recovery ? 'recovery' : phaseFor(i, weeks);
       const isRaceWeek = !recovery && i === weeks - 1;
-      const shape = WEEK_SHAPES[isRaceWeek ? 'raceweek' : phase];
 
       if (!recovery && i > 0 && phase !== 'taper') {
         hours = Math.min(hours * 1.08, startHours * 1.6);
       }
-      // The taper steps down week by week — the last one is the lightest.
       const weeksToEvent = weeks - 1 - i;
       const taperFactor = weeksToEvent === 0 ? 0.45 : weeksToEvent === 1 ? 0.6 : 0.7;
       const weekHours = recovery ? hours * 0.6
                       : phase === 'taper' ? hours * taperFactor
                       : phase === 'peak' ? hours * 0.85 : hours;
 
-      // Hard days get a fixed sensible length; endurance absorbs the remainder.
-      const quality = shape.filter(([, k]) => k !== 'endurance');
-      const enduranceDays = shape.filter(([, k]) => k === 'endurance');
-      const qualityMinutes = quality.length * 70;
-      const enduranceMinutes = Math.max(45, Math.round(
-        (weekHours * 60 - qualityMinutes) / Math.max(1, enduranceDays.length)));
+      const pool = poolFor(phase, goalKey, i);
+      const slots = isRaceWeek
+        ? [['Tue', pick(pool.quality, i), 45], ['Thu', 'openers', 35]]
+        : recovery
+          ? [['Tue', pick(pool.quality, i), 60], ['Thu', pick(pool.easy, i), null],
+             ['Sun', pick(pool.long, i), null]]
+          : [['Tue', pick(pool.quality, i), 75],
+             ['Thu', pick(pool.second, i, 1), 70],
+             ['Sat', pick(pool.easy, i), null],
+             ['Sun', pick(pool.long, i), null]];
 
-      const days = shape.map(([day, key]) => {
-        const mins = key === 'endurance' ? enduranceMinutes
-                   : key === 'recovery' ? 45 : 70;
-        const w = Wk.fromText(`${Wk.byKey(key).name} ${mins} min`, { ftp: ftp });
-        return { day: day, key: key, name: Wk.byKey(key).name,
-                 minutes: Math.round(w.seconds / 60), tss: w.tss || null, workout: w };
+      // Quality days get a fixed sensible length; the rest of the week's hours
+      // go to the endurance days.
+      const fixedMinutes = slots.reduce((t, s) => t + (s[2] || 0), 0);
+      const openSlots = slots.filter(s => s[2] == null).length;
+      const perOpen = Math.max(50, Math.round(
+        (weekHours * 60 - fixedMinutes) / Math.max(1, openSlots)));
+
+      const days = slots.map(([day, key, fixedMins]) => {
+        const mins = fixedMins || perOpen;
+        const entry = Wk.byKey(key);
+        const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp });
+        return {
+          day: day, key: key, name: entry.name, focus: entry.focus,
+          why: entry.why, zone: entry.zone,
+          minutes: Math.round(w.seconds / 60), tss: w.tss || null, workout: w,
+        };
       });
 
       out.push({
         week: i + 1,
-        phase: phase === 'recovery' ? 'Recovery' : PHASES.find(p => p.key === phase).name,
+        phase: isRaceWeek ? 'Event week'
+             : phase === 'recovery' ? 'Recovery'
+             : PHASES.find(p => p.key === phase).name,
         blurb: isRaceWeek
           ? 'Event week. Just enough intensity to stay sharp, nothing that costs you.'
           : phase === 'recovery'
@@ -266,10 +381,12 @@
       });
     }
     return { weeks: out, ftp: ftp, eventDate: opts.eventDate || null,
-             startHours: startHours, name: opts.name || 'Training block' };
+             startHours: startHours, goal: goalKey, goalName: goal.name,
+             goalNote: goal.note, name: opts.name || (goal.name + ' block') };
   }
 
-  const api = { recommend, buildPlan, daysSinceHard, weeklyHours, PHASES, WEEK_SHAPES };
+  const api = { recommend, buildPlan, daysSinceHard, weeklyHours,
+                PHASES, PHASE_POOLS, GOALS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Coach = api;
 })(typeof self !== 'undefined' ? self : this);

@@ -216,9 +216,49 @@ The **Build a workout** tab takes what you type and returns a session in watts:
 ```
 
 It reads explicit interval notation first and matches everything else against a
-library of cycling sessions by keyword — and it tells you which it did, so you
-are never guessing whether it understood you. Export to **.zwo** for Zwift,
-**.mrc** or **.erg** for a trainer, or plain text.
+library of **46 sessions** by keyword — and it tells you which it did, so you are
+never guessing whether it understood you. Export to **.zwo** for Zwift, **.mrc**
+or **.erg** for a trainer, or plain text.
+
+### The session library
+
+| Group | Sessions |
+|---|---|
+| Recovery | recovery spin, openers |
+| Endurance | endurance, durability, fasted, endurance with surges |
+| Tempo | tempo, tempo cadence ladder |
+| Sweet spot | sweet spot, ladder, extended |
+| Threshold | threshold, over-unders, time trial effort, threshold ladder |
+| VO2 max | classic 3–5 min, **Rønnestad 30/15**, 40/20, 30/30, long VO2, micro-bursts |
+| Anaerobic | capacity, lactate tolerance, repeated sprint ability |
+| Neuromuscular | sprints, standing starts, spin-ups |
+| Strength | big gear torque, over-geared starts |
+| **Climbing** | sustained climb, climb repeats, steep pitches, seated/standing, summit finish, rolling hills, over-geared climbing |
+| **Race** | criterium, breakaway, attack and recover, leadout, gravel, group ride |
+| Tests | 20-min FTP, ramp, 5-min power, peak power |
+
+Every session carries a **why** — the adaptation it targets and where that comes
+from — shown in the workout card. A few worth calling out:
+
+- **Rønnestad 30/15s** — 30 s hard, 15 easy, thirteen times, three sets. In one
+  elite group this produced higher mean power (415 W vs 367 W) and more time
+  near VO2 max than matched 4×5 min efforts: the short recoveries never let
+  cardiac output fall.
+- **Sweet spot** at 88–94% of FTP drives mitochondrial signalling faster per
+  hour than zone 2, at a fatigue cost low enough to repeat. Under about eight
+  hours a week, usually the best return per hour.
+- **Durability rides** put the hard work at the end, after two hours. How much
+  of your threshold survives four hours in predicts racing better than a fresh
+  FTP test.
+- **Big gear torque** is included for climbing specificity, and says plainly
+  that the evidence for it raising FTP directly is mixed.
+
+### Terrain
+
+Pick flat, rolling, hilly, mountainous, gravel or indoor — or just say it
+("something hilly", "on the turbo") and it works out which you meant. Sessions
+that suit that terrain are preferred, and climbing sessions carry cadence and
+seated/standing guidance a flat-road interval does not need.
 
 This is a parser, not a language model. There is no server and no AI behind the
 page; it is pattern matching over cycling vocabulary, which is why it works
@@ -232,7 +272,14 @@ rule it applied, so you can disagree with the reasoning rather than just the
 answer.
 
 **Training plan** lays out a block that ramps from the volume you are actually
-riding, with a recovery week every fourth week and a taper into your event.
+riding, with a recovery week every fourth week and a taper into your event —
+drawing on the whole library, typically **18–22 distinct sessions** across a
+twelve-week block rather than the same Tuesday repeated twelve times.
+
+Pick what you are training for and the plan changes shape: road racing,
+climbing, criterium, time trial, gravel, gran fondo, or general fitness. A
+climbing block puts summit finishes and climb repeats where a criterium block
+puts corner accelerations and repeated sprints.
 
 It gives you, at a glance:
 
@@ -321,7 +368,8 @@ hub/
     fit.js             decodes .FIT binaries: streams, power curve, real NP
     analytics.js       the same maths as analyze.py, in JavaScript
     cycling.js         FTP, TSS, power zones, fitness and fatigue
-    workouts.js        the session library, the text parser, and exports
+    library.js         46 sessions, each with its rationale and terrain
+    workouts.js        the text parser, the builder, and exports
     coach.js           what to ride today, and how to lay out a block
     app.js             charts, tables, the import screen and the three tabs
 docs/

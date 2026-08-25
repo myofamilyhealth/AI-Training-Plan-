@@ -19,8 +19,11 @@
 
   /* ------------------------------------------------------------ library */
 
-  const step = (role, seconds, lo, hi, label, extra) =>
-    Object.assign({ role, seconds, lo, hi: hi == null ? lo : hi, label: label || null }, extra || {});
+  const Lib = (typeof module !== 'undefined' && module.exports)
+    ? require('./library.js') : root.Library;
+
+  const step = Lib.step;
+  const LIBRARY = Lib.SESSIONS;
 
   /** Warm-up and cool-down are taken OUT of the time the rider asked for, not
    *  added on top: "90 minute endurance ride" must come back as 90 minutes. */
@@ -31,137 +34,31 @@
     return 180;
   }
 
-  /** Every session is a function of how long the rider has, so "sweet spot"
-   *  and "sweet spot in 45 minutes" are the same template. */
-  const LIBRARY = [
-    {
-      key: 'recovery', name: 'Recovery spin', focus: 'recovery',
-      zone: 1, defaultMinutes: 45,
-      keywords: ['recovery', 'easy spin', 'rest', 'active recovery', 'shake out', 'legs out'],
-      blurb: 'Genuinely easy. The point is blood flow, not training.',
-      build: mins => [step('work', Math.round(mins * 60), 0.45, 0.55, 'Spin easy',
-                           { cadence: '90-100 rpm' })],
-    },
-    {
-      key: 'endurance', name: 'Endurance ride', focus: 'endurance',
-      zone: 2, defaultMinutes: 90,
-      keywords: ['endurance', 'base', 'zone 2', 'z2', 'long', 'aerobic', 'steady', 'easy ride'],
-      blurb: 'The bulk of a cyclist’s year. Conversational, all day.',
-      build: mins => [step('work', Math.round(mins * 60), 0.60, 0.72, 'Steady endurance')],
-    },
-    {
-      key: 'tempo', name: 'Tempo', focus: 'tempo',
-      zone: 3, defaultMinutes: 75,
-      keywords: ['tempo', 'zone 3', 'z3', 'moderate'],
-      blurb: 'Firm but sustainable. Useful in a time crunch, easy to overdo.',
-      build: mins => {
-        const reps = mins > 50 ? 3 : mins > 30 ? 2 : 1;
-        const rest = reps > 1 ? 5 : 0;
-        const each = Math.max(8, Math.round((mins - rest * (reps - 1)) / reps));
-        return [{ repeat: reps, steps: [
-          step('work', each * 60, 0.76, 0.85, each + ' min tempo'),
-          step('recovery', rest * 60, 0.45, 0.55, 'Easy'),
-        ] }];
-      },
-    },
-    {
-      key: 'sweetspot', name: 'Sweet spot', focus: 'sweet spot',
-      zone: 3, defaultMinutes: 75,
-      keywords: ['sweet spot', 'sweetspot', 'ss', 'sub-threshold', 'sub threshold'],
-      blurb: 'Just under threshold — most fitness per unit of fatigue.',
-      build: mins => {
-        const reps = mins >= 45 ? 3 : mins >= 28 ? 2 : 1;
-        const rest = reps > 1 ? 5 : 0;
-        const each = Math.max(8, Math.round((mins - rest * (reps - 1)) / reps));
-        return [{ repeat: reps, steps: [
-          step('work', each * 60, 0.88, 0.93, each + ' min sweet spot'),
-          step('recovery', rest * 60, 0.45, 0.55, 'Easy'),
-        ] }];
-      },
-    },
-    {
-      key: 'threshold', name: 'Threshold intervals', focus: 'threshold',
-      zone: 4, defaultMinutes: 75,
-      keywords: ['threshold', 'ftp', 'zone 4', 'z4', '2x20', 'lt', 'lactate'],
-      blurb: 'At the line you can hold for an hour. Raises the ceiling of everything below.',
-      build: mins => {
-        const reps = mins >= 55 ? 3 : 2;
-        const rest = 5;
-        const each = Math.max(8, Math.round((mins - rest * (reps - 1)) / reps));
-        return [{ repeat: reps, steps: [
-          step('work', each * 60, 0.95, 1.00, each + ' min at threshold'),
-          step('recovery', rest * 60, 0.45, 0.55, 'Easy'),
-        ] }];
-      },
-    },
-    {
-      key: 'overunder', name: 'Over-unders', focus: 'over-unders',
-      zone: 4, defaultMinutes: 75,
-      keywords: ['over under', 'over-under', 'overunder', 'over/under', 'clearance'],
-      blurb: 'Alternating side to side of threshold — teaches you to clear lactate while still working.',
-      build: mins => {
-        const sets = Math.max(2, Math.min(4, Math.round(mins / 17)));
-        return [{ repeat: sets, steps: [
-          { repeat: 3, steps: [
-            step('work', 120, 1.03, 1.06, '2 min over'),
-            step('work', 120, 0.88, 0.92, '2 min under'),
-          ] },
-          step('recovery', 300, 0.45, 0.55, 'Easy'),
-        ] }];
-      },
-    },
-    {
-      key: 'vo2max', name: 'VO2 max intervals', focus: 'vo2 max',
-      zone: 5, defaultMinutes: 70,
-      keywords: ['vo2', 'vo2max', 'vo2 max', 'zone 5', 'z5', 'max aerobic', '5x3', '4x4'],
-      blurb: 'Hard enough that breathing sets the limit. Where aerobic ceiling moves.',
-      build: mins => {
-        const each = mins >= 40 ? 4 : 3;
-        const reps = Math.max(4, Math.min(6, Math.round(mins / (each * 2))));
-        return [{ repeat: reps, steps: [
-          step('work', each * 60, 1.08, 1.15, each + ' min at VO2 max'),
-          step('recovery', each * 60, 0.45, 0.55, 'Equal recovery'),
-        ] }];
-      },
-    },
-    {
-      key: 'anaerobic', name: 'Anaerobic capacity', focus: 'anaerobic',
-      zone: 6, defaultMinutes: 60,
-      keywords: ['anaerobic', 'zone 6', 'z6', 'capacity', '1 minute', 'attacks'],
-      blurb: 'Short, very hard, long recoveries. Race-winning efforts.',
-      build: mins => {
-        const reps = Math.max(5, Math.min(10, Math.round(mins / 4)));
-        return [{ repeat: reps, steps: [
-          step('work', 60, 1.25, 1.40, '1 min hard'),
-          step('recovery', 180, 0.40, 0.50, '3 min easy'),
-        ] }];
-      },
-    },
-    {
-      key: 'sprints', name: 'Sprints', focus: 'neuromuscular',
-      zone: 7, defaultMinutes: 60,
-      keywords: ['sprint', 'sprints', 'neuromuscular', 'zone 7', 'z7', 'power', 'jumps'],
-      blurb: 'All-out and short, fully recovered between. Quality over quantity.',
-      build: mins => {
-        const reps = Math.max(6, Math.min(10, Math.round(mins / 5)));
-        return [{ repeat: reps, steps: [
-          step('work', 15, 1.80, 2.20, '15 s sprint', { cadence: 'max' }),
-          step('recovery', 285, 0.40, 0.50, 'Full recovery'),
-        ] }];
-      },
-    },
-    {
-      key: 'ftptest', name: 'FTP test (20 min)', focus: 'test',
-      zone: 4, defaultMinutes: 60,
-      keywords: ['ftp test', 'test', '20 minute test', '20 min test', 'benchmark', 'retest'],
-      blurb: 'The classic. Your FTP is about 95% of the average power you hold for the 20 minutes.',
-      build: () => [
-        step('work', 300, 1.00, 1.10, '5 min opener, hard'),
-        step('recovery', 600, 0.45, 0.55, '10 min easy'),
-        step('work', 1200, 1.00, 1.10, '20 min all-out — pace it evenly'),
-      ],
-    },
+  /** Terrain a rider can ask for, and the words they use for it. */
+  const TERRAIN = [
+    ['mountainous', ['mountain', 'alpine', 'col', 'hc ', 'big climb', 'pass']],
+    ['hilly', ['hilly', 'hills', 'hill', 'climb', 'climbing', 'uphill', 'gradient']],
+    ['rolling', ['rolling', 'undulating', 'lumpy', 'punchy']],
+    ['gravel', ['gravel', 'off road', 'off-road', 'dirt', 'unpaved', 'mixed surface']],
+    ['indoor', ['indoor', 'trainer', 'turbo', 'zwift', 'rollers', 'inside']],
+    ['flat', ['flat', 'flats', 'time trial course', 'tt course']],
   ];
+
+  function detectTerrain(text) {
+    const t = String(text || '').toLowerCase();
+    for (const [key, words] of TERRAIN) {
+      if (words.some(w => t.indexOf(w) !== -1)) return key;
+    }
+    return null;
+  }
+
+  /** Sessions that suit a given terrain, best first. A session with no terrain
+   *  match is not excluded outright — it is just ranked below one that fits. */
+  function forTerrain(terrain) {
+    if (!terrain) return LIBRARY;
+    const fits = LIBRARY.filter(w => (w.terrain || []).indexOf(terrain) !== -1);
+    return fits.length ? fits.concat(LIBRARY.filter(w => fits.indexOf(w) === -1)) : LIBRARY;
+  }
 
   const byKey = k => LIBRARY.find(w => w.key === k);
 
@@ -246,14 +143,46 @@
       }, ftp, Math.round(reps * (each + rest) / 60) + 20);
     }
 
-    // Otherwise match the library on keywords, most specific phrase first.
-    const lower = raw.toLowerCase();
+    // Otherwise match the library on keywords, most specific phrase first. A
+    // terrain word both filters and, on its own, is enough to pick a session.
+    // Hyphens and slashes are noise for matching: "over-geared climbing" and
+    // "over geared climb" are the same request.
+    const flat = s => String(s).toLowerCase().replace(/[-\/]+/g, ' ').replace(/\s+/g, ' ');
+    const lower = flat(raw);
+    const terrain = opts.terrain || detectTerrain(raw);
+    const pool = forTerrain(terrain);
     let best = null;
-    LIBRARY.forEach(w => {
+    pool.forEach(w => {
+      const suits = terrain && (w.terrain || []).indexOf(terrain) !== -1;
+
+      // A session's own name always beats a keyword belonging to another
+      // session. Without this, "Fasted endurance" matched the plain Endurance
+      // ride, because "endurance" is a longer string than "fasted".
+      const nameAt = lower.indexOf(flat(w.name));
+      if (nameAt !== -1) {
+        const score = 100000 + flat(w.name).length + (suits ? 1000 : 0);
+        if (!best || score > best.score) best = { w, k: w.name, score, suits };
+        return;
+      }
+
       w.keywords.forEach(k => {
-        if (lower.indexOf(k) !== -1 && (!best || k.length > best.k.length)) best = { w, k };
+        const key = flat(k);
+        const at = lower.indexOf(key);
+        if (at === -1) return;
+        // Longest keyword wins; on a tie the one appearing earliest in what the
+        // rider typed wins, so "leadout sprints" is a leadout, not sprints.
+        const score = key.length * 10 + (suits ? 1000 : 0) - Math.min(at, 9);
+        if (!best || score > best.score) best = { w, k, score, suits };
       });
     });
+
+    // "something hilly" names no session but is still a clear request.
+    if (!best && terrain) {
+      const pick = pool.find(w => (w.terrain || []).indexOf(terrain) !== -1 &&
+                                  ['climbing', 'race', 'endurance'].indexOf(w.focus) !== -1)
+                || pool[0];
+      if (pick) best = { w: pick, k: terrain, score: 0, suits: true };
+    }
     if (!best) {
       throw new Error(
         'Not sure what session that is. Try naming an effort — endurance, tempo, ' +
@@ -262,15 +191,21 @@
     }
     const w = best.w;
     const mins = minutes || Math.round(w.defaultMinutes * modifier);
+    const terrainNote = terrain && (w.terrain || []).indexOf(terrain) !== -1
+      ? ` Suited to ${terrain} riding.` : '';
     const wrapMins = (wrapperSeconds(mins) * 2) / 60;
     const workMins = Math.max(6, mins - wrapMins);
     return finish({
       name: w.name, focus: w.focus, blurb: w.blurb, key: w.key,
+      why: w.why,
+      terrain: w.terrain,
       interpretation: `Matched "${best.k}" to ${w.name}, built to fill ${mins} minutes` +
-        (minutes ? '' : modifier !== 1 ? ` (${modifier < 1 ? 'short' : 'long'} version)` : '') + '.',
+        (minutes ? '' : modifier !== 1 ? ` (${modifier < 1 ? 'short' : 'long'} version)` : '') +
+        '.' + terrainNote,
       matched: 'library',
+      fixed: !!w.fixed,
       steps: w.build(workMins),
-    }, ftp, mins);
+    }, ftp, w.fixed ? null : mins);
   }
 
   function describeTarget(t) {
@@ -282,8 +217,26 @@
   /** Wrap the working set in a warm-up and cool-down and total it up. */
   function finish(workout, ftp, totalMinutes) {
     const wrap = wrapperSeconds(totalMinutes || 60);
+    let body = workout.steps;
+
+    // Structured work rarely divides evenly into the time someone has. If it
+    // falls short, the rest is ridden steady — which is what a coach would say
+    // anyway — rather than pretending the session is longer than it is.
+    if (totalMinutes) {
+      const built = totalSeconds(body) + wrap * 2;
+      const shortfall = totalMinutes * 60 - built;
+      if (shortfall > 8 * 60) {
+        body = body.concat([step('work', Math.round(shortfall), 0.60, 0.70,
+                                 'Steady to fill the ride',
+                                 { cadence: '90-100 rpm' })]);
+      } else if (shortfall < -10 * 60) {
+        // Cannot be compressed without breaking the protocol — say so.
+        workout.overran = Math.round(-shortfall / 60);
+      }
+    }
+
     const steps = [step('warmup', wrap, 0.50, 0.70, 'Warm up')]
-      .concat(workout.steps)
+      .concat(body)
       .concat([step('cooldown', wrap, 0.55, 0.40, 'Cool down')]);
     workout.steps = steps;
     workout.seconds = totalSeconds(steps);
@@ -442,6 +395,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
   }
 
   const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile,
+                detectTerrain, forTerrain, TERRAIN,
                 flatten, totalSeconds, estimateTSS, averageIntensity, watts,
                 parseTarget, parseDurationMinutes, finish, step };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

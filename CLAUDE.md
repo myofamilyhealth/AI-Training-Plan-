@@ -125,12 +125,23 @@ Python and the JavaScript suites together.
 - **cycling.js** — FTP estimation, TSS, intensity factor, power zones, and the
   CTL/ATL/form model. An hour at FTP is 100 TSS by definition; the tests pin
   that, so treat it as a fixed point when changing anything here.
-- **workouts.js** — the session library and the text parser. Targets are held
-  as fractions of FTP everywhere, and only become watts at display or export.
-  Adding a session means adding one entry with keywords and a `build(minutes)`
-  that fills the time it is given.
+- **library.js** — 46 sessions. Each needs `key`, `name`, `focus`, `zone`,
+  `defaultMinutes`, `keywords`, `terrain`, `blurb`, `why` and `build(minutes)`.
+  The tests enforce all of it, plus: every session must be reachable by its own
+  name, and `build` must fill the minutes it is handed. `why` states the
+  adaptation and where the evidence comes from — never add a session without
+  one. Mark `fixed: true` for protocols that must not be stretched (tests,
+  fixed ladders).
+- **workouts.js** — the text parser and builder. Targets are fractions of FTP
+  everywhere and only become watts at display or export. A session's own name
+  outranks any other session's keyword; ties break toward the keyword appearing
+  earliest in what the rider typed.
 - **coach.js** — recommendation rules and plan layout. Every recommendation
   must carry a `why` naming the rule that fired. Never return advice without it.
+  Plans draw from `PHASE_POOLS` crossed with `GOALS`, rotating by week index so
+  consecutive weeks differ — a plan that prescribes the same Tuesday twelve
+  times is a spreadsheet. Base phase deliberately ignores the goal overlay;
+  base is base whatever you are training for.
 
 Two input paths with different fidelity, and the difference matters:
 

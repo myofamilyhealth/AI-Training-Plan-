@@ -360,3 +360,108 @@ check('a non-FIT file is rejected by its header', /not a \.FIT/.test(fitErr || '
 const zoneSecs = Fit.zoneSeconds(samples, 266, Cy.ZONES);
 check('zone seconds total the ride', zoneSecs.reduce((a, b) => a + b, 0), 2400);
 check('the 280W block lands at threshold', zoneSecs[3], 1200);
+
+/* ------------------------------------------------------------- library */
+const Lib = require(path.join(__dirname, '..', 'hub', 'static', 'library.js'));
+
+check('the library is substantial', Lib.SESSIONS.length >= 40, true);
+check('every session has a unique key',
+      new Set(Lib.SESSIONS.map(s => s.key)).size, Lib.SESSIONS.length);
+check('every session has a unique name',
+      new Set(Lib.SESSIONS.map(s => s.name)).size, Lib.SESSIONS.length);
+
+const missing = Lib.SESSIONS.filter(s =>
+  !s.key || !s.name || !s.focus || !s.zone || !s.defaultMinutes ||
+  !Array.isArray(s.keywords) || !s.keywords.length ||
+  !Array.isArray(s.terrain) || !s.terrain.length ||
+  !s.blurb || !s.why || typeof s.build !== 'function');
+check('every session is completely specified', missing.map(s => s.key).join(','), '');
+
+check('every session explains its own rationale',
+      Lib.SESSIONS.every(s => s.why.length > 60), true);
+check('zones are 1 to 7', Lib.SESSIONS.every(s => s.zone >= 1 && s.zone <= 7), true);
+
+// The library must cover the whole intensity range and the terrain types.
+const focuses = new Set(Lib.SESSIONS.map(s => s.focus));
+['recovery', 'endurance', 'tempo', 'sweet spot', 'threshold', 'vo2 max',
+ 'anaerobic', 'neuromuscular', 'climbing', 'race', 'test', 'strength']
+  .forEach(f => check('library covers ' + f, focuses.has(f), true));
+
+const terrains = new Set();
+Lib.SESSIONS.forEach(s => s.terrain.forEach(t => terrains.add(t)));
+['flat', 'rolling', 'hilly', 'mountainous', 'gravel', 'indoor']
+  .forEach(t => check('library covers ' + t + ' terrain', terrains.has(t), true));
+check('climbing sessions exist for hills',
+      Lib.SESSIONS.filter(s => s.focus === 'climbing').length >= 5, true);
+
+// Every session must be reachable by its own name — the bug that made
+// "Fasted endurance" resolve to the plain endurance ride.
+const unreachable = Lib.SESSIONS.filter(s => {
+  try { return Wk.fromText(s.name, { ftp: 250 }).name !== s.name; }
+  catch (e) { return true; }
+});
+check('every session is reachable by its own name',
+      unreachable.map(s => s.key).join(','), '');
+
+// And every session must actually build something rideable.
+const broken = Lib.SESSIONS.filter(s => {
+  const w = Wk.fromText(s.name, { ftp: 250 });
+  const flat = Wk.flatten(w.steps);
+  return !flat.length || w.seconds < 600 ||
+         flat.some(st => !(st.seconds > 0) || !(st.lo > 0) || st.hi < st.lo);
+});
+check('every session builds a valid workout', broken.map(s => s.key).join(','), '');
+
+// A scaling session should honour a requested duration; a fixed protocol
+// should not be stretched out of shape.
+const scalers = Lib.SESSIONS.filter(s => !s.fixed);
+[60, 90].forEach(want => {
+  const bad = scalers.filter(s => {
+    const got = Wk.fromText(s.name + ' ' + want + ' min', { ftp: 250 }).seconds / 60;
+    return Math.abs(got - want) / want > 0.25 && !Wk.fromText(s.name + ' ' + want + ' min', { ftp: 250 }).overran;
+  });
+  check('sessions fill a requested ' + want + ' min', bad.map(s => s.key).join(','), '');
+});
+
+check('terrain detected from words', Wk.detectTerrain('a hilly ride'), 'hilly');
+check('trainer means indoor', Wk.detectTerrain('on the turbo'), 'indoor');
+check('no terrain word gives null', Wk.detectTerrain('2x20 threshold'), null);
+check('terrain steers the choice',
+      Wk.fromText('something hilly', { ftp: 250 }).terrain.indexOf('hilly') !== -1, true);
+check('hyphens do not break matching',
+      Wk.fromText('over-geared climbing', { ftp: 250 }).name, 'Over-geared climbing');
+check('the earliest keyword wins a tie',
+      Wk.fromText('leadout sprints', { ftp: 250 }).name, 'Leadout and sprint');
+
+/* ------------------------------------------------- plans use the library */
+check('every goal is defined', Object.keys(Co.GOALS).length >= 6, true);
+Object.keys(Co.GOALS).forEach(g => {
+  const plan = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: g });
+  const keys = new Set();
+  plan.weeks.forEach(w => w.days.forEach(d => keys.add(d.key)));
+  check(g + ' draws widely on the library', keys.size >= 12, true);
+  check(g + ' names every session it prescribes',
+        plan.weeks.every(w => w.days.every(d => d.name && d.workout)), true);
+  check(g + ' carries the rationale through',
+        plan.weeks.every(w => w.days.every(d => d.why && d.why.length > 40)), true);
+  check(g + ' has a note explaining the focus', !!Co.GOALS[g].note, true);
+});
+
+const climb = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: 'climbing' });
+const climbKeys = new Set();
+climb.weeks.forEach(w => w.days.forEach(d => climbKeys.add(d.key)));
+check('a climbing plan prescribes climbing',
+      [...climbKeys].some(k => (Lib.SESSIONS.find(s => s.key === k) || {}).focus === 'climbing'), true);
+
+const crit = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: 'criterium' });
+const critKeys = new Set();
+crit.weeks.forEach(w => w.days.forEach(d => critKeys.add(d.key)));
+check('a criterium plan prescribes race work',
+      [...critKeys].some(k => ['criterium', 'attacks', 'rsa'].indexOf(k) !== -1), true);
+check('different goals give different plans',
+      [...climbKeys].join(',') !== [...critKeys].join(','), true);
+
+// Weeks must not be carbon copies of each other.
+const week1 = climb.weeks[4].days.map(d => d.key).join(',');
+const week2 = climb.weeks[5].days.map(d => d.key).join(',');
+check('consecutive build weeks differ', week1 !== week2, true);

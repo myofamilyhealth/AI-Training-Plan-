@@ -1733,7 +1733,18 @@ function workoutCard(workout) {
     card.appendChild(el('p', { class: 'hint', style: 'margin:-6px 0 14px', text: workout.interpretation }));
   }
   if (workout.blurb) {
-    card.appendChild(el('p', { class: 'rec-note', style: 'margin:0 0 18px', text: workout.blurb }));
+    card.appendChild(el('p', { class: 'rec-note', style: 'margin:0 0 12px', text: workout.blurb }));
+  }
+  if (workout.why) {
+    const why = el('details', { class: 'more', style: 'margin:0 0 16px;border:0;padding:0' });
+    why.appendChild(el('summary', { style: 'padding:6px 0', text: 'Why this session works' }));
+    why.appendChild(el('p', { class: 'rec-note', style: 'margin:0 0 8px', text: workout.why }));
+    card.appendChild(why);
+  }
+  if (workout.overran) {
+    card.appendChild(el('div', { class: 'estimate', style: 'margin:0 0 16px',
+      text: `This one does not compress — it runs about ${workout.overran} minutes over what ` +
+            'you asked for. Ask for a different session if you are short of time.' }));
   }
   if (!ftp) {
     card.appendChild(el('div', { class: 'estimate', style: 'margin:0 0 16px',
@@ -1781,9 +1792,18 @@ function workoutView() {
   }
   card.appendChild(row);
 
+  const terrainRow = el('div', { style: 'display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap' });
+  terrainRow.appendChild(el('span', { class: 'hint', style: 'margin:0', text: 'Riding on' }));
+  let terrainPref = null;
+  terrainRow.appendChild(seg(['any', 'flat', 'rolling', 'hilly', 'mountainous', 'gravel', 'indoor'],
+    'any', v => { terrainPref = v === 'any' ? null : v; },
+    v => v[0].toUpperCase() + v.slice(1)));
+  card.appendChild(terrainRow);
+
   const chips = el('div', { class: 'chips' });
-  ['2x20 at threshold', '90 minute endurance ride', 'short vo2 session',
-   'sweet spot 60 min', 'over-unders', '6x30s sprints', 'ftp test', '45 min recovery']
+  ['2x20 at threshold', 'hill repeats', 'rønnestad 30/15', 'sweet spot 60 min',
+   'over-unders', 'crit simulation', 'sustained climb', 'big gear torque',
+   'leadout sprints', 'ftp test', 'durability ride', '45 min recovery']
     .forEach(t => {
       const c = el('button', { class: 'chip', type: 'button', text: t });
       c.addEventListener('click', () => { box.value = t; build(); });
@@ -1799,7 +1819,7 @@ function workoutView() {
     result.innerHTML = '';
     PENDING_TEXT = box.value;
     try {
-      const w = Workouts.fromText(box.value, { ftp: PROFILE.ftp });
+      const w = Workouts.fromText(box.value, { ftp: PROFILE.ftp, terrain: terrainPref });
       PENDING_WORKOUT = w;
       result.appendChild(workoutCard(w));
     } catch (err) {
@@ -1836,7 +1856,7 @@ function planView() {
     weeks: 12,
     hours: Math.round(hoursNow * 10) / 10,
     event: '',
-    name: 'Training block',
+    name: '',
   };
   const mk = (key, label, hint, attrs) => {
     const f = el('div', { class: 'field' });
@@ -1849,10 +1869,24 @@ function planView() {
     if (hint) f.appendChild(el('span', { class: 'unit-hint', text: hint }));
     fields.appendChild(f);
   };
+  const goalField = el('div', { class: 'field' });
+  goalField.appendChild(el('label', { text: 'What for' }));
+  const goalSel = el('select', { id: 'plan-goal' });
+  Object.entries(Coach.GOALS).forEach(([key, g]) => {
+    const o = el('option', { value: key, text: g.name });
+    if (key === 'fitness') o.setAttribute('selected', 'selected');
+    goalSel.appendChild(o);
+  });
+  state.goal = 'fitness';
+  goalSel.addEventListener('change', () => { state.goal = goalSel.value; });
+  goalField.appendChild(goalSel);
+  goalField.appendChild(el('span', { class: 'unit-hint', text: 'shapes the sessions' }));
+  fields.appendChild(goalField);
+
   mk('weeks', 'Weeks', '4 to 24', { type: 'number', min: 4, max: 24 });
   mk('hours', 'Hours a week now', 'your current volume', { type: 'number', min: 2, max: 25, step: 0.5 });
   mk('event', 'Event date', 'optional', { type: 'date' });
-  mk('name', 'Name', '', { type: 'text' });
+  mk('name', 'Name', 'optional', { type: 'text', placeholder: 'auto' });
   card.appendChild(fields);
 
   const go = el('button', { class: 'btn', type: 'button', text: 'Build the plan',
@@ -1876,6 +1910,9 @@ function planView() {
     head.appendChild(el('p', { class: 'hint',
       text: `${plan.weeks.length} weeks · ${Math.round(totalTss).toLocaleString()} TSS total` +
             (plan.eventDate ? ` · finishing ${plan.eventDate}` : '') }));
+    if (plan.goalNote) {
+      head.appendChild(el('p', { class: 'rec-note', style: 'margin:-6px 0 18px', text: plan.goalNote }));
+    }
 
     const legend = el('div', { class: 'week-row', style: 'border-bottom:1px solid var(--border-strong);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)' });
     ['Week', 'Phase', 'Hours', 'TSS', 'Sessions'].forEach(h =>
@@ -1923,7 +1960,8 @@ function planView() {
   go.addEventListener('click', () => {
     PENDING_PLAN = Coach.buildPlan({
       weeks: state.weeks, ftp: PROFILE.ftp, weeklyHours: state.hours,
-      eventDate: state.event || null, name: state.name || 'Training block',
+      eventDate: state.event || null, goal: state.goal,
+      name: state.name || null,
     });
     renderPlan(PENDING_PLAN);
   });

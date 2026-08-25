@@ -54,7 +54,8 @@
    * Order matters: fatigue vetoes everything, then a recent hard day, then the
    * gap in the rider's intensity distribution, and only then a default.
    */
-  function recommend(activities, profile, today) {
+  function recommend(activities, profile, today, opts) {
+    opts = opts || {};
     today = today || new Date();
     const ftp = profile && profile.ftp;
     const pmc = Cy.pmc(activities, {
@@ -68,9 +69,12 @@
     const rides28 = recentRides(activities, 28, today).length;
 
     const pattern = distributionNote(dist, ctl);
+    const rider = opts.rider || Cy.riderContext(activities, {
+      profile: profile || {}, curve: opts.curve || null });
     const pick = (key, why, note) => ({
       key: key,
-      workout: Wk.fromText(Wk.byKey(key).name, { ftp: ftp }),
+      workout: Wk.fromText(Wk.byKey(key).name, { ftp: ftp, rider: rider }),
+      rider: rider,
       why: why,
       note: note || null,
       pattern: pattern,
@@ -312,6 +316,7 @@
     const weeks = Math.max(4, Math.min(24, opts.weeks || 12));
     const ftp = opts.ftp;
     const goalKey = GOALS[opts.goal] ? opts.goal : 'fitness';
+    const rider = opts.rider || null;
     const goal = GOALS[goalKey];
     const startHours = Math.max(3, opts.weeklyHours || 6);
     const eventDate = opts.eventDate ? new Date(opts.eventDate + 'T00:00:00Z') : null;
@@ -353,7 +358,7 @@
       const days = slots.map(([day, key, fixedMins]) => {
         const mins = fixedMins || perOpen;
         const entry = Wk.byKey(key);
-        const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp });
+        const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp, rider: rider });
         return {
           day: day, key: key, name: entry.name, focus: entry.focus,
           why: entry.why, zone: entry.zone, course: entry.course,
@@ -380,7 +385,7 @@
           : null,
       });
     }
-    return { weeks: out, ftp: ftp, eventDate: opts.eventDate || null,
+    return { weeks: out, ftp: ftp, eventDate: opts.eventDate || null, rider: rider,
              startHours: startHours, goal: goalKey, goalName: goal.name,
              goalNote: goal.note, name: opts.name || (goal.name + ' block') };
   }

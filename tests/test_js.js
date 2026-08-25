@@ -493,3 +493,75 @@ check('every built session reports a breakdown that totals correctly',
       }), true);
 check('a workout carries its course description through',
       Wk.fromText('climb repeats', { ftp: 250 }).course.length > 30, true);
+
+/* ------------------------------------------ workouts paired with the data */
+const pairCurve = [{ seconds: 5, watts: 900 }, { seconds: 60, watts: 420 },
+                   { seconds: 300, watts: 315 }, { seconds: 1200, watts: 280 },
+                   { seconds: 3600, watts: 250 }];
+const pairRides = [
+  { type: 'cycling', moving_s: 3600, np: 250 },
+  { type: 'cycling', moving_s: 5400, np: 210 },
+  { type: 'cycling', moving_s: 5400, np: 200 },
+];
+
+const ctx = Cy.riderContext(pairRides, { profile: { ftp: 250, weightKg: 74 }, curve: pairCurve });
+check('context keeps the rider’s own FTP', ctx.ftp, 250);
+check('and says where it came from', ctx.ftpSource, 'you set it');
+check('a measured FTP is derived from the curve', ctx.measured.ftp, 266);
+check('a stale profile FTP is caught', ctx.stale.measured, 266);
+check('and by how much', ctx.stale.gain, 16);
+check('typical ride length comes from the rides', ctx.typicalMinutes, 90);
+check('the curve is available for lookups', ctx.hasCurve, true);
+check('best power interpolates between measured points',
+      ctx.bestFor(600) < 315 && ctx.bestFor(600) > 280, true);
+check('beyond the curve it clamps', ctx.bestFor(99999), 250);
+
+const noCurve = Cy.riderContext(pairRides, { profile: { ftp: 250 } });
+check('no curve means no staleness claim', noCurve.stale, null);
+check('and no feasibility lookups', noCurve.hasCurve, false);
+
+const fresh = Cy.riderContext(pairRides, { profile: {}, curve: pairCurve });
+check('with no profile FTP the measurement is used', fresh.ftp, 266);
+check('and it says so', fresh.ftpSource, 'measured from your rides');
+
+// A workout built with context must carry what it was built from.
+const paired = Wk.fromText('vo2 max', { rider: ctx });
+check('the session records the FTP it used', paired.rider.ftp, 250);
+check('and that a curve was available', paired.rider.hasCurve, true);
+check('and passes the staleness through', paired.rider.stale.measured, 266);
+check('a realistic session raises no flag', paired.feasibility.ok, true);
+
+const tooHard = Wk.fromText('8x4min at 150%', { rider: ctx });
+check('a target above anything measured is flagged', tooHard.feasibility.ok, false);
+check('the flag names the duration and the gap',
+      tooHard.feasibility.notes[0].seconds, 240);
+check('and compares against the measured best',
+      tooHard.feasibility.notes[0].best > 0, true);
+
+check('an endurance ride is never flagged as too hard',
+      Wk.fromText('endurance 120 min', { rider: ctx }).feasibility.ok, true);
+check('without a curve there is nothing to check',
+      Wk.fromText('8x4min at 150%', { rider: noCurve }).feasibility, null);
+check('a bare ftp still builds a session',
+      Wk.fromText('threshold', { ftp: 250 }).name, 'Threshold intervals');
+
+// Session length should lean toward what this rider actually rides.
+const shortRider = Cy.riderContext(
+  [{ type: 'cycling', moving_s: 2700, np: 200 }, { type: 'cycling', moving_s: 3000, np: 210 }],
+  { profile: { ftp: 250 } });
+check('a rider who rides short gets shorter defaults',
+      Wk.fromText('endurance', { rider: shortRider }).seconds <
+      Wk.fromText('endurance', { rider: ctx }).seconds, true);
+check('an explicit duration still wins',
+      Math.abs(Wk.fromText('endurance 120 min', { rider: shortRider }).seconds / 60 - 120) < 5, true);
+
+// Plans build every session through the same context.
+const pairedPlan = Co.buildPlan({ weeks: 8, ftp: 250, weeklyHours: 8,
+                                  goal: 'climbing', rider: ctx });
+check('the plan records the rider context', pairedPlan.rider.ftp, 250);
+check('and every session in it was built from that context',
+      pairedPlan.weeks.every(w => w.days.every(d => d.workout.rider &&
+                                                    d.workout.rider.ftp === 250)), true);
+const rec = Co.recommend(pairRides, { ftp: 250 }, new Date('2026-08-25T12:00:00Z'),
+                         { rider: ctx });
+check('the recommendation is built from it too', rec.workout.rider.ftp, 250);

@@ -110,9 +110,55 @@
    * Explicit notation is tried first, because "4x8 at 110%" is a specific
    * request and should not be approximated by the nearest template.
    */
+  /**
+   * Check a built session against what the rider has actually done.
+   *
+   * A prescription of five minutes at 115% of FTP is only meaningful if they
+   * can hold that for five minutes. The measured power curve knows; before this
+   * the builder never asked it.
+   */
+  function checkAgainstCurve(workout, ctx) {
+    if (!ctx || !ctx.hasCurve || !ctx.ftp) return null;
+    const notes = [];
+    const seen = {};
+    flatten(workout.steps).forEach(s => {
+      if (s.role !== 'work' && s.role !== 'interval') return;
+      const target = Math.round(((s.lo + s.hi) / 2) * ctx.ftp);
+      const best = ctx.bestFor(s.seconds);
+      if (!best) return;
+      const key = s.seconds + ':' + target;
+      if (seen[key]) return;
+      seen[key] = true;
+      // Only flag a target the rider has never reached. "Too easy" is not a
+      // useful warning — an endurance ride is meant to be well under your best,
+      // and a genuinely stale FTP is reported separately and more precisely.
+      const ratio = target / best;
+      if (ratio > 1.04) {
+        notes.push({ kind: 'over', seconds: s.seconds, target: target, best: best,
+                     pct: Math.round((ratio - 1) * 100) });
+      }
+    });
+    return { ok: !notes.length, notes: notes };
+  }
+
+  /** Attach what the session was built from, and how it compares to reality. */
+  function withContext(workout, ctx) {
+    if (!ctx) return workout;
+    workout.rider = {
+      ftp: ctx.ftp, ftpSource: ctx.ftpSource,
+      hasCurve: ctx.hasCurve, stale: ctx.stale,
+      typicalMinutes: ctx.typicalMinutes, rides: ctx.rides,
+    };
+    workout.feasibility = checkAgainstCurve(workout, ctx);
+    return workout;
+  }
+
   function fromText(text, opts) {
     opts = opts || {};
-    const ftp = opts.ftp;
+    // A rider context pairs the profile with the uploaded rides. Passing a bare
+    // ftp still works — the context is built around it.
+    const ctx = opts.rider || null;
+    const ftp = opts.ftp || (ctx && ctx.ftp) || null;
     const raw = String(text || '').trim();
     if (!raw) throw new Error('Describe the session you want — "2x20 at threshold", "90 minute endurance ride", "short vo2 session".');
 
@@ -129,7 +175,7 @@
       const target = parseTarget(ex[4], ftp) || parseTarget(raw, ftp) || [0.95, 1.00];
       const rest = Math.round(each >= 300 ? 300 : Math.max(60, each * 0.75));
       const label = unitIsSeconds ? `${ex[2]} s` : `${ex[2]} min`;
-      return finish({
+      return withContext(finish({
         name: `${reps} x ${label}`,
         focus: describeTarget(target),
         blurb: 'Built from exactly what you asked for.',
@@ -139,7 +185,7 @@
           step('work', each, target[0], target[1], label),
           step('recovery', rest, 0.45, 0.55, 'Recovery'),
         ] }],
-      }, ftp, Math.round(reps * (each + rest) / 60) + 20);
+      }, ftp, Math.round(reps * (each + rest) / 60) + 20), ctx);
     }
 
     // Otherwise match the library on keywords, most specific phrase first. A
@@ -189,12 +235,19 @@
         'it out, like "4x8min at 110%".');
     }
     const w = best.w;
-    const mins = minutes || Math.round(w.defaultMinutes * modifier);
+    // With no duration asked for, lean the session toward the length this rider
+    // actually rides — halfway between the library default and their median.
+    let base = w.defaultMinutes;
+    if (!minutes && !w.fixed && ctx && ctx.typicalMinutes) {
+      base = Math.round((w.defaultMinutes +
+                         Math.min(ctx.typicalMinutes, w.defaultMinutes * 1.8)) / 2);
+    }
+    const mins = minutes || Math.round(base * modifier);
     const terrainNote = terrain && (w.terrain || []).indexOf(terrain) !== -1
       ? ` Suited to ${terrain} riding.` : '';
     const wrapMins = (wrapperSeconds(mins) * 2) / 60;
     const workMins = Math.max(6, mins - wrapMins);
-    return finish({
+    return withContext(finish({
       name: w.name, focus: w.focus, blurb: w.blurb, key: w.key,
       why: w.why,
       course: w.course,
@@ -205,7 +258,7 @@
       matched: 'library',
       fixed: !!w.fixed,
       steps: w.build(workMins),
-    }, ftp, w.fixed ? null : mins);
+    }, ftp, w.fixed ? null : mins), ctx);
   }
 
   function describeTarget(t) {
@@ -435,6 +488,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
   }
 
   const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile, timeBreakdown,
+                checkAgainstCurve,
                 detectTerrain, forTerrain, TERRAIN,
                 flatten, totalSeconds, estimateTSS, averageIntensity, watts,
                 parseTarget, parseDurationMinutes, finish, step };

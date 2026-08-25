@@ -1803,7 +1803,81 @@ footer.foot a:hover { color: var(--text); }
     };
   }
 
-  const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor,
+  /* ------------------------------------------------------- rider context */
+
+  /**
+   * Everything the workout builder should know about this rider, in one place.
+   *
+   * Before this existed the builder took an FTP and nothing else, so a session
+   * could prescribe five minutes at 115% without ever checking what the rider
+   * had actually held for five minutes. The measured power curve is the most
+   * accurate thing an upload gives us; it should not sit unused on a chart.
+   */
+  function riderContext(activities, opts) {
+    opts = opts || {};
+    const profile = opts.profile || {};
+    const curve = opts.curve || null;
+    const rides = (activities || []).filter(a => a.type === 'cycling');
+
+    // Where the FTP came from matters as much as its value.
+    let ftp = profile.ftp || null;
+    let ftpSource = ftp ? 'you set it' : null;
+    let measured = null;
+    if (curve && curve.length) {
+      const twenty = curve.find(p => p.seconds === 1200);
+      const hour = curve.find(p => p.seconds === 3600);
+      if (twenty) measured = { ftp: Math.round(twenty.watts * 0.95), from: '20 min', watts: twenty.watts };
+      else if (hour) measured = { ftp: hour.watts, from: '60 min', watts: hour.watts };
+    }
+    if (!ftp && measured) { ftp = measured.ftp; ftpSource = 'measured from your rides'; }
+    if (!ftp) {
+      const est = estimateFTP(rides);
+      if (est) { ftp = est.ftp; ftpSource = 'estimated from ride averages'; }
+    }
+
+    // If the uploaded data contains a harder effort than the stored FTP, the
+    // stored one is out of date and every target built from it is too low.
+    const stale = (measured && profile.ftp && measured.ftp > profile.ftp * 1.03)
+      ? { measured: measured.ftp, stored: profile.ftp,
+          gain: Math.round(measured.ftp - profile.ftp) }
+      : null;
+
+    // Ride lengths, so a session defaults to something this rider actually does.
+    const durations = rides.map(a => (a.moving_s || 0) / 60).filter(m => m > 20).sort((a, b) => a - b);
+    const typical = durations.length ? Math.round(durations[Math.floor(durations.length / 2)]) : null;
+    const longest = durations.length ? Math.round(durations[durations.length - 1]) : null;
+
+    /** Best power this rider has actually held for a given duration, by
+     *  interpolating their measured curve. Null when there is no curve. */
+    function bestFor(seconds) {
+      if (!curve || curve.length < 2) return null;
+      if (seconds <= curve[0].seconds) return curve[0].watts;
+      const last = curve[curve.length - 1];
+      if (seconds >= last.seconds) return last.watts;
+      for (let i = 1; i < curve.length; i++) {
+        if (curve[i].seconds >= seconds) {
+          const a = curve[i - 1], b = curve[i];
+          // Interpolate on log duration — that is the shape a power curve has.
+          const t = (Math.log(seconds) - Math.log(a.seconds)) /
+                    (Math.log(b.seconds) - Math.log(a.seconds));
+          return Math.round(a.watts + t * (b.watts - a.watts));
+        }
+      }
+      return null;
+    }
+
+    return {
+      ftp: ftp, ftpSource: ftpSource, measured: measured, stale: stale,
+      weightKg: profile.weightKg || null,
+      restHr: profile.restHr, maxHr: profile.maxHr,
+      curve: curve, hasCurve: !!(curve && curve.length >= 3),
+      bestFor: bestFor,
+      typicalMinutes: typical, longestMinutes: longest,
+      rides: rides.length,
+    };
+  }
+
+  const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor, riderContext,
                 rideTSS, pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
                 powerProfile, speedStats, zoneDistribution };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -2766,9 +2840,55 @@ footer.foot a:hover { color: var(--text); }
    * Explicit notation is tried first, because "4x8 at 110%" is a specific
    * request and should not be approximated by the nearest template.
    */
+  /**
+   * Check a built session against what the rider has actually done.
+   *
+   * A prescription of five minutes at 115% of FTP is only meaningful if they
+   * can hold that for five minutes. The measured power curve knows; before this
+   * the builder never asked it.
+   */
+  function checkAgainstCurve(workout, ctx) {
+    if (!ctx || !ctx.hasCurve || !ctx.ftp) return null;
+    const notes = [];
+    const seen = {};
+    flatten(workout.steps).forEach(s => {
+      if (s.role !== 'work' && s.role !== 'interval') return;
+      const target = Math.round(((s.lo + s.hi) / 2) * ctx.ftp);
+      const best = ctx.bestFor(s.seconds);
+      if (!best) return;
+      const key = s.seconds + ':' + target;
+      if (seen[key]) return;
+      seen[key] = true;
+      // Only flag a target the rider has never reached. "Too easy" is not a
+      // useful warning — an endurance ride is meant to be well under your best,
+      // and a genuinely stale FTP is reported separately and more precisely.
+      const ratio = target / best;
+      if (ratio > 1.04) {
+        notes.push({ kind: 'over', seconds: s.seconds, target: target, best: best,
+                     pct: Math.round((ratio - 1) * 100) });
+      }
+    });
+    return { ok: !notes.length, notes: notes };
+  }
+
+  /** Attach what the session was built from, and how it compares to reality. */
+  function withContext(workout, ctx) {
+    if (!ctx) return workout;
+    workout.rider = {
+      ftp: ctx.ftp, ftpSource: ctx.ftpSource,
+      hasCurve: ctx.hasCurve, stale: ctx.stale,
+      typicalMinutes: ctx.typicalMinutes, rides: ctx.rides,
+    };
+    workout.feasibility = checkAgainstCurve(workout, ctx);
+    return workout;
+  }
+
   function fromText(text, opts) {
     opts = opts || {};
-    const ftp = opts.ftp;
+    // A rider context pairs the profile with the uploaded rides. Passing a bare
+    // ftp still works — the context is built around it.
+    const ctx = opts.rider || null;
+    const ftp = opts.ftp || (ctx && ctx.ftp) || null;
     const raw = String(text || '').trim();
     if (!raw) throw new Error('Describe the session you want — "2x20 at threshold", "90 minute endurance ride", "short vo2 session".');
 
@@ -2785,7 +2905,7 @@ footer.foot a:hover { color: var(--text); }
       const target = parseTarget(ex[4], ftp) || parseTarget(raw, ftp) || [0.95, 1.00];
       const rest = Math.round(each >= 300 ? 300 : Math.max(60, each * 0.75));
       const label = unitIsSeconds ? `${ex[2]} s` : `${ex[2]} min`;
-      return finish({
+      return withContext(finish({
         name: `${reps} x ${label}`,
         focus: describeTarget(target),
         blurb: 'Built from exactly what you asked for.',
@@ -2795,7 +2915,7 @@ footer.foot a:hover { color: var(--text); }
           step('work', each, target[0], target[1], label),
           step('recovery', rest, 0.45, 0.55, 'Recovery'),
         ] }],
-      }, ftp, Math.round(reps * (each + rest) / 60) + 20);
+      }, ftp, Math.round(reps * (each + rest) / 60) + 20), ctx);
     }
 
     // Otherwise match the library on keywords, most specific phrase first. A
@@ -2845,12 +2965,19 @@ footer.foot a:hover { color: var(--text); }
         'it out, like "4x8min at 110%".');
     }
     const w = best.w;
-    const mins = minutes || Math.round(w.defaultMinutes * modifier);
+    // With no duration asked for, lean the session toward the length this rider
+    // actually rides — halfway between the library default and their median.
+    let base = w.defaultMinutes;
+    if (!minutes && !w.fixed && ctx && ctx.typicalMinutes) {
+      base = Math.round((w.defaultMinutes +
+                         Math.min(ctx.typicalMinutes, w.defaultMinutes * 1.8)) / 2);
+    }
+    const mins = minutes || Math.round(base * modifier);
     const terrainNote = terrain && (w.terrain || []).indexOf(terrain) !== -1
       ? ` Suited to ${terrain} riding.` : '';
     const wrapMins = (wrapperSeconds(mins) * 2) / 60;
     const workMins = Math.max(6, mins - wrapMins);
-    return finish({
+    return withContext(finish({
       name: w.name, focus: w.focus, blurb: w.blurb, key: w.key,
       why: w.why,
       course: w.course,
@@ -2861,7 +2988,7 @@ footer.foot a:hover { color: var(--text); }
       matched: 'library',
       fixed: !!w.fixed,
       steps: w.build(workMins),
-    }, ftp, w.fixed ? null : mins);
+    }, ftp, w.fixed ? null : mins), ctx);
   }
 
   function describeTarget(t) {
@@ -3091,6 +3218,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
   }
 
   const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile, timeBreakdown,
+                checkAgainstCurve,
                 detectTerrain, forTerrain, TERRAIN,
                 flatten, totalSeconds, estimateTSS, averageIntensity, watts,
                 parseTarget, parseDurationMinutes, finish, step };
@@ -3154,7 +3282,8 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
    * Order matters: fatigue vetoes everything, then a recent hard day, then the
    * gap in the rider's intensity distribution, and only then a default.
    */
-  function recommend(activities, profile, today) {
+  function recommend(activities, profile, today, opts) {
+    opts = opts || {};
     today = today || new Date();
     const ftp = profile && profile.ftp;
     const pmc = Cy.pmc(activities, {
@@ -3168,9 +3297,12 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     const rides28 = recentRides(activities, 28, today).length;
 
     const pattern = distributionNote(dist, ctl);
+    const rider = opts.rider || Cy.riderContext(activities, {
+      profile: profile || {}, curve: opts.curve || null });
     const pick = (key, why, note) => ({
       key: key,
-      workout: Wk.fromText(Wk.byKey(key).name, { ftp: ftp }),
+      workout: Wk.fromText(Wk.byKey(key).name, { ftp: ftp, rider: rider }),
+      rider: rider,
       why: why,
       note: note || null,
       pattern: pattern,
@@ -3412,6 +3544,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     const weeks = Math.max(4, Math.min(24, opts.weeks || 12));
     const ftp = opts.ftp;
     const goalKey = GOALS[opts.goal] ? opts.goal : 'fitness';
+    const rider = opts.rider || null;
     const goal = GOALS[goalKey];
     const startHours = Math.max(3, opts.weeklyHours || 6);
     const eventDate = opts.eventDate ? new Date(opts.eventDate + 'T00:00:00Z') : null;
@@ -3453,7 +3586,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
       const days = slots.map(([day, key, fixedMins]) => {
         const mins = fixedMins || perOpen;
         const entry = Wk.byKey(key);
-        const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp });
+        const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp, rider: rider });
         return {
           day: day, key: key, name: entry.name, focus: entry.focus,
           why: entry.why, zone: entry.zone, course: entry.course,
@@ -3480,7 +3613,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
           : null,
       });
     }
-    return { weeks: out, ftp: ftp, eventDate: opts.eventDate || null,
+    return { weeks: out, ftp: ftp, eventDate: opts.eventDate || null, rider: rider,
              startHours: startHours, goal: goalKey, goalName: goal.name,
              goalNote: goal.note, name: opts.name || (goal.name + ' block') };
   }
@@ -4498,6 +4631,7 @@ function drawDashboard() {
   hideTip();
   const t = DATA.totals;
   RAW_ACTIVITIES = DATA.raw || [];
+  RIDER = riderContext();
 
   $('#gen').textContent = DATA.imported
     ? 'Loaded from ' + DATA.imported.filename
@@ -4548,6 +4682,15 @@ function drawDashboard() {
 }
 
 let RAW_ACTIVITIES = [];
+let RIDER = null;
+
+/** The single place the rider's profile meets their uploaded rides. Every
+ *  workout, recommendation and plan is built from this, so none of them can
+ *  quietly fall back to a generic default. */
+function riderContext() {
+  return Cycling.riderContext(RAW_ACTIVITIES, {
+    profile: PROFILE, curve: DATA && DATA.curve ? DATA.curve : null });
+}
 
 /** The four numbers a cyclist actually steers by. */
 function bikeKpiRow() {
@@ -5123,7 +5266,7 @@ function recommendCard() {
 
   let rec;
   try {
-    rec = Coach.recommend(RAW_ACTIVITIES, PROFILE);
+    rec = Coach.recommend(RAW_ACTIVITIES, PROFILE, null, { rider: RIDER });
   } catch (e) {
     card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
     return card;
@@ -5278,6 +5421,47 @@ function workoutCard(workout) {
   totals.appendChild(grid);
   card.appendChild(totals);
 
+  // What this was built from — the pairing, stated rather than assumed.
+  if (workout.rider) {
+    const r = workout.rider;
+    const bits = [];
+    if (r.ftp) bits.push(`FTP ${r.ftp} W (${r.ftpSource})`);
+    if (r.hasCurve) bits.push('checked against your measured power curve');
+    else if (r.rides) bits.push(`from ${r.rides} ride${r.rides === 1 ? '' : 's'} you uploaded`);
+    if (r.typicalMinutes) bits.push(`your typical ride is ${r.typicalMinutes} min`);
+    if (bits.length) {
+      card.appendChild(el('p', { class: 'hint', style: 'margin:14px 0 0',
+        text: 'Built from ' + bits.join(' · ') + '.' }));
+    }
+
+    if (r.stale) {
+      const box = el('div', { class: 'estimate', style: 'margin:12px 0 0' });
+      box.appendChild(el('strong', { text: `Your FTP looks out of date. ` }));
+      box.appendChild(document.createTextNode(
+        `Your rides show ${r.stale.measured} W but your profile says ${r.stale.stored} W — ` +
+        `every target here is about ${r.stale.gain} W too low.`));
+      const use = el('button', { class: 'chip', type: 'button', style: 'margin-top:10px',
+                                 text: `Update to ${r.stale.measured} W` });
+      use.addEventListener('click', () => {
+        PROFILE.ftp = r.stale.measured; saveProfile(); drawDashboard();
+      });
+      box.appendChild(el('div', {}, [use]));
+      card.appendChild(box);
+    }
+
+    const f = workout.feasibility;
+    if (f && !f.ok) {
+      const box = el('div', { class: 'err', style: 'margin:12px 0 0' });
+      box.appendChild(el('strong', { text: 'Harder than anything in your data. ' }));
+      const n = f.notes[0];
+      box.appendChild(document.createTextNode(
+        `This asks for ${n.target} W for ${Math.round(n.seconds / 60)} minutes — about ` +
+        `${n.pct}% above the best you have actually held for that long (${n.best} W). ` +
+        'Fine as something to build toward; not a session to judge yourself against today.'));
+      card.appendChild(box);
+    }
+  }
+
   // Where to ride it.
   if (workout.course) {
     const note = el('div', { class: 'course-note' });
@@ -5393,7 +5577,7 @@ function workoutView() {
     result.innerHTML = '';
     PENDING_TEXT = box.value;
     try {
-      const w = Workouts.fromText(box.value, { ftp: PROFILE.ftp, terrain: terrainPref });
+      const w = Workouts.fromText(box.value, { rider: RIDER, terrain: terrainPref });
       PENDING_WORKOUT = w;
       result.appendChild(workoutCard(w));
     } catch (err) {
@@ -5534,7 +5718,7 @@ function planView() {
   go.addEventListener('click', () => {
     PENDING_PLAN = Coach.buildPlan({
       weeks: state.weeks, ftp: PROFILE.ftp, weeklyHours: state.hours,
-      eventDate: state.event || null, goal: state.goal,
+      eventDate: state.event || null, goal: state.goal, rider: RIDER,
       name: state.name || null,
     });
     renderPlan(PENDING_PLAN);

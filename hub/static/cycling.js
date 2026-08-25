@@ -280,7 +280,81 @@
     };
   }
 
-  const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor,
+  /* ------------------------------------------------------- rider context */
+
+  /**
+   * Everything the workout builder should know about this rider, in one place.
+   *
+   * Before this existed the builder took an FTP and nothing else, so a session
+   * could prescribe five minutes at 115% without ever checking what the rider
+   * had actually held for five minutes. The measured power curve is the most
+   * accurate thing an upload gives us; it should not sit unused on a chart.
+   */
+  function riderContext(activities, opts) {
+    opts = opts || {};
+    const profile = opts.profile || {};
+    const curve = opts.curve || null;
+    const rides = (activities || []).filter(a => a.type === 'cycling');
+
+    // Where the FTP came from matters as much as its value.
+    let ftp = profile.ftp || null;
+    let ftpSource = ftp ? 'you set it' : null;
+    let measured = null;
+    if (curve && curve.length) {
+      const twenty = curve.find(p => p.seconds === 1200);
+      const hour = curve.find(p => p.seconds === 3600);
+      if (twenty) measured = { ftp: Math.round(twenty.watts * 0.95), from: '20 min', watts: twenty.watts };
+      else if (hour) measured = { ftp: hour.watts, from: '60 min', watts: hour.watts };
+    }
+    if (!ftp && measured) { ftp = measured.ftp; ftpSource = 'measured from your rides'; }
+    if (!ftp) {
+      const est = estimateFTP(rides);
+      if (est) { ftp = est.ftp; ftpSource = 'estimated from ride averages'; }
+    }
+
+    // If the uploaded data contains a harder effort than the stored FTP, the
+    // stored one is out of date and every target built from it is too low.
+    const stale = (measured && profile.ftp && measured.ftp > profile.ftp * 1.03)
+      ? { measured: measured.ftp, stored: profile.ftp,
+          gain: Math.round(measured.ftp - profile.ftp) }
+      : null;
+
+    // Ride lengths, so a session defaults to something this rider actually does.
+    const durations = rides.map(a => (a.moving_s || 0) / 60).filter(m => m > 20).sort((a, b) => a - b);
+    const typical = durations.length ? Math.round(durations[Math.floor(durations.length / 2)]) : null;
+    const longest = durations.length ? Math.round(durations[durations.length - 1]) : null;
+
+    /** Best power this rider has actually held for a given duration, by
+     *  interpolating their measured curve. Null when there is no curve. */
+    function bestFor(seconds) {
+      if (!curve || curve.length < 2) return null;
+      if (seconds <= curve[0].seconds) return curve[0].watts;
+      const last = curve[curve.length - 1];
+      if (seconds >= last.seconds) return last.watts;
+      for (let i = 1; i < curve.length; i++) {
+        if (curve[i].seconds >= seconds) {
+          const a = curve[i - 1], b = curve[i];
+          // Interpolate on log duration — that is the shape a power curve has.
+          const t = (Math.log(seconds) - Math.log(a.seconds)) /
+                    (Math.log(b.seconds) - Math.log(a.seconds));
+          return Math.round(a.watts + t * (b.watts - a.watts));
+        }
+      }
+      return null;
+    }
+
+    return {
+      ftp: ftp, ftpSource: ftpSource, measured: measured, stale: stale,
+      weightKg: profile.weightKg || null,
+      restHr: profile.restHr, maxHr: profile.maxHr,
+      curve: curve, hasCurve: !!(curve && curve.length >= 3),
+      bestFor: bestFor,
+      typicalMinutes: typical, longestMinutes: longest,
+      rides: rides.length,
+    };
+  }
+
+  const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor, riderContext,
                 rideTSS, pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
                 powerProfile, speedStats, zoneDistribution };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

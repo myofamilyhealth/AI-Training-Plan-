@@ -133,6 +133,14 @@ Python and the JavaScript suites together.
   where to ride it — the gradient, the length of clear road, whether it really
   needs a trainer. Never add a session missing either. Mark `fixed: true` for
   protocols that must not be stretched (tests, fixed ladders).
+- **Pairing is not optional.** `Cycling.riderContext(activities, {profile, curve})`
+  is the single place the profile meets the uploaded rides: FTP and where it came
+  from, staleness against the measured curve, typical ride length, and a
+  `bestFor(seconds)` lookup. Pass it as `opts.rider` to `Wk.fromText`,
+  `Co.recommend` and `Co.buildPlan` — never hand them a bare FTP from the UI, or
+  a session silently reverts to generic defaults and stops being checked against
+  what the rider can actually do. The tests assert every session in a plan
+  carries the context it was built from.
 - **workouts.js** — the text parser and builder. Targets are fractions of FTP
   everywhere and only become watts at display or export. A session's own name
   outranks any other session's keyword; ties break toward the keyword appearing

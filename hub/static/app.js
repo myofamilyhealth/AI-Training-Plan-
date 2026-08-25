@@ -1005,6 +1005,7 @@ function drawDashboard() {
   hideTip();
   const t = DATA.totals;
   RAW_ACTIVITIES = DATA.raw || [];
+  RIDER = riderContext();
 
   $('#gen').textContent = DATA.imported
     ? 'Loaded from ' + DATA.imported.filename
@@ -1055,6 +1056,15 @@ function drawDashboard() {
 }
 
 let RAW_ACTIVITIES = [];
+let RIDER = null;
+
+/** The single place the rider's profile meets their uploaded rides. Every
+ *  workout, recommendation and plan is built from this, so none of them can
+ *  quietly fall back to a generic default. */
+function riderContext() {
+  return Cycling.riderContext(RAW_ACTIVITIES, {
+    profile: PROFILE, curve: DATA && DATA.curve ? DATA.curve : null });
+}
 
 /** The four numbers a cyclist actually steers by. */
 function bikeKpiRow() {
@@ -1630,7 +1640,7 @@ function recommendCard() {
 
   let rec;
   try {
-    rec = Coach.recommend(RAW_ACTIVITIES, PROFILE);
+    rec = Coach.recommend(RAW_ACTIVITIES, PROFILE, null, { rider: RIDER });
   } catch (e) {
     card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
     return card;
@@ -1785,6 +1795,47 @@ function workoutCard(workout) {
   totals.appendChild(grid);
   card.appendChild(totals);
 
+  // What this was built from — the pairing, stated rather than assumed.
+  if (workout.rider) {
+    const r = workout.rider;
+    const bits = [];
+    if (r.ftp) bits.push(`FTP ${r.ftp} W (${r.ftpSource})`);
+    if (r.hasCurve) bits.push('checked against your measured power curve');
+    else if (r.rides) bits.push(`from ${r.rides} ride${r.rides === 1 ? '' : 's'} you uploaded`);
+    if (r.typicalMinutes) bits.push(`your typical ride is ${r.typicalMinutes} min`);
+    if (bits.length) {
+      card.appendChild(el('p', { class: 'hint', style: 'margin:14px 0 0',
+        text: 'Built from ' + bits.join(' · ') + '.' }));
+    }
+
+    if (r.stale) {
+      const box = el('div', { class: 'estimate', style: 'margin:12px 0 0' });
+      box.appendChild(el('strong', { text: `Your FTP looks out of date. ` }));
+      box.appendChild(document.createTextNode(
+        `Your rides show ${r.stale.measured} W but your profile says ${r.stale.stored} W — ` +
+        `every target here is about ${r.stale.gain} W too low.`));
+      const use = el('button', { class: 'chip', type: 'button', style: 'margin-top:10px',
+                                 text: `Update to ${r.stale.measured} W` });
+      use.addEventListener('click', () => {
+        PROFILE.ftp = r.stale.measured; saveProfile(); drawDashboard();
+      });
+      box.appendChild(el('div', {}, [use]));
+      card.appendChild(box);
+    }
+
+    const f = workout.feasibility;
+    if (f && !f.ok) {
+      const box = el('div', { class: 'err', style: 'margin:12px 0 0' });
+      box.appendChild(el('strong', { text: 'Harder than anything in your data. ' }));
+      const n = f.notes[0];
+      box.appendChild(document.createTextNode(
+        `This asks for ${n.target} W for ${Math.round(n.seconds / 60)} minutes — about ` +
+        `${n.pct}% above the best you have actually held for that long (${n.best} W). ` +
+        'Fine as something to build toward; not a session to judge yourself against today.'));
+      card.appendChild(box);
+    }
+  }
+
   // Where to ride it.
   if (workout.course) {
     const note = el('div', { class: 'course-note' });
@@ -1900,7 +1951,7 @@ function workoutView() {
     result.innerHTML = '';
     PENDING_TEXT = box.value;
     try {
-      const w = Workouts.fromText(box.value, { ftp: PROFILE.ftp, terrain: terrainPref });
+      const w = Workouts.fromText(box.value, { rider: RIDER, terrain: terrainPref });
       PENDING_WORKOUT = w;
       result.appendChild(workoutCard(w));
     } catch (err) {
@@ -2041,7 +2092,7 @@ function planView() {
   go.addEventListener('click', () => {
     PENDING_PLAN = Coach.buildPlan({
       weeks: state.weeks, ftp: PROFILE.ftp, weeklyHours: state.hours,
-      eventDate: state.event || null, goal: state.goal,
+      eventDate: state.event || null, goal: state.goal, rider: RIDER,
       name: state.name || null,
     });
     renderPlan(PENDING_PLAN);

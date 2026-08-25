@@ -271,6 +271,28 @@ This is a parser, not a language model. There is no server and no AI behind the
 page; it is pattern matching over cycling vocabulary, which is why it works
 offline and instantly.
 
+### Everything is built from your data, not from defaults
+
+There is one place where your profile meets your uploaded rides, and every
+workout, recommendation and plan is built through it — so none of them can
+quietly fall back to a generic number. Each session states what it used:
+
+> Built from FTP 266 W (measured from your rides) · checked against your
+> measured power curve · your typical ride is 90 min.
+
+Three things follow from that:
+
+- **Stale FTP is caught.** If your uploaded rides contain a harder effort than
+  your profile says, it tells you by how much and offers to update — every
+  target in the session is otherwise too low.
+- **Prescriptions are checked against your power curve.** Ask for 8×4 min at
+  150% and it will say so: *"about 23% above the best you have actually held for
+  that long (280 W). Fine as something to build toward; not a session to judge
+  yourself against today."*
+- **Session length leans toward your rides.** With no duration given, a session
+  sizes itself between the library default and your own median ride, rather than
+  handing a 45-minute rider a 2-hour default.
+
 ### Recommendations and plans
 
 **Ride today** suggests a session from your current form, how long since your

@@ -156,6 +156,9 @@ Two input paths with different fidelity, and the difference matters:
 
 - **CSV** (`importer.js`) — one row per ride. FTP is estimated from averages and
   reads low; each ride falls whole into one zone; no power curve is possible.
+- **.zip** (`zip.js`) — Garmin and Strava both export archives. Expanded before
+  anything else sees the files, so a zipped ride behaves exactly like a dropped
+  one. Uses `DecompressionStream`; no library.
 - **.FIT** (`fit.js`) — the full recording. FTP is measured from the best
   continuous 20 minutes, normalized power is computed from the stream, and a
   mean maximal power curve is real.

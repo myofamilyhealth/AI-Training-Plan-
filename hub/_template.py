@@ -22,6 +22,7 @@ BODY = _read("body.html")
 # Order matters: app.js calls into both of these at load.
 SCRIPT = "\n".join((
     _read("importer.js"),
+    _read("zip.js"),
     _read("fit.js"),
     _read("analytics.js"),
     _read("cycling.js"),

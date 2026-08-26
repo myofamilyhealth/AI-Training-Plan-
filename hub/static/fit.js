@@ -232,14 +232,28 @@
     const prefix = new Float64Array(n + 1);
     for (let i = 0; i < n; i++) prefix[i + 1] = prefix[i] + power[i];
 
-    return durations.filter(d => d <= n).map(d => {
+    const out = durations.filter(d => d <= n).map(d => {
       let best = 0;
       for (let i = 0; i + d <= n; i++) {
         const mean = (prefix[i + d] - prefix[i]) / d;
         if (mean > best) best = mean;
       }
-      return { seconds: d, watts: Math.round(best) };
+      return { seconds: d, watts: best };
     });
+
+    // Enforce a non-increasing curve.
+    //
+    // The raw window statistic can rise with duration: a ride with a dip in the
+    // middle of a long effort can average more over ten minutes than over any
+    // eight minutes inside it. As a *statistic* that is correct, but this curve
+    // is read as an ability — the best you can hold for a given time — and
+    // holding 216 W for ten minutes plainly means you can hold at least that
+    // for eight. Walking back from the longest duration and taking the running
+    // maximum is the convention, and it errs in the safe direction.
+    for (let i = out.length - 2; i >= 0; i--) {
+      if (out[i].watts < out[i + 1].watts) out[i].watts = out[i + 1].watts;
+    }
+    return out.map(p => ({ seconds: p.seconds, watts: Math.round(p.watts) }));
   }
 
   /** Merge curves from several rides, keeping the best at each duration. */

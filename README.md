@@ -205,6 +205,11 @@ Drop them together: the CSV gives breadth, the .FIT gives depth, and where both
 describe the same ride the .FIT wins. Several .FIT files merge into one curve,
 keeping the best at each duration.
 
+**Zips are fine.** Garmin hands you a `.zip` when you export a ride and Strava's
+whole archive is one, so the page opens them itself — drop the file exactly as
+it downloaded. Decompression uses the browser's own `DecompressionStream`, so
+this adds no dependency and nothing is uploaded.
+
 ### Building workouts
 
 The **Build a workout** tab takes what you type and returns a session in watts:

@@ -629,6 +629,7 @@ function clearLocal() {
 }
 
 function readFile(file) {
+  if (file._buffer) return Promise.resolve(new TextDecoder().decode(file._buffer));
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));
@@ -638,6 +639,7 @@ function readFile(file) {
 }
 
 function readArrayBuffer(file) {
+  if (file._buffer) return Promise.resolve(file._buffer);
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
@@ -647,6 +649,32 @@ function readArrayBuffer(file) {
 }
 
 const isFit = f => /\.fit$/i.test(f.name);
+const isZip = f => /\.zip$/i.test(f.name);
+
+/**
+ * Expand any archives before anything else looks at the files.
+ *
+ * Garmin gives you a zip when you export a ride and Strava's whole archive is
+ * one, so requiring someone to unzip first is a step that should not exist.
+ * Files inside come back looking exactly like files that were dropped directly.
+ */
+async function expandArchives(files) {
+  const out = [];
+  for (const file of files) {
+    if (!isZip(file)) { out.push(file); continue; }
+    const buf = await readArrayBuffer(file);
+    const inner = await Zip.extract(buf);
+    inner.forEach(entry => {
+      out.push({
+        name: entry.name,
+        _buffer: entry.buffer,
+        _text: null,
+        fromArchive: file.name,
+      });
+    });
+  }
+  return out;
+}
 
 /**
  * Take whatever was dropped: a CSV of history, one or more .FIT recordings, or
@@ -654,7 +682,8 @@ const isFit = f => /\.fit$/i.test(f.name);
  * the same ride, the .FIT wins, because it was measured second by second.
  */
 async function handleFiles(files, unitPref) {
-  const list = Array.from(files);
+  const list = await expandArchives(Array.from(files));
+  const archives = Array.from(files).filter(isZip).length;
   const fits = list.filter(isFit);
   const csvs = list.filter(f => !isFit(f));
 
@@ -697,7 +726,10 @@ async function handleFiles(files, unitPref) {
   payload.curve = curves.length ? Fit.mergeCurves(curves) : null;
   payload.imported = {
     source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
-    filename: list.length === 1 ? list[0].name : `${list.length} files`,
+    filename: archives === 1 && Array.from(files).length === 1
+      ? Array.from(files)[0].name
+      : (list.length === 1 ? list[0].name : `${list.length} files`),
+    fromArchive: archives,
     rows: activities.length,
     unique: merged.length,
     unit: unit,
@@ -763,7 +795,8 @@ function importScreen(errorMessage) {
   const drop = el('div', { class: 'drop', tabindex: '0', role: 'button',
                            'aria-label': 'Add your rides' });
   drop.appendChild(el('p', { class: 'big', text: 'Drop your rides here' }));
-  drop.appendChild(el('p', { class: 'small', text: 'a .CSV of your history, or .FIT files' }));
+  drop.appendChild(el('p', { class: 'small',
+    text: 'the .zip straight from Garmin, a .CSV of your history, or .FIT files' }));
   const choose = el('button', { class: 'btn', type: 'button', text: 'Choose files' });
   drop.appendChild(choose);
   hero.appendChild(drop);
@@ -812,7 +845,8 @@ function importScreen(errorMessage) {
   howto.appendChild(guide('Garmin Connect — one ride, in full detail', [
     'Open a single ride.',
     'Gear icon, top right, then Export to FIT.',
-    'That file has your full power data — better numbers than the CSV.']));
+    'Drop the .zip in as it downloads — no need to unzip it.',
+    'That file has your full power data: a real FTP and a power curve.']));
   howInner.appendChild(howto);
 
   const stravaBox = el('div', { class: 'card', style: 'margin-top:16px' });
@@ -881,7 +915,7 @@ function importScreen(errorMessage) {
 
   /* ---------------------------------------------------------- wiring */
   const input = el('input', { type: 'file', class: 'hidden-input', multiple: 'multiple',
-                              accept: '.csv,.fit,text/csv,text/plain' });
+                              accept: '.csv,.fit,.zip,text/csv,text/plain,application/zip' });
   wrap.appendChild(input);
 
   const load = async (files) => {
@@ -927,6 +961,7 @@ function detectedBar(payload) {
   if (i.source !== 'fit' && i.fitCount) {
     parts.push(plural(i.fitCount, '.FIT ride') + ' with full power data');
   }
+  if (i.fromArchive) parts.push(`unzipped for you`);
   if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicate${i.rows - i.unique === 1 ? '' : 's'} merged`);
   if (i.skipped) parts.push(plural(i.skipped, 'row') + ' skipped');
   text.appendChild(el('strong', { style: 'color:var(--text)', text: i.filename }));

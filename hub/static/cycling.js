@@ -234,15 +234,25 @@
   }
 
   function speedStats(activities, imperial) {
-    const rides = activities.filter(a => isRide(a) && a.avg_speed_mps && a.moving_s);
+    const rides = activities.filter(a => isRide(a) && a.moving_s &&
+                                         (a.distance_m || a.avg_speed_mps));
     if (!rides.length) return null;
+
+    // One definition of speed for both figures. Mixing distance-over-time for
+    // the average with the file's own avg_speed field for the best made a
+    // single ride look slower than itself — Garmin computes that field
+    // differently, and the two disagreed by a few tenths.
+    const speedOf = a => (a.distance_m && a.moving_s)
+      ? a.distance_m / a.moving_s
+      : a.avg_speed_mps;
+
     const totalTime = rides.reduce((s, a) => s + a.moving_s, 0);
-    const totalDist = rides.reduce((s, a) => s + (a.distance_m || 0), 0);
+    const totalDist = rides.reduce((s, a) => s + (a.distance_m || speedOf(a) * a.moving_s), 0);
     const factor = imperial ? 2.236936 : 3.6;           // m/s to mph or km/h
-    const fastest = rides.reduce((b, a) => (!b || a.avg_speed_mps > b.avg_speed_mps ? a : b), null);
+    const fastest = rides.reduce((b, a) => (!b || speedOf(a) > speedOf(b) ? a : b), null);
     return {
       average: Math.round((totalDist / totalTime) * factor * 10) / 10,
-      best: Math.round(fastest.avg_speed_mps * factor * 10) / 10,
+      best: Math.round(speedOf(fastest) * factor * 10) / 10,
       bestDate: (fastest.start || '').slice(0, 10),
       unit: imperial ? 'mph' : 'km/h',
       rides: rides.length,

@@ -565,3 +565,72 @@ check('and every session in it was built from that context',
 const rec = Co.recommend(pairRides, { ftp: 250 }, new Date('2026-08-25T12:00:00Z'),
                          { rider: ctx });
 check('the recommendation is built from it too', rec.workout.rider.ftp, 250);
+
+/* ----------------------------------------------------------------- zip */
+const Zip = require(path.join(__dirname, '..', 'hub', 'static', 'zip.js'));
+
+// A stored (uncompressed) zip, built by hand so the reader is tested against
+// the real container format rather than a stand-in.
+function makeZip(name, payload) {
+  const nameB = Buffer.from(name, 'ascii');
+  const data = Buffer.from(payload);
+  const lfh = Buffer.alloc(30);
+  lfh.writeUInt32LE(0x04034b50, 0); lfh.writeUInt16LE(20, 4);
+  lfh.writeUInt16LE(0, 8);                       // stored
+  lfh.writeUInt32LE(0, 14);
+  lfh.writeUInt32LE(data.length, 18); lfh.writeUInt32LE(data.length, 22);
+  lfh.writeUInt16LE(nameB.length, 26); lfh.writeUInt16LE(0, 28);
+
+  const cd = Buffer.alloc(46);
+  cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6);
+  cd.writeUInt16LE(0, 10);
+  cd.writeUInt32LE(data.length, 20); cd.writeUInt32LE(data.length, 24);
+  cd.writeUInt16LE(nameB.length, 28);
+  cd.writeUInt32LE(0, 42);
+
+  const cdStart = lfh.length + nameB.length + data.length;
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(1, 8); eocd.writeUInt16LE(1, 10);
+  eocd.writeUInt32LE(cd.length + nameB.length, 12);
+  eocd.writeUInt32LE(cdStart, 16);
+
+  const all = Buffer.concat([lfh, nameB, data, cd, nameB, eocd]);
+  return all.buffer.slice(all.byteOffset, all.byteOffset + all.byteLength);
+}
+
+const zipBuf = makeZip('ride.csv', 'Activity Type,Date,Distance,Time\nCycling,2026-08-20 07:00:00,20.1,01:00:00\n');
+check('a zip is recognised', Zip.isZip(zipBuf), true);
+check('a plain file is not', Zip.isZip(new TextEncoder().encode('hello there').buffer), false);
+check('the directory lists the entry', Zip.listEntries(zipBuf)[0].name, 'ride.csv');
+
+Zip.extract(zipBuf).then(files => {
+  const ok = files.length === 1 && files[0].name === 'ride.csv' &&
+             new TextDecoder().decode(files[0].bytes).indexOf('Cycling') !== -1;
+  if (!ok) { console.log('FAILED: stored zip entry did not round-trip'); process.exit(1); }
+}).catch(e => { console.log('FAILED: zip extract threw —', e.message); process.exit(1); });
+
+let zipErr = null;
+try { Zip.listEntries(new TextEncoder().encode('not a zip at all, really').buffer); }
+catch (e) { zipErr = e.message; }
+check('a damaged zip explains itself', /damaged/.test(zipErr || ''), true);
+
+/* ------------------------------------------------ curve must not rise */
+// A dip in the middle of a long effort makes the raw ten-minute window beat
+// every eight-minute one. As an ability curve that is meaningless.
+const dipped = [].concat(new Array(240).fill(300), new Array(120).fill(0),
+                         new Array(240).fill(300));
+const dipCurve = Fit.powerCurve(dipped, [480, 600]);
+check('the curve never rises with duration',
+      dipCurve[0].watts >= dipCurve[1].watts, true);
+const longCurve = Fit.powerCurve(
+  Array.from({ length: 3600 }, (_, i) => 200 + Math.round(100 * Math.sin(i / 90))));
+check('a full curve is monotonic',
+      longCurve.every((p, i) => i === 0 || p.watts <= longCurve[i - 1].watts), true);
+
+/* ------------------------------------------------------- speed figures */
+const oneRide = [{ type: 'cycling', moving_s: 2372.9, distance_m: 20954.6,
+                   avg_speed_mps: 8.78, start: '2026-08-25T21:50:45Z' }];
+const sp = Cy.speedStats(oneRide, true);
+check('one ride cannot be slower than itself', sp.best >= sp.average, true);
+check('and its average equals its best', sp.average, sp.best);

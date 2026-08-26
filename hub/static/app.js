@@ -811,6 +811,9 @@ function importScreen(errorMessage) {
     const box = el('div', { class: 'err', style: 'margin-top:24px' });
     box.appendChild(el('strong', { text: 'That file did not load. ' }));
     box.appendChild(document.createTextNode(errorMessage));
+    box.appendChild(el('p', { style: 'margin:10px 0 0;font-size:12.5px;color:var(--text-3)',
+      text: 'If this is a zip from Garmin, unzipping it and dropping the .fit inside ' +
+            'should work. The full error is in your browser console if you need it.' }));
     wrap.appendChild(box);
   }
 
@@ -927,7 +930,13 @@ function importScreen(errorMessage) {
       payload.imported.remembered = remembered;
       render(payload);
     } catch (err) {
-      render(null, err.message || String(err));
+      // Name the file and keep the underlying error: "that did not load" on its
+      // own tells nobody anything, least of all whoever has to fix it.
+      const names = Array.from(files).map(f => f.name).join(', ');
+      const detail = (err && err.message) ? err.message : String(err);
+      // eslint-disable-next-line no-console
+      console.error('Import failed for', names, err);
+      render(null, `${detail} (${names})`);
     }
   };
 

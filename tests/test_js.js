@@ -634,3 +634,50 @@ const oneRide = [{ type: 'cycling', moving_s: 2372.9, distance_m: 20954.6,
 const sp = Cy.speedStats(oneRide, true);
 check('one ride cannot be slower than itself', sp.best >= sp.average, true);
 check('and its average equals its best', sp.average, sp.best);
+
+/* --------------------------------------------- inflate without the browser */
+// Safari had no 'deflate-raw' until 17, so the zip reader cannot depend on
+// DecompressionStream. Force the built-in decoder and check it agrees.
+const nativeDS = global.DecompressionStream;
+delete global.DecompressionStream;
+const deflated = (() => {
+  const zlib = require('zlib');
+  const payload = Buffer.from('Activity Type,Date,Distance\n' +
+    Array.from({ length: 300 }, (_, i) => `Cycling,2026-08-${(i % 28) + 1},2${i % 10}.5`).join('\n'));
+  const comp = zlib.deflateRawSync(payload);
+  return { payload, comp };
+})();
+
+function makeDeflatedZip(name, comp, rawLen) {
+  const nameB = Buffer.from(name, 'ascii');
+  const lfh = Buffer.alloc(30);
+  lfh.writeUInt32LE(0x04034b50, 0); lfh.writeUInt16LE(20, 4);
+  lfh.writeUInt16LE(8, 8);
+  lfh.writeUInt32LE(comp.length, 18); lfh.writeUInt32LE(rawLen, 22);
+  lfh.writeUInt16LE(nameB.length, 26);
+  const cd = Buffer.alloc(46);
+  cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(8, 10);
+  cd.writeUInt32LE(comp.length, 20); cd.writeUInt32LE(rawLen, 24);
+  cd.writeUInt16LE(nameB.length, 28); cd.writeUInt32LE(0, 42);
+  const cdStart = lfh.length + nameB.length + comp.length;
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(1, 8); eocd.writeUInt16LE(1, 10);
+  eocd.writeUInt32LE(cd.length + nameB.length, 12);
+  eocd.writeUInt32LE(cdStart, 16);
+  const all = Buffer.concat([lfh, nameB, comp, cd, nameB, eocd]);
+  return all.buffer.slice(all.byteOffset, all.byteOffset + all.byteLength);
+}
+
+const deflatedZip = makeDeflatedZip('history.csv', deflated.comp, deflated.payload.length);
+Zip.extract(deflatedZip).then(files => {
+  const text = new TextDecoder().decode(files[0].bytes);
+  if (text !== deflated.payload.toString()) {
+    console.log('FAILED: built-in inflate did not reproduce the original bytes');
+    process.exit(1);
+  }
+  if (nativeDS) global.DecompressionStream = nativeDS;
+}).catch(e => {
+  console.log('FAILED: built-in inflate threw —', e.message);
+  process.exit(1);
+});

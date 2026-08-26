@@ -27,7 +27,7 @@ def _day(act: dict) -> date | None:
 
 
 def build_payload(activities: list[dict], rest_hr: float = 50, max_hr: float = 190,
-                  weeks: int = 16, heatmap_weeks: int = 26,
+                  weeks: int = 16,
                   demo_note: str | None = None) -> dict:
     imperial = config.imperial()
     unit = "mi" if imperial else "km"
@@ -51,14 +51,6 @@ def build_payload(activities: list[dict], rest_hr: float = 50, max_hr: float = 1
         for row in weekly_rows
     ]
 
-    loads = analyze.daily_load(activities, rest_hr=rest_hr, max_hr=max_hr)
-    start = today - timedelta(days=heatmap_weeks * 7 - 1)
-    start -= timedelta(days=start.weekday())          # begin on a Monday
-    heatmap = [
-        {"date": str(start + timedelta(days=i)),
-         "load": round(loads.get(start + timedelta(days=i), 0.0), 1)}
-        for i in range((today - start).days + 1)
-    ]
 
     rows = []
     for act in activities:
@@ -130,7 +122,6 @@ def build_payload(activities: list[dict], rest_hr: float = 50, max_hr: float = 1
             "first": rows[-1]["date"] if rows else None,
         },
         "weekly": weekly,
-        "heatmap": heatmap,
         "activities": rows,
         "acwr": ratio,
         "split": split,

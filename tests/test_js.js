@@ -164,13 +164,11 @@ const spike = steady.filter((_, i) => i >= 7).concat(
     distance_m: 25000, moving_s: 8000, avg_speed_mps: 3.1, avg_hr: 168 })));
 check('a big week reads as a spike', A.acwr(spike, 50, 190, today).ratio > 1.3, true);
 
-const payload = A.buildPayload(steady, { today: today, weeks: 6, heatmapWeeks: 4 });
+const payload = A.buildPayload(steady, { today: today, weeks: 6 });
 check('every activity carried', payload.totals.activities, steady.length);
 check('weeks requested', payload.weekly.length, 6);
 check('exactly one week in progress', payload.weekly.filter(w => w.partial).length, 1);
 check('the current week is the partial one', payload.weekly[5].partial, true);
-check('heatmap starts on a Monday',
-      new Date(payload.heatmap[0].date + 'T00:00:00Z').getUTCDay(), 1);
 check('all-easy block is 100% easy', payload.split.easy_pct, 100);
 check('sessions sorted newest first',
       payload.activities[0].date > payload.activities[1].date, true);
@@ -226,6 +224,44 @@ const est = Cy.estimateFTP(testRides);
 check('20 min effort discounted to 95%', est.ftp, 285);
 check('estimate says where it came from', /20-35/.test(est.from), true);
 check('nothing to estimate from returns null', Cy.estimateFTP([]), null);
+
+/* ------------------------------------------- the two-week calendar */
+const calRides = [
+  { type: 'cycling', start: '2026-08-19T07:00:00Z', moving_s: 5400, tss: 150, distance_m: 50000 },
+  { type: 'cycling', start: '2026-08-24T07:00:00Z', moving_s: 3600, tss: 91, distance_m: 30000 },
+  { type: 'cycling', start: '2026-08-24T17:00:00Z', moving_s: 1800, tss: 30, distance_m: 12000 },
+  { type: 'cycling', start: '2026-07-04T07:00:00Z', moving_s: 3600, tss: 80, distance_m: 30000 },
+];
+const cal = Cy.recentDays(calRides, { today: '2026-08-26', ftp: 250 });
+check('a fortnight is fourteen days', cal.length, 14);
+check('it starts on a Monday', new Date(cal[0].date + 'T00:00:00Z').getUTCDay(), 1);
+check('and covers whole weeks to Sunday', [cal[0].date, cal[13].date],
+      ['2026-08-17', '2026-08-30']);
+check('older rides are outside the window',
+      cal.some(d => d.date === '2026-07-04'), false);
+check('two rides on a day are added together',
+      cal.filter(d => d.date === '2026-08-24').map(d => [d.rides.length, d.tss])[0], [2, 121]);
+check('today is marked', cal.filter(d => d.today).map(d => d.date), ['2026-08-26']);
+check('days that have not happened are not rest days',
+      cal.filter(d => d.future).map(d => d.date),
+      ['2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30']);
+check('a day off is a rest day', cal.find(d => d.date === '2026-08-25').band, 'rest');
+
+check('under 50 is easy', Cy.bandFor(38).key, 'easy');
+check('an hour at FTP is hard, exactly on the line', Cy.bandFor(100).key, 'hard');
+check('99 is still moderate', Cy.bandFor(99).key, 'moderate');
+check('every band is named for the legend',
+      Cy.BANDS.every(b => b.label && (b.key === 'rest' || b.note)), true);
+
+const calSum = Cy.daysSummary(cal);
+check('the summary counts ride days, not rides', [calSum.days, calSum.rides], [2, 3]);
+check('rest days exclude the future', calSum.rest, 8);
+check('and the fortnight totals up', [calSum.tss, calSum.seconds], [271, 10800]);
+check('a TSS out of the file is not flagged as estimated', calSum.estimated, false);
+check('one from heart rate is',
+      Cy.daysSummary(Cy.recentDays(
+        [{ type: 'cycling', start: '2026-08-24T07:00:00Z', moving_s: 3600, avg_hr: 150 }],
+        { today: '2026-08-26', ftp: 250, restHr: 50, maxHr: 190 })).estimated, true);
 
 // Fitness rises and fatigue rises faster over a steady block.
 const rideDays = [];

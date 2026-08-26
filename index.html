@@ -228,12 +228,67 @@ header.top {
 #tip .t-row b { color: var(--text); font-weight: 560; }
 
 /* ---------------------------------------------------------------- heatmap */
-.hm-wrap { overflow-x: auto; padding-bottom: 4px; }
-.hm-legend {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12px; color: var(--text-3); margin-top: 14px;
+/* ------------------------------------------------------------- calendar */
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.cal-head {
+  margin-bottom: 8px;
+  font-size: 10.5px; font-weight: 660; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3); text-align: center;
 }
-.hm-legend .sw { width: 12px; height: 12px; border-radius: 3px; }
+.cal-day {
+  position: relative; min-height: 78px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  padding: 8px 6px 10px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.cal-day .dnum { font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.cal-day .dval {
+  margin-top: auto; font-size: 17px; font-weight: 690;
+  letter-spacing: -.03em; color: var(--text);
+}
+.cal-day .dtss { font-size: 11.5px; color: var(--text-2); }
+/* Three shades and a blank, each one named in the legend — the reader never
+   has to work out what a colour means. */
+.band-rest    { background: var(--surface-2); }
+.band-easy    { background: var(--ramp-1); border-color: var(--ramp-1); }
+.band-moderate{ background: var(--ramp-2); border-color: var(--ramp-2); }
+.band-hard    { background: var(--ramp-3); border-color: var(--ramp-3); }
+/* On a coloured day the muted greys stop being readable, so the ranking is
+   carried by weight and size instead of by shade. */
+.cal-day.band-easy .dnum, .cal-day.band-moderate .dnum, .cal-day.band-hard .dnum,
+.cal-day.band-easy .dtss, .cal-day.band-moderate .dtss, .cal-day.band-hard .dtss {
+  color: var(--text);
+}
+.cal-day.band-easy .dtss, .cal-day.band-moderate .dtss, .cal-day.band-hard .dtss {
+  font-weight: 540;
+}
+.cal-day.band-rest .dval {
+  margin-top: auto; font-size: 13px; font-weight: 520; color: var(--text-2);
+}
+.cal-day.is-future { background: none; border-style: dashed; }
+.cal-day.is-future .dval { color: var(--text-3); font-size: 15px; font-weight: 500; }
+.cal-day.is-future .dnum { color: var(--text-3); }
+.cal-day.is-today { box-shadow: 0 0 0 2px var(--series-2); }
+
+.cal-sum { margin: 16px 0 0; font-size: 13px; color: var(--text-2); }
+.cal-sum b { color: var(--text); font-weight: 640; }
+.cal-legend {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-3); margin-top: 10px;
+}
+.cal-legend .key { display: flex; align-items: center; gap: 7px; }
+.cal-legend .sw {
+  width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border);
+}
+
+@media (max-width: 560px) {
+  .cal-head, .cal-grid { gap: 5px; }
+  .cal-day { min-height: 62px; padding: 6px 2px 8px; }
+  .cal-day .dval { font-size: 14px; }
+  .cal-day .dtss { font-size: 10px; }
+  /* No room for the unit; the legend below still says what the number is. */
+  .cal-day .dtss .u { display: none; }
+}
 
 /* ---------------------------------------------------------------- plan */
 .plan-day {
@@ -1794,7 +1849,6 @@ footer.foot a:hover { color: var(--text); }
     const divisor = imperial ? M_PER_MILE : 1000;
     const today = opts.today || new Date();
     const weeksBack = opts.weeks || 16;
-    const heatWeeks = opts.heatmapWeeks || 26;
 
     const thisMonday = dayKey(mondayOf(today));
     const weeklyRows = weekly(activities, weeksBack, restHr, maxHr, today).map(w => ({
@@ -1805,15 +1859,6 @@ footer.foot a:hover { color: var(--text); }
       count: w.count,
       partial: w.week === thisMonday,
     }));
-
-    const loads = dailyLoad(activities, restHr, maxHr);
-    const start = new Date(thisMonday + 'T00:00:00Z');
-    start.setUTCDate(start.getUTCDate() - (heatWeeks - 1) * 7);
-    const heatmap = [];
-    for (let t = start.getTime(); t <= today.getTime(); t += DAY) {
-      const k = dayKey(new Date(t));
-      heatmap.push({ date: k, load: Math.round((loads[k] || 0) * 10) / 10 });
-    }
 
     const rows = activities.map(a => {
       const speed = a.avg_speed_mps || 0;
@@ -1859,7 +1904,6 @@ footer.foot a:hover { color: var(--text); }
         first: rows.length ? rows[rows.length - 1].date : null,
       },
       weekly: weeklyRows,
-      heatmap: heatmap,
       activities: rows,
       acwr: acwr(activities, restHr, maxHr, today),
       split: easyHardSplit(activities, restHr, maxHr),
@@ -1993,6 +2037,101 @@ footer.foot a:hover { color: var(--text); }
                basis: 'heart rate' };
     }
     return { tss: Math.round((secs / 3600) * 40), basis: 'duration only' };
+  }
+
+  /* ------------------------------------------------- the last two weeks */
+
+  // Four states, because a fortnight of riding read at a glance is a question
+  // with four useful answers. The boundaries are the ones coaches already use:
+  // under 50 TSS is a day that costs you nothing, 100 is a hard day, and an
+  // hour at threshold — the definition of 100 — sits exactly on the line.
+  const BANDS = [
+    { key: 'rest',     label: 'Rest',     max: 0 },
+    { key: 'easy',     label: 'Easy',     max: 50,  note: 'under 50' },
+    { key: 'moderate', label: 'Moderate', max: 100, note: '50 to 99' },
+    { key: 'hard',     label: 'Hard',     max: Infinity, note: '100 and up' },
+  ];
+
+  function bandFor(tss) {
+    if (!(tss > 0)) return BANDS[0];
+    return BANDS.find(b => tss < b.max) || BANDS[BANDS.length - 1];
+  }
+
+  const isoDay = d => d.toISOString().slice(0, 10);
+  const asDate = v => (v instanceof Date ? new Date(v.getTime())
+                     : new Date(String(v).length === 10 ? v + 'T00:00:00Z' : v));
+
+  /**
+   * The last two weeks as calendar days — every day, ridden or not.
+   *
+   * Whole Monday-to-Sunday weeks, so the columns of a calendar line up and a
+   * Saturday is always under a Saturday. That runs past today in the current
+   * week; those days come back flagged `future` rather than as false rest days,
+   * because a Friday that has not happened yet is not a day off.
+   */
+  function recentDays(activities, opts) {
+    opts = opts || {};
+    const weeks = opts.weeks || 2;
+    const today = opts.today ? asDate(opts.today) : new Date();
+    const todayKey = isoDay(today);
+
+    const start = new Date(today.getTime());
+    start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7)   // this Monday
+                                        - (weeks - 1) * 7);
+
+    const byDay = new Map();
+    (activities || []).forEach(a => {
+      if (!a.start) return;
+      const k = isoDay(new Date(a.start));
+      if (!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(a);
+    });
+
+    const out = [];
+    for (let i = 0; i < weeks * 7; i++) {
+      const d = new Date(start.getTime());
+      d.setUTCDate(d.getUTCDate() + i);
+      const key = isoDay(d);
+      const rides = byDay.get(key) || [];
+      let tss = 0, seconds = 0, distance = 0, estimated = false;
+      rides.forEach(r => {
+        const t = rideTSS(r, opts.ftp, opts.restHr, opts.maxHr);
+        tss += t.tss;
+        if (t.basis !== 'file' && t.basis !== 'power') estimated = true;
+        seconds += r.moving_s || 0;
+        distance += r.distance_m || 0;
+      });
+      tss = Math.round(tss);
+      out.push({
+        date: key,
+        weekday: i % 7,
+        week: Math.floor(i / 7),
+        rides: rides,
+        tss: tss,
+        seconds: seconds,
+        distance_m: distance,
+        estimated: estimated,
+        band: bandFor(tss).key,
+        today: key === todayKey,
+        future: key > todayKey,
+      });
+    }
+    return out;
+  }
+
+  /** What the fortnight came to, for the line under the calendar. */
+  function daysSummary(days) {
+    const past = days.filter(d => !d.future);
+    const ridden = past.filter(d => d.rides.length);
+    return {
+      rides: past.reduce((n, d) => n + d.rides.length, 0),
+      days: ridden.length,
+      rest: past.length - ridden.length,
+      seconds: past.reduce((n, d) => n + d.seconds, 0),
+      tss: past.reduce((n, d) => n + d.tss, 0),
+      distance_m: past.reduce((n, d) => n + d.distance_m, 0),
+      estimated: past.some(d => d.estimated),
+    };
   }
 
   /* ------------------------------------------------- fitness & fatigue */
@@ -2243,7 +2382,8 @@ footer.foot a:hover { color: var(--text); }
   }
 
   const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor, riderContext,
-                rideTSS, pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
+                rideTSS, recentDays, daysSummary, BANDS, bandFor,
+                pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
                 powerProfile, speedStats, zoneDistribution };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Cycling = api;
@@ -4195,43 +4335,104 @@ function niceScale(max, target) {
   return { ceil: ceil, ticks: out };
 }
 
-/* ------------------------------------------------------------------ heatmap */
-function heatmap(days) {
-  const CELL = 15, GAP = 3, TOP = 20, LEFT = 32;
-  const weeks = Math.ceil(days.length / 7);
-  const W = LEFT + weeks * (CELL + GAP), H = TOP + 7 * (CELL + GAP);
-  const max = Math.max(...days.map(d => d.load), 1);
-  const svg = el('svg', { class: 'chart', width: W, height: H,
-                          viewBox: `0 0 ${W} ${H}`, role: 'img',
-                          'aria-label': 'Daily training load over the last six months' });
+/* ----------------------------------------------------------------- calendar */
 
-  ['Mon', 'Wed', 'Fri'].forEach((lbl, i) => {
-    svg.appendChild(el('text', { class: 'axis', x: 0, y: TOP + (i * 2) * (CELL + GAP) + CELL - 2,
-                                 text: lbl }));
-  });
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  let lastMonth = '', lastLabelX = -Infinity;
-  days.forEach((d, i) => {
-    const col = Math.floor(i / 7), row = i % 7;
-    const x = LEFT + col * (CELL + GAP), y = TOP + row * (CELL + GAP);
-    const step = d.load <= 0 ? 0 : Math.min(6, 1 + Math.floor((d.load / max) * 5.99));
-    const cell = el('rect', { x: x, y: y, width: CELL, height: CELL, rx: 3,
-                              fill: `var(--ramp-${step})` });
-    hoverable(cell, new Date(d.date + 'T00:00').toLocaleDateString(undefined,
-      { weekday: 'short', month: 'short', day: 'numeric' }),
-      [['Load', d.load > 0 ? fmt(d.load, 1) : 'rest']]);
-    svg.appendChild(cell);
+/** "1:21" for an hour and 21, "45m" for anything under the hour. */
+function shortTime(seconds) {
+  const m = Math.round((seconds || 0) / 60);
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+}
 
-    const month = d.date.slice(0, 7);
-    // Only label a month once its column is clear of the previous label.
-    if (row === 0 && month !== lastMonth && x - lastLabelX >= 32) {
-      lastMonth = month;
-      lastLabelX = x;
-      svg.appendChild(el('text', { class: 'axis', x: x, y: 11,
-        text: new Date(d.date + 'T00:00').toLocaleDateString(undefined, { month: 'short' }) }));
+/**
+ * The last two weeks, as a calendar rather than a colour ramp.
+ *
+ * The old version was six months of 15px squares shaded by load — dense, and
+ * unreadable without counting columns to work out which day you were looking
+ * at. This says it in words: the date, the time you rode, and what it cost you.
+ */
+function twoWeekCalendar(days) {
+  const wrap = el('div', { class: 'cal' });
+
+  const head = el('div', { class: 'cal-head' });
+  WEEKDAYS.forEach(d => head.appendChild(el('span', { text: d })));
+  wrap.appendChild(head);
+
+  const grid = el('div', { class: 'cal-grid' });
+  days.forEach(d => {
+    const classes = ['cal-day', 'band-' + d.band];
+    if (d.future) classes.push('is-future');
+    if (d.today) classes.push('is-today');
+    const cell = el('div', { class: classes.join(' ') });
+
+    // The date, and the month with it where the month turns over — a fortnight
+    // can straddle two and "1" on its own would be ambiguous.
+    const [, month, dom] = d.date.split('-');
+    const monthName = new Date(Date.UTC(2000, Number(month) - 1, 1))
+      .toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
+    cell.appendChild(el('span', { class: 'dnum num',
+      text: dom === '01' ? `1 ${monthName}` : String(Number(dom)) }));
+
+    if (d.future) {
+      cell.appendChild(el('span', { class: 'dval', text: '—' }));
+    } else if (!d.rides.length) {
+      cell.appendChild(el('span', { class: 'dval', text: 'Rest' }));
+    } else {
+      cell.appendChild(el('span', { class: 'dval num', text: shortTime(d.seconds) }));
+      const stress = el('span', { class: 'dtss num', text: fmt(d.tss) });
+      stress.appendChild(el('span', { class: 'u', text: ' TSS' }));
+      cell.appendChild(stress);
+      const names = d.rides.map(r => r.name).filter(Boolean);
+      hoverable(cell, shortDate(d.date), [
+        ['Time', shortTime(d.seconds)],
+        ['Stress', fmt(d.tss) + ' TSS' + (d.estimated ? ' (est.)' : '')],
+        ['Rides', d.rides.length === 1 && names.length ? names[0] : String(d.rides.length)],
+      ]);
     }
+    grid.appendChild(cell);
   });
-  return svg;
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function calendarCard() {
+  const days = Cycling.recentDays(RAW_ACTIVITIES || [], {
+    today: DATA.today, ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
+  const sum = Cycling.daysSummary(days);
+
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'The last two weeks' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Every day, ridden or not: how long you were out, and what it cost you. ' +
+          'TSS is training stress — an hour at your FTP is 100 by definition.' }));
+
+  card.appendChild(twoWeekCalendar(days));
+
+  const line = el('p', { class: 'cal-sum' });
+  line.appendChild(el('b', { class: 'num',
+    text: `${sum.days} ride day${sum.days === 1 ? '' : 's'}` }));
+  line.appendChild(document.createTextNode(
+    `  ·  ${hrs(sum.seconds / 3600)}  ·  ${fmt(sum.tss)} TSS  ·  ` +
+    `${sum.rest} rest day${sum.rest === 1 ? '' : 's'}`));
+  card.appendChild(line);
+
+  const legend = el('div', { class: 'cal-legend' });
+  Cycling.BANDS.forEach(b => {
+    const k = el('span', { class: 'key' });
+    k.appendChild(el('span', { class: 'sw band-' + b.key }));
+    k.appendChild(el('span', { text: b.note ? `${b.label} ${b.note}` : b.label }));
+    legend.appendChild(k);
+  });
+  card.appendChild(legend);
+
+  if (sum.estimated) {
+    card.appendChild(el('p', { class: 'hint', style: 'margin:10px 0 0',
+      text: 'Days without a power meter are estimated from heart rate or duration, ' +
+            'so their stress is an approximation rather than a measurement.' }));
+  }
+  return card;
 }
 
 /* ------------------------------------------------------------------ split bar */
@@ -4556,27 +4757,6 @@ function weeklyTSS() {
       Cycling.rideTSS(a, PROFILE.ftp, PROFILE.restHr, PROFILE.maxHr).tss;
   });
   return DATA.weekly.map(w => Object.assign({}, w, { tss: Math.round(totals[w.week] || 0) }));
-}
-
-function heatCard() {
-  const card = el('div', { class: 'card' });
-  card.appendChild(el('h2', { text: 'Consistency' }));
-  card.appendChild(el('p', { class: 'hint',
-    text: (RAW_ACTIVITIES || []).some(a => a.type === 'cycling')
-      ? 'Daily training stress. Darker is harder.'
-      : 'Daily training load. Darker is harder.' }));
-  const wrap = el('div', { class: 'hm-wrap' });
-  wrap.appendChild(heatmap(DATA.heatmap));
-  card.appendChild(wrap);
-
-  const legend = el('div', { class: 'hm-legend' });
-  legend.appendChild(el('span', { text: 'Rest' }));
-  for (let i = 0; i <= 6; i++) {
-    legend.appendChild(el('span', { class: 'sw', style: `background:var(--ramp-${i})` }));
-  }
-  legend.appendChild(el('span', { text: 'Hardest' }));
-  card.appendChild(legend);
-  return card;
 }
 
 function emptyState() {
@@ -5108,7 +5288,7 @@ function drawDashboard() {
   const left = el('div', { class: 'stack' });
   left.appendChild(fitnessCard());
   left.appendChild(volumeCard());
-  left.appendChild(heatCard());
+  left.appendChild(calendarCard());
 
   const right = el('div', { class: 'stack' });
   right.appendChild(recommendCard());

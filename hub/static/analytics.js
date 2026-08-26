@@ -219,7 +219,6 @@
     const divisor = imperial ? M_PER_MILE : 1000;
     const today = opts.today || new Date();
     const weeksBack = opts.weeks || 16;
-    const heatWeeks = opts.heatmapWeeks || 26;
 
     const thisMonday = dayKey(mondayOf(today));
     const weeklyRows = weekly(activities, weeksBack, restHr, maxHr, today).map(w => ({
@@ -230,15 +229,6 @@
       count: w.count,
       partial: w.week === thisMonday,
     }));
-
-    const loads = dailyLoad(activities, restHr, maxHr);
-    const start = new Date(thisMonday + 'T00:00:00Z');
-    start.setUTCDate(start.getUTCDate() - (heatWeeks - 1) * 7);
-    const heatmap = [];
-    for (let t = start.getTime(); t <= today.getTime(); t += DAY) {
-      const k = dayKey(new Date(t));
-      heatmap.push({ date: k, load: Math.round((loads[k] || 0) * 10) / 10 });
-    }
 
     const rows = activities.map(a => {
       const speed = a.avg_speed_mps || 0;
@@ -284,7 +274,6 @@
         first: rows.length ? rows[rows.length - 1].date : null,
       },
       weekly: weeklyRows,
-      heatmap: heatmap,
       activities: rows,
       acwr: acwr(activities, restHr, maxHr, today),
       split: easyHardSplit(activities, restHr, maxHr),

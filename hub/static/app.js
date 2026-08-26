@@ -204,43 +204,104 @@ function niceScale(max, target) {
   return { ceil: ceil, ticks: out };
 }
 
-/* ------------------------------------------------------------------ heatmap */
-function heatmap(days) {
-  const CELL = 15, GAP = 3, TOP = 20, LEFT = 32;
-  const weeks = Math.ceil(days.length / 7);
-  const W = LEFT + weeks * (CELL + GAP), H = TOP + 7 * (CELL + GAP);
-  const max = Math.max(...days.map(d => d.load), 1);
-  const svg = el('svg', { class: 'chart', width: W, height: H,
-                          viewBox: `0 0 ${W} ${H}`, role: 'img',
-                          'aria-label': 'Daily training load over the last six months' });
+/* ----------------------------------------------------------------- calendar */
 
-  ['Mon', 'Wed', 'Fri'].forEach((lbl, i) => {
-    svg.appendChild(el('text', { class: 'axis', x: 0, y: TOP + (i * 2) * (CELL + GAP) + CELL - 2,
-                                 text: lbl }));
-  });
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  let lastMonth = '', lastLabelX = -Infinity;
-  days.forEach((d, i) => {
-    const col = Math.floor(i / 7), row = i % 7;
-    const x = LEFT + col * (CELL + GAP), y = TOP + row * (CELL + GAP);
-    const step = d.load <= 0 ? 0 : Math.min(6, 1 + Math.floor((d.load / max) * 5.99));
-    const cell = el('rect', { x: x, y: y, width: CELL, height: CELL, rx: 3,
-                              fill: `var(--ramp-${step})` });
-    hoverable(cell, new Date(d.date + 'T00:00').toLocaleDateString(undefined,
-      { weekday: 'short', month: 'short', day: 'numeric' }),
-      [['Load', d.load > 0 ? fmt(d.load, 1) : 'rest']]);
-    svg.appendChild(cell);
+/** "1:21" for an hour and 21, "45m" for anything under the hour. */
+function shortTime(seconds) {
+  const m = Math.round((seconds || 0) / 60);
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+}
 
-    const month = d.date.slice(0, 7);
-    // Only label a month once its column is clear of the previous label.
-    if (row === 0 && month !== lastMonth && x - lastLabelX >= 32) {
-      lastMonth = month;
-      lastLabelX = x;
-      svg.appendChild(el('text', { class: 'axis', x: x, y: 11,
-        text: new Date(d.date + 'T00:00').toLocaleDateString(undefined, { month: 'short' }) }));
+/**
+ * The last two weeks, as a calendar rather than a colour ramp.
+ *
+ * The old version was six months of 15px squares shaded by load — dense, and
+ * unreadable without counting columns to work out which day you were looking
+ * at. This says it in words: the date, the time you rode, and what it cost you.
+ */
+function twoWeekCalendar(days) {
+  const wrap = el('div', { class: 'cal' });
+
+  const head = el('div', { class: 'cal-head' });
+  WEEKDAYS.forEach(d => head.appendChild(el('span', { text: d })));
+  wrap.appendChild(head);
+
+  const grid = el('div', { class: 'cal-grid' });
+  days.forEach(d => {
+    const classes = ['cal-day', 'band-' + d.band];
+    if (d.future) classes.push('is-future');
+    if (d.today) classes.push('is-today');
+    const cell = el('div', { class: classes.join(' ') });
+
+    // The date, and the month with it where the month turns over — a fortnight
+    // can straddle two and "1" on its own would be ambiguous.
+    const [, month, dom] = d.date.split('-');
+    const monthName = new Date(Date.UTC(2000, Number(month) - 1, 1))
+      .toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
+    cell.appendChild(el('span', { class: 'dnum num',
+      text: dom === '01' ? `1 ${monthName}` : String(Number(dom)) }));
+
+    if (d.future) {
+      cell.appendChild(el('span', { class: 'dval', text: '—' }));
+    } else if (!d.rides.length) {
+      cell.appendChild(el('span', { class: 'dval', text: 'Rest' }));
+    } else {
+      cell.appendChild(el('span', { class: 'dval num', text: shortTime(d.seconds) }));
+      const stress = el('span', { class: 'dtss num', text: fmt(d.tss) });
+      stress.appendChild(el('span', { class: 'u', text: ' TSS' }));
+      cell.appendChild(stress);
+      const names = d.rides.map(r => r.name).filter(Boolean);
+      hoverable(cell, shortDate(d.date), [
+        ['Time', shortTime(d.seconds)],
+        ['Stress', fmt(d.tss) + ' TSS' + (d.estimated ? ' (est.)' : '')],
+        ['Rides', d.rides.length === 1 && names.length ? names[0] : String(d.rides.length)],
+      ]);
     }
+    grid.appendChild(cell);
   });
-  return svg;
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function calendarCard() {
+  const days = Cycling.recentDays(RAW_ACTIVITIES || [], {
+    today: DATA.today, ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
+  const sum = Cycling.daysSummary(days);
+
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('h2', { text: 'The last two weeks' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Every day, ridden or not: how long you were out, and what it cost you. ' +
+          'TSS is training stress — an hour at your FTP is 100 by definition.' }));
+
+  card.appendChild(twoWeekCalendar(days));
+
+  const line = el('p', { class: 'cal-sum' });
+  line.appendChild(el('b', { class: 'num',
+    text: `${sum.days} ride day${sum.days === 1 ? '' : 's'}` }));
+  line.appendChild(document.createTextNode(
+    `  ·  ${hrs(sum.seconds / 3600)}  ·  ${fmt(sum.tss)} TSS  ·  ` +
+    `${sum.rest} rest day${sum.rest === 1 ? '' : 's'}`));
+  card.appendChild(line);
+
+  const legend = el('div', { class: 'cal-legend' });
+  Cycling.BANDS.forEach(b => {
+    const k = el('span', { class: 'key' });
+    k.appendChild(el('span', { class: 'sw band-' + b.key }));
+    k.appendChild(el('span', { text: b.note ? `${b.label} ${b.note}` : b.label }));
+    legend.appendChild(k);
+  });
+  card.appendChild(legend);
+
+  if (sum.estimated) {
+    card.appendChild(el('p', { class: 'hint', style: 'margin:10px 0 0',
+      text: 'Days without a power meter are estimated from heart rate or duration, ' +
+            'so their stress is an approximation rather than a measurement.' }));
+  }
+  return card;
 }
 
 /* ------------------------------------------------------------------ split bar */
@@ -565,27 +626,6 @@ function weeklyTSS() {
       Cycling.rideTSS(a, PROFILE.ftp, PROFILE.restHr, PROFILE.maxHr).tss;
   });
   return DATA.weekly.map(w => Object.assign({}, w, { tss: Math.round(totals[w.week] || 0) }));
-}
-
-function heatCard() {
-  const card = el('div', { class: 'card' });
-  card.appendChild(el('h2', { text: 'Consistency' }));
-  card.appendChild(el('p', { class: 'hint',
-    text: (RAW_ACTIVITIES || []).some(a => a.type === 'cycling')
-      ? 'Daily training stress. Darker is harder.'
-      : 'Daily training load. Darker is harder.' }));
-  const wrap = el('div', { class: 'hm-wrap' });
-  wrap.appendChild(heatmap(DATA.heatmap));
-  card.appendChild(wrap);
-
-  const legend = el('div', { class: 'hm-legend' });
-  legend.appendChild(el('span', { text: 'Rest' }));
-  for (let i = 0; i <= 6; i++) {
-    legend.appendChild(el('span', { class: 'sw', style: `background:var(--ramp-${i})` }));
-  }
-  legend.appendChild(el('span', { text: 'Hardest' }));
-  card.appendChild(legend);
-  return card;
 }
 
 function emptyState() {
@@ -1117,7 +1157,7 @@ function drawDashboard() {
   const left = el('div', { class: 'stack' });
   left.appendChild(fitnessCard());
   left.appendChild(volumeCard());
-  left.appendChild(heatCard());
+  left.appendChild(calendarCard());
 
   const right = el('div', { class: 'stack' });
   right.appendChild(recommendCard());

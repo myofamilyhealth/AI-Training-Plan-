@@ -174,15 +174,12 @@ check("no-HR data is reported, not guessed",
 # ------------------------------------------------------------------ dashboard
 from hub import web
 
-payload = web.build_payload(steady, weeks=6, heatmap_weeks=4)
+payload = web.build_payload(steady, weeks=6)
 check("payload carries every activity", len(payload["activities"]), len(steady))
 check("weekly buckets requested", len(payload["weekly"]), 6)
 check("exactly one week is in progress",
       sum(1 for w in payload["weekly"] if w["partial"]), 1)
 check("the in-progress week is the last one", payload["weekly"][-1]["partial"], True)
-check("heatmap is whole days", len(payload["heatmap"]) % 1, 0)
-check("heatmap starts on a Monday",
-      datetime.fromisoformat(payload["heatmap"][0]["date"]).weekday(), 0)
 check("acwr rides along", "ratio" in payload["acwr"], True)
 check("unit is declared", payload["unit"] in ("mi", "km"), True)
 

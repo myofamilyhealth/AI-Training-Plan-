@@ -117,6 +117,101 @@
     return { tss: Math.round((secs / 3600) * 40), basis: 'duration only' };
   }
 
+  /* ------------------------------------------------- the last two weeks */
+
+  // Four states, because a fortnight of riding read at a glance is a question
+  // with four useful answers. The boundaries are the ones coaches already use:
+  // under 50 TSS is a day that costs you nothing, 100 is a hard day, and an
+  // hour at threshold — the definition of 100 — sits exactly on the line.
+  const BANDS = [
+    { key: 'rest',     label: 'Rest',     max: 0 },
+    { key: 'easy',     label: 'Easy',     max: 50,  note: 'under 50' },
+    { key: 'moderate', label: 'Moderate', max: 100, note: '50 to 99' },
+    { key: 'hard',     label: 'Hard',     max: Infinity, note: '100 and up' },
+  ];
+
+  function bandFor(tss) {
+    if (!(tss > 0)) return BANDS[0];
+    return BANDS.find(b => tss < b.max) || BANDS[BANDS.length - 1];
+  }
+
+  const isoDay = d => d.toISOString().slice(0, 10);
+  const asDate = v => (v instanceof Date ? new Date(v.getTime())
+                     : new Date(String(v).length === 10 ? v + 'T00:00:00Z' : v));
+
+  /**
+   * The last two weeks as calendar days — every day, ridden or not.
+   *
+   * Whole Monday-to-Sunday weeks, so the columns of a calendar line up and a
+   * Saturday is always under a Saturday. That runs past today in the current
+   * week; those days come back flagged `future` rather than as false rest days,
+   * because a Friday that has not happened yet is not a day off.
+   */
+  function recentDays(activities, opts) {
+    opts = opts || {};
+    const weeks = opts.weeks || 2;
+    const today = opts.today ? asDate(opts.today) : new Date();
+    const todayKey = isoDay(today);
+
+    const start = new Date(today.getTime());
+    start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7)   // this Monday
+                                        - (weeks - 1) * 7);
+
+    const byDay = new Map();
+    (activities || []).forEach(a => {
+      if (!a.start) return;
+      const k = isoDay(new Date(a.start));
+      if (!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(a);
+    });
+
+    const out = [];
+    for (let i = 0; i < weeks * 7; i++) {
+      const d = new Date(start.getTime());
+      d.setUTCDate(d.getUTCDate() + i);
+      const key = isoDay(d);
+      const rides = byDay.get(key) || [];
+      let tss = 0, seconds = 0, distance = 0, estimated = false;
+      rides.forEach(r => {
+        const t = rideTSS(r, opts.ftp, opts.restHr, opts.maxHr);
+        tss += t.tss;
+        if (t.basis !== 'file' && t.basis !== 'power') estimated = true;
+        seconds += r.moving_s || 0;
+        distance += r.distance_m || 0;
+      });
+      tss = Math.round(tss);
+      out.push({
+        date: key,
+        weekday: i % 7,
+        week: Math.floor(i / 7),
+        rides: rides,
+        tss: tss,
+        seconds: seconds,
+        distance_m: distance,
+        estimated: estimated,
+        band: bandFor(tss).key,
+        today: key === todayKey,
+        future: key > todayKey,
+      });
+    }
+    return out;
+  }
+
+  /** What the fortnight came to, for the line under the calendar. */
+  function daysSummary(days) {
+    const past = days.filter(d => !d.future);
+    const ridden = past.filter(d => d.rides.length);
+    return {
+      rides: past.reduce((n, d) => n + d.rides.length, 0),
+      days: ridden.length,
+      rest: past.length - ridden.length,
+      seconds: past.reduce((n, d) => n + d.seconds, 0),
+      tss: past.reduce((n, d) => n + d.tss, 0),
+      distance_m: past.reduce((n, d) => n + d.distance_m, 0),
+      estimated: past.some(d => d.estimated),
+    };
+  }
+
   /* ------------------------------------------------- fitness & fatigue */
 
   /**
@@ -365,7 +460,8 @@
   }
 
   const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor, riderContext,
-                rideTSS, pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
+                rideTSS, recentDays, daysSummary, BANDS, bandFor,
+                pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
                 powerProfile, speedStats, zoneDistribution };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Cycling = api;

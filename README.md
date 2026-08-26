@@ -329,7 +329,9 @@ It gives you, at a glance:
 - **Weekly volume** with training load beneath it, on a shared timeline. The
   current week is drawn faded and its load segment dashed, because a week that
   is only half run is not comparable to the finished weeks beside it.
-- **A consistency heatmap** — daily load over six months, darker for harder.
+- **A two-week calendar** — every day of the last fortnight, ridden or not,
+  with the time you were out and what it cost you in training stress. Rest
+  days are shown as rest days, because a week is as much about those.
 - **Intensity balance**, **best efforts**, and **this week of your plan**.
 - **A sortable session table**, filterable by sport and date range.
 

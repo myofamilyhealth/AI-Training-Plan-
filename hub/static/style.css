@@ -217,12 +217,67 @@ header.top {
 #tip .t-row b { color: var(--text); font-weight: 560; }
 
 /* ---------------------------------------------------------------- heatmap */
-.hm-wrap { overflow-x: auto; padding-bottom: 4px; }
-.hm-legend {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12px; color: var(--text-3); margin-top: 14px;
+/* ------------------------------------------------------------- calendar */
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.cal-head {
+  margin-bottom: 8px;
+  font-size: 10.5px; font-weight: 660; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3); text-align: center;
 }
-.hm-legend .sw { width: 12px; height: 12px; border-radius: 3px; }
+.cal-day {
+  position: relative; min-height: 78px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  padding: 8px 6px 10px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.cal-day .dnum { font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.cal-day .dval {
+  margin-top: auto; font-size: 17px; font-weight: 690;
+  letter-spacing: -.03em; color: var(--text);
+}
+.cal-day .dtss { font-size: 11.5px; color: var(--text-2); }
+/* Three shades and a blank, each one named in the legend — the reader never
+   has to work out what a colour means. */
+.band-rest    { background: var(--surface-2); }
+.band-easy    { background: var(--ramp-1); border-color: var(--ramp-1); }
+.band-moderate{ background: var(--ramp-2); border-color: var(--ramp-2); }
+.band-hard    { background: var(--ramp-3); border-color: var(--ramp-3); }
+/* On a coloured day the muted greys stop being readable, so the ranking is
+   carried by weight and size instead of by shade. */
+.cal-day.band-easy .dnum, .cal-day.band-moderate .dnum, .cal-day.band-hard .dnum,
+.cal-day.band-easy .dtss, .cal-day.band-moderate .dtss, .cal-day.band-hard .dtss {
+  color: var(--text);
+}
+.cal-day.band-easy .dtss, .cal-day.band-moderate .dtss, .cal-day.band-hard .dtss {
+  font-weight: 540;
+}
+.cal-day.band-rest .dval {
+  margin-top: auto; font-size: 13px; font-weight: 520; color: var(--text-2);
+}
+.cal-day.is-future { background: none; border-style: dashed; }
+.cal-day.is-future .dval { color: var(--text-3); font-size: 15px; font-weight: 500; }
+.cal-day.is-future .dnum { color: var(--text-3); }
+.cal-day.is-today { box-shadow: 0 0 0 2px var(--series-2); }
+
+.cal-sum { margin: 16px 0 0; font-size: 13px; color: var(--text-2); }
+.cal-sum b { color: var(--text); font-weight: 640; }
+.cal-legend {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-3); margin-top: 10px;
+}
+.cal-legend .key { display: flex; align-items: center; gap: 7px; }
+.cal-legend .sw {
+  width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border);
+}
+
+@media (max-width: 560px) {
+  .cal-head, .cal-grid { gap: 5px; }
+  .cal-day { min-height: 62px; padding: 6px 2px 8px; }
+  .cal-day .dval { font-size: 14px; }
+  .cal-day .dtss { font-size: 10px; }
+  /* No room for the unit; the legend below still says what the number is. */
+  .cal-day .dtss .u { display: none; }
+}
 
 /* ---------------------------------------------------------------- plan */
 .plan-day {

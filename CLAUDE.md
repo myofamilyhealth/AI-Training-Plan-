@@ -125,6 +125,12 @@ Python and the JavaScript suites together.
 - **cycling.js** — FTP estimation, TSS, intensity factor, power zones, and the
   CTL/ATL/form model. An hour at FTP is 100 TSS by definition; the tests pin
   that, so treat it as a fixed point when changing anything here.
+  `recentDays()` builds the two-week calendar: whole Monday-to-Sunday weeks,
+  every day present whether or not it was ridden, days ahead of today flagged
+  `future` rather than counted as rest. Days are banded rest / easy / moderate
+  / hard on the TSS boundaries a coach would use, and `BANDS` carries the words
+  the legend prints — a shade with no label is what the old heatmap did, and
+  nobody could read it.
 - **library.js** — 46 sessions. Each needs `key`, `name`, `focus`, `zone`,
   `defaultMinutes`, `keywords`, `terrain`, `blurb`, `why`, `course` and
   `build(minutes)`. The tests enforce all of it, plus: every session must be

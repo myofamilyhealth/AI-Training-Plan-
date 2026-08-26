@@ -163,6 +163,16 @@ Two input paths with different fidelity, and the difference matters:
   continuous 20 minutes, normalized power is computed from the stream, and a
   mean maximal power curve is real.
 
+Uploads accumulate. `handleFiles(files, unitPref, prior)` merges what was
+dropped into the rides already loaded and `Importer.dedupe` decides what is
+genuinely new, matching on start time (within 2.5 min) and distance (within
+500 m) rather than on an exact key — so the same ride from a CSV and a .FIT
+collapses to one, the .FIT copy wins, and fields only the CSV had are folded
+into it. New power curves are merged with the stored one, so a personal best
+survives every later easy ride. A .FIT's samples are dropped after its curve is
+taken: a season of second-by-second recordings would not fit in localStorage.
+Never make an import path that replaces the stored payload wholesale.
+
 Never let a CSV-derived figure be presented with .FIT-level confidence. Where a
 number could come from either, say which it was.
 

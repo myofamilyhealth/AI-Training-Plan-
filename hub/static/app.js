@@ -680,88 +680,82 @@ async function expandArchives(files) {
  * Take whatever was dropped: a CSV of history, one or more .FIT recordings, or
  * both together. The CSV gives breadth, a .FIT gives depth — where they cover
  * the same ride, the .FIT wins, because it was measured second by second.
+ *
+ * Uploads add up. `prior` is the history already loaded, and new rides join it
+ * rather than replacing it, so after a ride you drop in that one file instead
+ * of exporting your whole account again.
  */
-async function handleFiles(files, unitPref) {
+async function handleFiles(files, unitPref, prior) {
   const list = await expandArchives(Array.from(files));
   const archives = Array.from(files).filter(isZip).length;
   const fits = list.filter(isFit);
   const csvs = list.filter(f => !isFit(f));
 
-  let activities = [];
+  let incoming = [];
   let csvResult = null;
   let unit = unitPref || 'mi';
 
   for (const file of csvs) {
     const text = await readFile(file);
     csvResult = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
-    activities = activities.concat(csvResult.activities);
+    incoming = incoming.concat(csvResult.activities);
     unit = csvResult.unit;
   }
 
   const curves = [];
-  const fitRides = [];
   for (const file of fits) {
     const buf = await readArrayBuffer(file);
     const ride = Fit.parse(buf);
     ride.name = ride.name || file.name.replace(/\.fit$/i, '');
-    fitRides.push(ride);
     if (ride.streams && ride.streams.power) {
       curves.push(Fit.powerCurve(ride.streams.power));
     }
+    // The curve is everything we needed the samples for, and a season of
+    // second-by-second recordings would not fit in the browser's store.
+    ride.streams = null;
+    incoming.push(ride);
   }
-  activities = activities.concat(fitRides);
 
-  if (!activities.length) {
+  if (!incoming.length) {
     throw new Error('Nothing readable in those files.');
   }
 
-  // A .FIT copy of a ride replaces the CSV row for the same session.
-  const merged = Importer.dedupe(activities.map(a =>
-    a.source === 'fit' ? Object.assign({}, a, { source: 'garmin', _fit: true }) : a))
-    .map(a => (a._fit ? Object.assign({}, a, { source: 'fit' }) : a));
+  // Everything already loaded goes in with the new rides. dedupe() decides what
+  // is genuinely new, so dropping the same file twice changes nothing, and a
+  // .FIT of a ride already known from a CSV upgrades that ride in place.
+  const before = (prior && prior.raw) ? prior.raw : [];
+  const merged = Importer.dedupe(before.concat(incoming));
+  const added = merged.length - before.length;
 
-  const payload = Analytics.buildPayload(merged, {
-    unit: unit === 'km' ? 'km' : (unit === 'm' ? 'km' : 'mi'),
-  });
-  payload.curve = curves.length ? Fit.mergeCurves(curves) : null;
+  // A second upload never re-labels the distances of the first: the display
+  // unit is settled by the import that started the history.
+  const display = before.length
+    ? (prior.unit === 'km' ? 'km' : 'mi')
+    : (unit === 'km' || unit === 'm' ? 'km' : 'mi');
+
+  const payload = Analytics.buildPayload(merged, { unit: display });
+
+  // Bests hold across uploads too — the curve keeps the highest power seen at
+  // each duration, whichever ride and whichever session it came from.
+  const allCurves = (prior && prior.curve ? [prior.curve] : []).concat(curves);
+  payload.curve = allCurves.length ? Fit.mergeCurves(allCurves) : null;
+
   payload.imported = {
     source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
     filename: archives === 1 && Array.from(files).length === 1
       ? Array.from(files)[0].name
       : (list.length === 1 ? list[0].name : `${list.length} files`),
     fromArchive: archives,
-    rows: activities.length,
+    rows: incoming.length,
+    added: added,
+    duplicates: Math.max(0, incoming.length - added),
     unique: merged.length,
+    held: before.length,
     unit: unit,
-    unitCertain: csvResult ? csvResult.unitCertain : true,
+    unitCertain: before.length ? true : (csvResult ? csvResult.unitCertain : true),
     displayUnit: payload.unit,
     skipped: csvResult ? csvResult.skipped : 0,
-    fitCount: fits.length,
-  };
-  return payload;
-}
-
-async function handleFile(file, unitPref) {
-  const text = await readFile(file);
-  const result = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
-  if (!result.activities.length) {
-    throw new Error(
-      'No activities could be read out of that file. It parsed, but every row ' +
-      'was missing a usable date or distance.');
-  }
-  const activities = Importer.dedupe(result.activities);
-  const payload = Analytics.buildPayload(activities, {
-    unit: result.unit === 'km' ? 'km' : 'mi',
-  });
-  payload.imported = {
-    source: result.source,
-    filename: file.name,
-    rows: result.activities.length,
-    unique: activities.length,
-    unit: result.unit,
-    unitCertain: result.unitCertain,
-    displayUnit: payload.unit,
-    skipped: result.skipped,
+    fitCount: merged.filter(a => a.source === 'fit').length,
   };
   return payload;
 }
@@ -769,12 +763,22 @@ async function handleFile(file, unitPref) {
 function importScreen(errorMessage) {
   const wrap = el('div', { class: 'landing' });
 
+  // Somebody who has already loaded rides is here to add one more, not to be
+  // sold the idea again — and needs telling that adding does not replace.
+  const held = (DATA && DATA.imported && DATA.raw) ? DATA.raw.length : 0;
+
   const hero = el('div', { class: 'hero' });
-  hero.appendChild(el('p', { class: 'eyebrow', text: 'For cyclists' }));
-  hero.appendChild(el('h2', { text: 'See what your riding is actually doing' }));
+  hero.appendChild(el('p', { class: 'eyebrow',
+    text: held ? `${held} session${held === 1 ? '' : 's'} loaded` : 'For cyclists' }));
+  hero.appendChild(el('h2', {
+    text: held ? 'Add your latest ride' : 'See what your riding is actually doing' }));
   hero.appendChild(el('p', { class: 'lede',
-    text: 'Add your rides and get your FTP, fitness and freshness — plus workouts ' +
-          'and a training plan built around them.' }));
+    text: held
+      ? 'New files join the rides you already have — nothing is replaced. A ride ' +
+        'already in your history is recognised and left alone, so loading the same ' +
+        'file twice changes nothing.'
+      : 'Add your rides and get your FTP, fitness and freshness — plus workouts ' +
+        'and a training plan built around them.' }));
 
   // Three steps, so the whole thing is legible before reading a word of detail.
   const steps = el('div', { class: 'steps-row' });
@@ -790,16 +794,26 @@ function importScreen(errorMessage) {
       s.appendChild(t);
       steps.appendChild(s);
     });
-  hero.appendChild(steps);
+  if (!held) hero.appendChild(steps);
 
   const drop = el('div', { class: 'drop', tabindex: '0', role: 'button',
                            'aria-label': 'Add your rides' });
-  drop.appendChild(el('p', { class: 'big', text: 'Drop your rides here' }));
+  drop.appendChild(el('p', { class: 'big',
+    text: held ? 'Drop the new ride here' : 'Drop your rides here' }));
   drop.appendChild(el('p', { class: 'small',
     text: 'the .zip straight from Garmin, a .CSV of your history, or .FIT files' }));
   const choose = el('button', { class: 'btn', type: 'button', text: 'Choose files' });
   drop.appendChild(choose);
   hero.appendChild(drop);
+
+  if (held) {
+    const back = el('button', { class: 'skip', type: 'button',
+                                text: 'Back to your dashboard' });
+    back.addEventListener('click', () => render(DATA));
+    const backRow = el('p', { style: 'margin:14px 0 0;text-align:center' });
+    backRow.appendChild(back);
+    hero.appendChild(backRow);
+  }
 
   let unitPref = 'mi';
   hero.appendChild(el('p', { class: 'hint',
@@ -925,7 +939,11 @@ function importScreen(errorMessage) {
     if (!files || !files.length) return;
     drop.classList.remove('over');
     try {
-      const payload = await handleFiles(files, unitPref);
+      // Rides already loaded are the starting point, never something a new
+      // file wipes out. Data baked in by `./wk web` is somebody else's history,
+      // so an upload starts fresh from that.
+      const prior = (DATA && DATA.imported && DATA.raw && DATA.raw.length) ? DATA : null;
+      const payload = await handleFiles(files, unitPref, prior);
       const remembered = saveLocal(payload);
       payload.imported.remembered = remembered;
       render(payload);
@@ -966,12 +984,23 @@ function detectedBar(payload) {
   const origin = i.source === 'fit'
     ? plural(i.fitCount || i.unique, '.FIT ride')
     : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`;
-  const parts = [origin, plural(i.unique, 'session')];
+  const parts = [origin];
+  if (i.held) {
+    // Say what the upload changed, then what is now held, so it is obvious
+    // nothing was lost — and obvious when a file was one you already had.
+    parts.push(i.added ? plural(i.added, 'new session') + ' added' : 'already in your history');
+    parts.push(plural(i.unique, 'session') + ' in total');
+  } else {
+    parts.push(plural(i.unique, 'session'));
+  }
   if (i.source !== 'fit' && i.fitCount) {
     parts.push(plural(i.fitCount, '.FIT ride') + ' with full power data');
   }
   if (i.fromArchive) parts.push(`unzipped for you`);
-  if (i.rows !== i.unique) parts.push(`${i.rows - i.unique} duplicate${i.rows - i.unique === 1 ? '' : 's'} merged`);
+  const dupes = i.duplicates == null ? i.rows - i.unique : i.duplicates;
+  if (dupes > 0 && !(i.held && !i.added)) {
+    parts.push(`${dupes} duplicate${dupes === 1 ? '' : 's'} merged`);
+  }
   if (i.skipped) parts.push(plural(i.skipped, 'row') + ' skipped');
   text.appendChild(el('strong', { style: 'color:var(--text)', text: i.filename }));
   text.appendChild(document.createTextNode('  ·  ' + parts.join('  ·  ')));
@@ -993,22 +1022,22 @@ function detectedBar(payload) {
 }
 
 /** Miles and kilometres are indistinguishable in a Garmin CSV, so switching
- *  rescales the source distances rather than just relabelling the axis. */
+ *  rescales the source distances rather than just relabelling the axis. The
+ *  rides themselves are rescaled in place, so power, heart rate and the power
+ *  curve all survive the switch. */
 function reinterpretUnits(payload, unit) {
   const factor = unit === 'km'
     ? 1000 / Importer.M_PER_MILE          // numbers were miles, are kilometres
     : Importer.M_PER_MILE / 1000;
-  const acts = payload.activities.map(r => ({
-    id: r.id, source: r.source, name: r.name, type: r.type,
-    start: r.date + 'T12:00:00Z',
-    distance_m: (r.distance * (payload.unit === 'mi' ? Importer.M_PER_MILE : 1000)) * factor,
-    moving_s: r.seconds, elapsed_s: r.seconds,
-    elevation_m: r.elevation, avg_hr: r.hr,
-    avg_speed_mps: r.seconds
-      ? (r.distance * (payload.unit === 'mi' ? Importer.M_PER_MILE : 1000)) * factor / r.seconds
-      : null,
-  }));
+  const acts = (payload.raw || []).map(a => {
+    const distance = (a.distance_m || 0) * factor;
+    return Object.assign({}, a, {
+      distance_m: distance,
+      avg_speed_mps: a.moving_s ? distance / a.moving_s : a.avg_speed_mps,
+    });
+  });
   const next = Analytics.buildPayload(acts, { unit: unit });
+  next.curve = payload.curve || null;
   next.imported = Object.assign({}, payload.imported, { displayUnit: unit });
   saveLocal(next);
   render(next);
@@ -1033,8 +1062,13 @@ function render(payload, errorMessage) {
   if (note) note.hidden = !!hasDataFor(payload);
 
   if (!hasData) {
+    // Coming here from "Add rides" does not unload anything, so the header
+    // should not claim it did.
+    const held = (DATA && DATA.imported && DATA.raw) ? DATA.raw.length : 0;
     $('#gen').textContent = '';
-    $('#range-sub').textContent = 'nothing loaded yet';
+    $('#range-sub').textContent = held
+      ? `${held} session${held === 1 ? '' : 's'} loaded  ·  add more below`
+      : 'nothing loaded yet';
     app.appendChild(importScreen(errorMessage));
     return;
   }
@@ -1052,7 +1086,9 @@ function drawDashboard() {
   RIDER = riderContext();
 
   $('#gen').textContent = DATA.imported
-    ? 'Loaded from ' + DATA.imported.filename
+    ? (DATA.imported.held
+        ? `${DATA.imported.unique} rides loaded  ·  last added ${DATA.imported.filename}`
+        : 'Loaded from ' + DATA.imported.filename)
     : 'Built ' + new Date(DATA.generated).toLocaleString();
   const cliHint = $('#cli-hint');
   if (cliHint) cliHint.hidden = !!DATA.imported;
@@ -2191,6 +2227,14 @@ function tabBar() {
   loadProfile();
   $('#import-btn').addEventListener('click', () => render(null));
   $('#clear-btn').addEventListener('click', () => {
+    // The only thing on the page that deletes rides, and there is no undo:
+    // the history lives in this browser and nowhere else.
+    const n = (DATA && DATA.raw) ? DATA.raw.length : 0;
+    const ask = n
+      ? `Remove all ${n} session${n === 1 ? '' : 's'} from this browser? ` +
+        'This cannot be undone — you would have to load your files again.'
+      : 'Remove the loaded data from this browser?';
+    if (!window.confirm(ask)) return;
     clearLocal();
     DATA = null;
     render(null);

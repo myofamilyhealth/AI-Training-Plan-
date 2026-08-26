@@ -97,6 +97,48 @@ const other = { id: 's2', source: 'strava', type: 'running',
 check('same session collapses', I.dedupe([watch, reupload]).length, 1);
 check('garmin copy is kept', I.dedupe([watch, reupload])[0].source, 'garmin');
 check('a different run survives', I.dedupe([watch, reupload, other]).length, 2);
+check('the strava id does not survive as a second copy',
+      I.dedupe([watch, reupload]).map(a => a.id), ['g1']);
+
+// A bucketed key put these two either side of a boundary and kept both.
+const nearMiss = { id: 'g9', source: 'garmin', type: 'running',
+                   start: new Date(base.getTime() + 149000).toISOString(),
+                   distance_m: 10021, moving_s: 2740 };
+check('a match across a bucket edge still collapses', I.dedupe([watch, nearMiss]).length, 1);
+check('sameSession is a tolerance, not a bucket', I.sameSession(watch, nearMiss), true);
+
+// What the CSV knew and the watch did not is kept, not thrown away with the row.
+const rich = I.dedupe([watch, Object.assign({}, reupload, { tss: 71 })]);
+check('fields only the other copy had are folded in', rich[0].tss, 71);
+
+/* ------------------------------------------------- uploads accumulate */
+const history = [
+  { id: 'h1', source: 'garmin', type: 'cycling', start: '2026-08-01T07:00:00Z',
+    distance_m: 40000, moving_s: 4800 },
+  { id: 'h2', source: 'garmin', type: 'cycling', start: '2026-08-03T07:00:00Z',
+    distance_m: 60000, moving_s: 7200 },
+];
+const freshRide = { id: 'fit-2026-08-05T07:00:00Z', source: 'fit', type: 'cycling',
+                    start: '2026-08-05T07:00:00Z', distance_m: 55000, moving_s: 6600,
+                    avg_watts: 210, np: 225 };
+const afterUpload = I.dedupe(history.concat([freshRide]));
+check('a new ride does not delete the old ones', afterUpload.length, 3);
+check('the old rides are still the old rides',
+      afterUpload.slice(0, 2).map(a => a.id), ['h1', 'h2']);
+check('dropping the same file twice adds nothing',
+      I.dedupe(afterUpload.concat([freshRide])).length, 3);
+check('re-exporting the whole history adds nothing',
+      I.dedupe(afterUpload.concat(history, [freshRide])).length, 3);
+
+// The .FIT of a ride already known from a CSV row upgrades that ride in place
+// rather than sitting beside it as a second entry.
+const csvCopy = { id: 'c9', source: 'garmin', type: 'cycling',
+                  start: '2026-08-05T07:01:00Z', distance_m: 55100, moving_s: 6600,
+                  tss: 180 };
+const upgraded = I.dedupe([csvCopy].concat([freshRide]));
+check('the .FIT copy replaces the CSV row', upgraded.length, 1);
+check('the .FIT copy is the one kept', upgraded[0].source, 'fit');
+check('and it inherits what only the CSV had', upgraded[0].tss, 180);
 
 /* -------------------------------------------------------------- analytics */
 check('hard outloads easy',
@@ -347,6 +389,11 @@ const merged = Fit.mergeCurves([
 ]);
 check('merging keeps the best at each duration',
       merged.map(p => p.seconds + ':' + p.watts).join(','), '60:320,300:250,1200:240');
+
+// An easy ride uploaded later must not pull a personal best down with it.
+const easyLater = Fit.mergeCurves([merged, [{ seconds: 60, watts: 180 }, { seconds: 300, watts: 160 }]]);
+check('a later easy ride cannot lower a best',
+      easyLater.map(p => p.seconds + ':' + p.watts).join(','), '60:320,300:250,1200:240');
 
 let fitErr = null;
 try { Fit.parse(new ArrayBuffer(8)); } catch (e) { fitErr = e.message; }

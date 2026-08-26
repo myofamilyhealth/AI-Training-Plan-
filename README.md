@@ -38,6 +38,12 @@ and analysed by JavaScript in your own browser, and remembered only in that
 browser's local storage. Close the tab and it is still yours; press Clear and
 it is gone. No account, no login, no password, and nobody else can see it.
 
+**Files add up.** After the first import you only ever add the new ride: drop in
+the .zip Garmin gives you after a session and it joins the history already there.
+Nothing is replaced, and a ride the page has already seen is recognised and
+skipped, so re-exporting your whole account never leaves you with two of
+everything.
+
 That design is a response to three real constraints rather than a preference:
 
 - **Strava's API forbids AI use.** Its [API policy](https://www.strava.com/legal/api_policy)

@@ -288,28 +288,97 @@
 
   /* -------------------------------------------------------------- dedupe */
 
-  function dedupeKey(a) {
+  // Two files describing the same ride never agree exactly: a watch writes the
+  // moment recording started, a CSV export writes the minute the ride was
+  // filed, and the distances differ by a few metres of GPS smoothing. So a
+  // match is a tolerance, not an equality.
+  const SAME_START_S = 150;      // 2.5 minutes apart is still the same ride
+  const SAME_DISTANCE_M = 500;   // half a kilometre of disagreement is fine
+
+  const SOURCE_RANK = { fit: 3, garmin: 2, strava: 1 };
+
+  /** How much a copy of a ride actually knows, used to pick which one to keep. */
+  function richness(a) {
+    let n = 0;
+    if (a.streams) n += 4;
+    if (a.np != null) n += 2;
+    if (a.avg_watts != null) n += 1;
+    if (a.avg_hr != null) n += 1;
+    if (a.elevation_m != null) n += 1;
+    if (a.tss != null) n += 1;
+    return n;
+  }
+  const rank = a => (SOURCE_RANK[a.source] || 0) * 10 + richness(a);
+
+  const startMs = a => {
     if (!a.start) return null;
-    const bucket = Math.floor(new Date(a.start).getTime() / 1000 / 150);
-    return [a.type, bucket, Math.round((a.distance_m || 0) / 500)].join('|');
+    const t = new Date(a.start).getTime();
+    return Number.isFinite(t) ? t : null;
+  };
+
+  /** The same ride, recorded twice? Compared as a distance in time and space
+   *  rather than by a bucket, so two copies never land either side of a
+   *  boundary and both survive. */
+  function sameSession(a, b) {
+    if (canonicalType(a.type) !== canonicalType(b.type)) return false;
+    const ta = startMs(a), tb = startMs(b);
+    if (ta == null || tb == null) return false;
+    if (Math.abs(ta - tb) > SAME_START_S * 1000) return false;
+    const da = a.distance_m, db = b.distance_m;
+    if (da == null || db == null) return true;   // one side cannot disagree
+    return Math.abs(da - db) <= Math.max(SAME_DISTANCE_M, da * 0.02);
   }
 
-  /** Same session from two files (a watch export and a Strava export) collapses
-   *  to one, keeping Garmin's copy — the watch measured it first-hand. */
-  function dedupe(activities) {
-    const best = new Map(), loose = [];
-    activities.forEach(a => {
-      const k = dedupeKey(a);
-      if (!k) { loose.push(a); return; }
-      const cur = best.get(k);
-      if (!cur) best.set(k, a);
-      else if (a.source === 'garmin' && cur.source !== 'garmin') best.set(k, a);
+  /** Keep every field the winner is missing. A CSV row often carries a TSS the
+   *  .FIT never stored, and there is no reason to throw it away. */
+  function fillGaps(keep, drop) {
+    const out = Object.assign({}, keep);
+    Object.keys(drop).forEach(k => {
+      if (out[k] == null && drop[k] != null) out[k] = drop[k];
     });
-    return [...best.values()].concat(loose)
-      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+    return out;
   }
 
-  const api = { parseCSV, parse, dedupe, canonicalType, seconds, num, parseDate,
+  /**
+   * Collapse the same session appearing more than once — across files, and
+   * across separate uploads made weeks apart.
+   *
+   * Identical ids collapse outright; everything else is matched on when the
+   * ride started and how far it went. The copy that measured the ride
+   * first-hand wins, and anything only the other copy knew is folded into it.
+   */
+  function dedupe(activities) {
+    const byId = new Map(), rest = [], loose = [];
+    activities.forEach(a => {
+      if (a.id != null && a.id !== '') {
+        const k = a.source + '|' + a.id;
+        const cur = byId.get(k);
+        if (!cur) byId.set(k, a);
+        else byId.set(k, rank(a) > rank(cur) ? fillGaps(a, cur) : fillGaps(cur, a));
+      } else rest.push(a);
+    });
+
+    const candidates = [...byId.values()].concat(rest)
+      .filter(a => { if (startMs(a) == null) { loose.push(a); return false; } return true; })
+      .sort((a, b) => startMs(a) - startMs(b));
+
+    const kept = [];
+    candidates.forEach(a => {
+      // Sorted by time, so only the tail of the list can still be within
+      // tolerance — no need to rescan a season of rides for every new one.
+      for (let i = kept.length - 1; i >= 0; i--) {
+        if (startMs(a) - startMs(kept[i]) > SAME_START_S * 1000) break;
+        if (sameSession(a, kept[i])) {
+          kept[i] = rank(a) > rank(kept[i]) ? fillGaps(a, kept[i]) : fillGaps(kept[i], a);
+          return;
+        }
+      }
+      kept.push(a);
+    });
+    return kept.concat(loose);
+  }
+
+  const api = { parseCSV, parse, dedupe, sameSession, canonicalType, seconds, num, parseDate,
                 inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Importer = api;

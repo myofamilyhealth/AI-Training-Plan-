@@ -177,6 +177,14 @@ rides carry `manual: true`, which keeps them out of `estimateFTP` and
 Never let a manual ride into anything presented as measured, and never let
 `fillGaps` copy the flag onto a measured ride that replaced one.
 
+Rides can be deleted, one row at a time, from the Sessions table. `deleteRide`
+rebuilds the payload from the rides that remain, so nothing derived survives the
+ride it came from. That is why every .FIT ride carries its own `curve`: the
+page-wide curve is merged from the rides currently held (`curveFor`), so a
+delete drops that ride's bests instead of leaving a personal best nothing can
+account for. Adding rides may pass the stored curve as a fallback — adding can
+only raise a best — but a delete never does.
+
 Uploads accumulate. `handleFiles(files, unitPref, prior)` merges what was
 dropped into the rides already loaded and `Importer.dedupe` decides what is
 genuinely new, matching on start time (within 2.5 min) and distance (within

@@ -45,6 +45,11 @@ power. Every one of those is labelled an estimate and kept out of anything that
 claims to be measured: a typed ride can never set your FTP or enter your power
 curve. Drop the real file in later and it takes the typed ride's place.
 
+**A ride can be removed.** Every row in Sessions has a × at the end. Deleting
+one takes it out of the totals, the weekly volume, the calendar, fitness and
+form, and the power curve in the same move — there is no soft delete and
+nothing is kept back. Load the file again if you change your mind.
+
 **Files add up.** After the first import you only ever add the new ride: drop in
 the .zip Garmin gives you after a session and it joins the history already there.
 Nothing is replaced, and a ride the page has already seen is recognised and

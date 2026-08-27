@@ -390,7 +390,13 @@
       steps.forEach(s => {
         if (s.repeat) {
           const on = s.steps[0], off = s.steps[1];
-          if (s.steps.length === 2 && off && off.role === 'recovery') {
+          // The compact <IntervalsT> form only describes a plain on/off pair.
+          // A block whose halves are themselves repeats — sets of intervals,
+          // like the Rønnestad 30/15s — has no `lo` to read at this level, and
+          // reading one anyway threw and took the whole workout view with it.
+          const plainPair = s.steps.length === 2 &&
+                            on && !on.repeat && off && !off.repeat;
+          if (plainPair && off.role === 'recovery') {
             if (s.repeat > 1) {
               body.push(`    <IntervalsT Repeat="${s.repeat - 1}" OnDuration="${on.seconds}" ` +
                         `OffDuration="${off.seconds}" OnPower="${on.lo.toFixed(3)}" ` +

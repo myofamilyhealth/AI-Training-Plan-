@@ -153,6 +153,15 @@ Python and the JavaScript suites together.
   earliest in what the rider typed.
 - **coach.js** — recommendation rules and plan layout. Every recommendation
   must carry a `why` naming the rule that fired. Never return advice without it.
+  `options()` wraps `recommend()` in the three the dashboard shows: the
+  recommendation, one that costs clearly less, one that costs clearly more. All
+  three are built to the same length, so intensity is what separates them, and
+  the neighbours are chosen by resulting TSS rather than off a fixed intensity
+  ladder — the ladder put a long threshold session under "if you are feeling
+  weaker" next to a shorter VO2 one, because a session with long recoveries is
+  not the same thing as a cheap one. Below the easiest session the answer is a
+  rest day, not a session; above the hardest it is the same session, longer.
+  The tests pin the ordering across short, long and easy-only histories.
   Plans draw from `PHASE_POOLS` crossed with `GOALS`, rotating by week index so
   consecutive weeks differ — a plan that prescribes the same Tuesday twelve
   times is a spreadsheet. Base phase deliberately ignores the goal overlay;

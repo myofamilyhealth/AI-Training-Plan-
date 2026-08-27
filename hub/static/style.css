@@ -499,6 +499,46 @@ input[type=file].hidden-input { display: none; }
 /* ---------------------------------------------------------------- landing */
 .landing { max-width: 1000px; margin: 0 auto; }
 
+/* --------------------------------------------------------- ride today */
+.ride-today { margin-bottom: 20px; padding: 24px 26px 26px; }
+.rt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rt-head h2 { margin: 0 6px 0 0; font-size: 17px; font-weight: 660; letter-spacing: -.02em; }
+.ride-today > .hint { margin: 8px 0 20px; max-width: 78ch; }
+
+.rt-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px; align-items: stretch;
+}
+@media (max-width: 900px) {
+  .rt-grid { grid-template-columns: minmax(0, 1fr); }
+  /* Stacked, the recommendation goes first — the middle of a row reads as the
+     default, the middle of a column does not. */
+  .rt-opt.recommended { order: -1; }
+}
+
+.rt-opt {
+  display: flex; flex-direction: column; gap: 8px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg); padding: 18px 18px 20px;
+}
+.rt-opt.recommended {
+  border-color: var(--series-1);
+  box-shadow: 0 0 0 1px var(--series-1) inset;
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface));
+}
+.rt-tag {
+  font-size: 10.5px; font-weight: 680; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.rt-opt.recommended .rt-tag { color: var(--series-1); }
+.rt-opt h3 { margin: 0; font-size: 19px; font-weight: 660; letter-spacing: -.024em; }
+.rt-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.rt-blurb { margin: 2px 0 0; font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
+.rt-when { margin: 0; font-size: 12.5px; color: var(--text-3); line-height: 1.55; }
+.rt-opt .btn, .rt-opt .ghost { margin-top: auto; align-self: flex-start; }
+.rt-opt .ghost { padding: 9px 16px; font-size: 13.5px; }
+.ride-today .rec-note { margin: 18px 0 0; }
+
 /* ------------------------------------------------------ remove a ride */
 th.act, td.act { width: 34px; padding-left: 0; padding-right: 4px; }
 .del {

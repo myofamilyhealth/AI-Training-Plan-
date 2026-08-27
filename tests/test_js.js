@@ -635,6 +635,66 @@ check('a name beats a keyword that came earlier',
 check('the earliest keyword wins a tie',
       Wk.fromText('leadout jumps', { ftp: 250 }).name, 'Leadout and sprint');
 
+/* --------------------------------------- three ways to ride today */
+// The rider gets a say: the recommendation, one that costs less, one that
+// costs more. What must never happen is the option labelled easier costing
+// more than the one it is offered against.
+function ridesOver(days, secs, np) {
+  const out = [];
+  for (let i = 1; i < days; i += 2) {
+    out.push({ type: 'cycling', moving_s: secs, np: np, distance_m: secs * 8,
+               date: new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10),
+               start: new Date(now.getTime() - i * 86400000).toISOString() });
+  }
+  return out;
+}
+[['steady', ridesOver(40, 4800, 170)],
+ ['short', ridesOver(40, 1800, 200)],
+ ['long', ridesOver(40, 9000, 210)],
+ ['easy only', ridesOver(45, 5400, 150)]].forEach(([label, rides]) => {
+  const o = Co.options(rides, { ftp: 250 }, now);
+  check(`${label}: three ways to ride`, o.options.length, 3);
+  check(`${label}: the middle one is the recommendation`,
+        o.options.map(x => x.tone).join(','), 'easier,recommended,harder');
+  const tss = o.options.map(x => (x.workout ? x.workout.tss : 0));
+  check(`${label}: easier actually costs less`, tss[0] < tss[1], true);
+  check(`${label}: harder actually costs more`, tss[2] > tss[1], true);
+  check(`${label}: every option says when you would pick it`,
+        o.options.every(x => x.when && x.heading), true);
+  check(`${label}: and what the session is`, o.options.every(x => x.blurb), true);
+  check(`${label}: the recommendation carries the reason it was picked`,
+        o.options[1].when, o.why);
+});
+
+// Deep fatigue: the coach already says recovery, so easier means not riding.
+const flogged = [];
+for (let i = 0; i < 30; i++) {
+  flogged.push({ type: 'cycling', moving_s: 7200, np: 240, distance_m: 60000,
+                 date: new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10),
+                 start: new Date(now.getTime() - i * 86400000).toISOString() });
+}
+const beat = Co.options(flogged, { ftp: 250 }, now);
+check('nothing easier than recovery is a rest day', beat.options[0].rest, true);
+check('and a rest day has no workout to open', !!beat.options[0].workout, false);
+check('which still says when to take it', /bad sleep|ill|nothing/i.test(beat.options[0].when), true);
+
+// Same length, so what separates them is intensity and not duration.
+const lengths = Co.options(ridesOver(40, 4800, 170), { ftp: 250 }, now)
+  .options.filter(o => o.workout).map(o => Math.round(o.workout.seconds / 60));
+check('the options are built to one length',
+      Math.max.apply(null, lengths) - Math.min.apply(null, lengths) <= 2, true);
+
+// Every session in the library must survive being exported, including the ones
+// built from sets of intervals — reading a repeat block as a plain on/off pair
+// threw and took the whole workout view down with it.
+const zwoBroken = Lib.SESSIONS.filter(s => {
+  try {
+    const x = Wk.toZWO(Wk.fromText(s.name, { ftp: 250 }));
+    return !/<workout_file>/.test(x) || /NaN|undefined/.test(x);
+  } catch (e) { return true; }
+});
+check('every session exports a .zwo', zwoBroken.map(s => s.key).join(','), '');
+
 /* ------------------------------------------------- plans use the library */
 check('every goal is defined', Object.keys(Co.GOALS).length >= 6, true);
 Object.keys(Co.GOALS).forEach(g => {

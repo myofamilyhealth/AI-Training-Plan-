@@ -318,10 +318,15 @@ Three things follow from that:
 
 ### Recommendations and plans
 
-**Ride today** suggests a session from your current form, how long since your
-last hard ride, and where your intensity distribution is thin — and states the
-rule it applied, so you can disagree with the reasoning rather than just the
-answer.
+**Ride today** gives you three sessions, not one. The recommendation comes from
+your current form, how long since your last hard ride, and where your intensity
+distribution is thin — and states the rule it applied, so you can disagree with
+the reasoning rather than just the answer. Either side of it sits one that costs
+clearly less and one that costs clearly more, because the numbers know what you
+have done and nothing about the night's sleep you just had. All three run the
+same length, so what you are choosing between is how hard it will be; each says
+when you would pick it, and the easiest option is a rest day when that is
+honestly the right call.
 
 **Training plan** lays out a block that ramps from the volume you are actually
 riding, with a recovery week every fourth week and a taper into your event —

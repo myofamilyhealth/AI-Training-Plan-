@@ -151,6 +151,113 @@
       'Endurance is never the wrong answer — it is what most of a season is made of.');
   }
 
+  /* --------------------------------------------- three ways to ride today */
+
+  /**
+   * The sessions an alternative is chosen from, easiest first.
+   *
+   * Tempo is deliberately absent. It is a fine session when it is the session
+   * you meant to do, but as the answer to "I want something easier" it is the
+   * worst of both worlds — tiring without being decisive — and the coach says
+   * so elsewhere. Stepping down from sweet spot lands on endurance instead.
+   */
+  const LADDER = ['recovery', 'endurance', 'sweetspot', 'threshold', 'vo2max', 'microbursts'];
+
+  // How much cheaper an easier option has to be, and how much dearer a harder
+  // one, before it is worth offering as a different choice at all.
+  const EASIER_AT_MOST = 0.85;
+  const HARDER_AT_LEAST = 1.10;
+  const LONGER_BY = 1.3;
+
+  /**
+   * The recommendation, plus the two the rider might reasonably swap it for.
+   *
+   * The numbers know what you have done; they do not know that you slept badly
+   * or that your legs feel unusually good, and only the rider has that. So the
+   * middle option is what the data points to and stays marked as the
+   * recommendation, while either side of it is a deliberate choice with the
+   * cost stated rather than a hidden downgrade.
+   *
+   * All three are built to the same length, so what separates them is how hard
+   * they are rather than how long, and the neighbours are then chosen by what
+   * they actually cost. Picking them off a fixed intensity ladder instead put a
+   * long threshold session — 158 TSS — under the heading "if you are feeling
+   * weaker" next to a 106 TSS VO2 session, because a session with long
+   * recoveries in it is not the same thing as a cheap one.
+   */
+  function options(activities, profile, today, opts) {
+    const base = recommend(activities, profile, today, opts);
+    const ftp = profile && profile.ftp;
+    const rider = base.rider;
+    const minutes = Math.round(base.workout.seconds / 60);
+
+    const build = (key, mins) => {
+      const entry = Wk.byKey(key);
+      return {
+        key: key,
+        name: entry.name,
+        blurb: entry.blurb,
+        focus: entry.focus,
+        workout: Wk.fromText(`${entry.name} ${Math.round(mins || minutes)} min`,
+                             { ftp: ftp, rider: rider }),
+      };
+    };
+
+    const cost = o => (o.workout && o.workout.tss) || 0;
+    const chosen = build(base.key);
+    const target = cost(chosen);
+    const pool = LADDER.filter(k => k !== base.key).map(k => build(k, minutes));
+
+    // The most it can be while still being clearly less than today's session.
+    const under = pool.filter(o => cost(o) < target * EASIER_AT_MOST)
+                      .sort((a, b) => cost(b) - cost(a))[0];
+    // The least it can be while still being clearly more.
+    const over = pool.filter(o => cost(o) > target * HARDER_AT_LEAST)
+                     .sort((a, b) => cost(a) - cost(b))[0];
+
+    const out = [];
+
+    // Below the easiest session there is no easier ride, only no ride, and
+    // saying that plainly is more use than dressing a rest day up as one.
+    out.push(under ? Object.assign(under, {
+      tone: 'easier', heading: 'If you are feeling weaker',
+      when: 'Bad sleep, heavy legs, a long day — take this instead. It keeps the ' +
+            'week intact without digging the hole any deeper, and tomorrow is ' +
+            'still yours.',
+    }) : {
+      tone: 'easier', heading: 'If you are feeling weaker', rest: true,
+      key: null, name: 'Take the day off',
+      blurb: 'No ride at all. A rest day is a training decision, not a failure — ' +
+             'it is when the last few sessions actually land.',
+      when: 'Choose this if you are running on bad sleep, feeling ill, or the legs ' +
+            'have nothing in them. Nothing you could ride today would be worth ' +
+            'what it costs.',
+    });
+
+    out.push(Object.assign(chosen, {
+      tone: 'recommended', heading: 'Recommended',
+      when: base.why,
+      note: base.note,
+    }));
+
+    // Nothing in the library costs more at this length? Then the way to make
+    // today harder is more of it, which is what a rider who feels good would
+    // do anyway.
+    out.push(Object.assign(over || build(base.key, minutes * LONGER_BY), {
+      tone: 'harder', heading: 'If you are feeling stronger',
+      when: over
+        ? 'Legs actually good? This is the one that moves the needle. It costs ' +
+          'more tomorrow, so spend it on a day you mean it — not on a day you ' +
+          'are only impatient.'
+        : 'Today\'s session is already the hardest thing that fits, so feeling ' +
+          'strong means more of it rather than something else. Stop early if the ' +
+          'legs turn out to be lying.',
+      longer: !over,
+    }));
+
+    return Object.assign({}, base, { options: out });
+  }
+
   /** A standing observation about the last six weeks of riding, independent of
    *  what today calls for. Returns null when the mix looks reasonable. */
   function distributionNote(dist, ctl) {
@@ -392,7 +499,8 @@
              goalNote: goal.note, name: opts.name || (goal.name + ' block') };
   }
 
-  const api = { recommend, buildPlan, daysSinceHard, weeklyHours,
+  const api = { recommend, options, buildPlan, daysSinceHard, weeklyHours,
+                LADDER,
                 PHASES, PHASE_POOLS, GOALS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Coach = api;

@@ -1407,6 +1407,7 @@ function drawDashboard() {
   if (setup) app.appendChild(setup);
 
   app.appendChild(bikeKpiRow());
+  app.appendChild(recommendCard());
 
   const main = el('div', { class: 'grid main' });
   const left = el('div', { class: 'stack' });
@@ -1415,7 +1416,6 @@ function drawDashboard() {
   left.appendChild(calendarCard());
 
   const right = el('div', { class: 'stack' });
-  right.appendChild(recommendCard());
   right.appendChild(profileCard());
   const zoneCard = zoneDistributionCard();
   if (zoneCard) right.appendChild(zoneCard);
@@ -2013,43 +2013,79 @@ function profileCard() {
 
 /* --------------------------------------------------------- recommendation */
 
+/**
+ * Today's ride, and the two the rider might swap it for.
+ *
+ * The middle option is what the numbers point to and is labelled as the
+ * recommendation. The two beside it exist because the data knows what you have
+ * done and nothing about how you feel: it cannot see the bad night's sleep or
+ * the morning the legs are unusually good. Each says plainly when you would
+ * pick it, so choosing one is a decision rather than a fudge.
+ */
 function recommendCard() {
-  const card = el('div', { class: 'card' });
-  card.appendChild(el('h2', { text: 'Ride today' }));
+  const card = el('div', { class: 'card ride-today' });
 
   let rec;
   try {
-    rec = Coach.recommend(RAW_ACTIVITIES, PROFILE, null, { rider: RIDER });
+    rec = Coach.options(RAW_ACTIVITIES, PROFILE, null, { rider: RIDER });
   } catch (e) {
+    card.appendChild(el('h2', { text: 'Ride today' }));
     card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
     return card;
   }
 
   const verdict = Cycling.formVerdict(rec.form);
-  const head = el('div', { style: 'display:flex;align-items:center;gap:10px;margin:2px 0 14px;flex-wrap:wrap' });
-  head.appendChild(el('strong', { style: 'font-size:16px;letter-spacing:-.02em',
-                                  text: rec.workout.name }));
+  const head = el('div', { class: 'rt-head' });
+  head.appendChild(el('h2', { text: 'Ride today' }));
   head.appendChild(el('span', { class: 'pill ' + verdict.kind, text: verdict.label }));
-  if (rec.workout.tss) {
-    head.appendChild(el('span', { class: 'pill mute',
-      text: `${Math.round(rec.workout.seconds / 60)} min · ${rec.workout.tss} TSS` }));
+  if (rec.form != null) {
+    head.appendChild(el('span', { class: 'pill mute', text: `Form ${Math.round(rec.form)}` }));
   }
   card.appendChild(head);
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Three ways to ride today. The recommendation is what your numbers point ' +
+          'to; the two either side are yours to take instead, because you know how ' +
+          'the legs feel and the data does not.' }));
 
-  card.appendChild(el('p', { class: 'rec-why', text: rec.why }));
-  if (rec.note) card.appendChild(el('p', { class: 'rec-note', text: rec.note }));
-  if (rec.pattern) {
-    card.appendChild(el('p', { class: 'rec-note', style: 'margin-top:10px', text: rec.pattern }));
-  }
+  const grid = el('div', { class: 'rt-grid' });
+  rec.options.forEach(opt => {
+    const tile = el('div', { class: 'rt-opt ' + opt.tone });
+    tile.appendChild(el('span', { class: 'rt-tag', text: opt.heading }));
+    tile.appendChild(el('h3', { text: opt.name }));
 
-  const open = el('button', { class: 'btn', type: 'button', style: 'margin-top:16px',
-                              text: 'Open this workout' });
-  open.addEventListener('click', () => {
-    PENDING_WORKOUT = rec.workout;
-    PENDING_TEXT = rec.workout.name;
-    switchTab('workout');
+    const meta = el('div', { class: 'rt-meta' });
+    if (opt.workout) {
+      const mins = Math.round(opt.workout.seconds / 60);
+      meta.appendChild(el('span', { class: 'pill mute',
+        text: opt.workout.tss ? `${mins} min · ${opt.workout.tss} TSS` : `${mins} min` }));
+    } else {
+      meta.appendChild(el('span', { class: 'pill mute', text: 'no ride' }));
+    }
+    tile.appendChild(meta);
+
+    tile.appendChild(el('p', { class: 'rt-blurb', text: opt.blurb }));
+    tile.appendChild(el('p', { class: 'rt-when', text: opt.when }));
+    if (opt.note) tile.appendChild(el('p', { class: 'rt-when', text: opt.note }));
+
+    if (opt.workout) {
+      const open = el('button', {
+        class: opt.tone === 'recommended' ? 'btn' : 'ghost',
+        type: 'button', text: 'Open this workout' });
+      open.addEventListener('click', () => {
+        PENDING_WORKOUT = opt.workout;
+        PENDING_TEXT = opt.name;
+        // Opened from here, the workout is the thing you came to see, so the
+        // builder gets out of its way.
+        WORKOUT_FIRST = true;
+        switchTab('workout');
+      });
+      tile.appendChild(open);
+    }
+    grid.appendChild(tile);
   });
-  card.appendChild(open);
+  card.appendChild(grid);
+
+  if (rec.pattern) card.appendChild(el('p', { class: 'rec-note', text: rec.pattern }));
   return card;
 }
 
@@ -2057,6 +2093,10 @@ function recommendCard() {
 
 let PENDING_WORKOUT = null;
 let PENDING_TEXT = '';
+// Set when a workout was opened from the recommendation rather than typed:
+// what you asked for should be the first thing on screen, not something to
+// scroll past the builder to find.
+let WORKOUT_FIRST = false;
 
 function stepRows(workout, ftp) {
   const box = el('div', { class: 'steps' });
@@ -2321,10 +2361,17 @@ function workoutView() {
       chips.appendChild(c);
     });
   card.appendChild(chips);
-  wrap.appendChild(card);
-
   const result = el('div', {});
-  wrap.appendChild(result);
+  // Arriving with a workout already chosen puts it at the top and the builder
+  // underneath; typing one yourself leaves the box where you are looking.
+  if (WORKOUT_FIRST && PENDING_WORKOUT) {
+    result.style.marginBottom = '18px';
+    wrap.appendChild(result);
+    wrap.appendChild(card);
+  } else {
+    wrap.appendChild(card);
+    wrap.appendChild(result);
+  }
 
   function build() {
     result.innerHTML = '';
@@ -2411,7 +2458,16 @@ function planView() {
   wrap.appendChild(card);
 
   const result = el('div', {});
-  wrap.appendChild(result);
+  // Arriving with a workout already chosen puts it at the top and the builder
+  // underneath; typing one yourself leaves the box where you are looking.
+  if (WORKOUT_FIRST && PENDING_WORKOUT) {
+    result.style.marginBottom = '18px';
+    wrap.appendChild(result);
+    wrap.appendChild(card);
+  } else {
+    wrap.appendChild(card);
+    wrap.appendChild(result);
+  }
 
   function renderPlan(plan) {
     result.innerHTML = '';
@@ -2515,7 +2571,12 @@ function tabBar() {
     .forEach(([key, label]) => {
       const b = el('button', { type: 'button', role: 'tab',
                                'aria-selected': String(TAB === key), text: label });
-      b.addEventListener('click', () => switchTab(key));
+      b.addEventListener('click', () => {
+        // Coming to the builder deliberately means you are here to type, so the
+        // box goes back on top.
+        if (key === 'workout') WORKOUT_FIRST = false;
+        switchTab(key);
+      });
       bar.appendChild(b);
     });
   return bar;

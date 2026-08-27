@@ -611,13 +611,11 @@ function volumeCard() {
       const tr = el('tr');
       ['Week of', DATA.unit === 'mi' ? 'Miles' : 'Km', 'Time', 'Sessions', 'Load']
         .forEach((h, i) => tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
-      // Not sortable, and not a column anybody reads down: it is an action.
-    tr.appendChild(el('th', { class: 'r act', scope: 'col', html: '<span class="vh">Remove</span>' }));
-    thead.appendChild(tr);
+      thead.appendChild(tr);
       const tbody = el('tbody');
       [...DATA.weekly].reverse().forEach(w => {
         const r = el('tr');
-        r.appendChild(el('td', { class: 'num', text: w.week }));
+        r.appendChild(el('td', { class: 'num', text: fmtDate(w.week) }));
         r.appendChild(el('td', { class: 'r num', text: fmt(w.distance, 1) }));
         r.appendChild(el('td', { class: 'r num', text: hrs(w.hours) }));
         r.appendChild(el('td', { class: 'r num', text: w.count }));
@@ -1484,8 +1482,8 @@ function fitnessCard() {
   const titles = el('div', { style: 'flex:1' });
   titles.appendChild(el('h2', { text: 'Fitness and freshness' }));
   titles.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
-    text: 'Blue is the fitness you have built up, orange is how tired the last week has ' +
-          'left you, green is the gap — how fresh you should feel today.' }));
+    text: 'Three lines from the same numbers: what you have banked, what the last ' +
+          'week cost you, and the gap between them.' }));
   head.appendChild(titles);
 
   const pmc = Cycling.pmc(RAW_ACTIVITIES, {
@@ -1509,9 +1507,7 @@ function fitnessCard() {
       const thead = el('thead'); const tr = el('tr');
       ['Date', 'TSS', 'Fitness', 'Fatigue', 'Form'].forEach((h, i) =>
         tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
-      // Not sortable, and not a column anybody reads down: it is an action.
-    tr.appendChild(el('th', { class: 'r act', scope: 'col', html: '<span class="vh">Remove</span>' }));
-    thead.appendChild(tr);
+      thead.appendChild(tr);
       const tbody = el('tbody');
       rows.forEach(p => {
         const r = el('tr');
@@ -1523,6 +1519,9 @@ function fitnessCard() {
       table.appendChild(thead); table.appendChild(tbody);
       body.appendChild(el('div', { class: 'tbl-wrap' }, [table]));
     } else {
+      // The key sits above the chart, not off in a corner of it: three lines
+      // with nothing naming them is a picture nobody can read.
+      body.appendChild(pmcKey(pmc.series[pmc.series.length - 1]));
       body.appendChild(pmcChart(pmc.series));
       if (pmc.verdict) {
         body.appendChild(el('p', { class: 'hint', style: 'margin:14px 0 0',
@@ -1585,9 +1584,7 @@ function powerCurveCard() {
       const thead = el('thead'); const tr = el('tr');
       ['Duration', 'Watts', '% of FTP', 'W/kg'].forEach((h, i) =>
         tr.appendChild(el('th', { class: i ? 'r' : '', scope: 'col', text: h })));
-      // Not sortable, and not a column anybody reads down: it is an action.
-    tr.appendChild(el('th', { class: 'r act', scope: 'col', html: '<span class="vh">Remove</span>' }));
-    thead.appendChild(tr);
+      thead.appendChild(tr);
       const tbody = el('tbody');
       pts.forEach(pt => {
         const r = el('tr');
@@ -1761,6 +1758,40 @@ function download(filename, text, mime) {
 /** Fitness, fatigue and form on one timeline. Three series, so they are
  *  direct-labelled at the right edge and backed by a table toggle — aqua sits
  *  under 3:1 against the light surface and must not carry meaning alone. */
+/**
+ * The colour key for the fitness chart.
+ *
+ * Each line gets its colour, its name, today's value and a sentence saying what
+ * it is — so the chart can be read without a caption explaining which colour is
+ * which. The names double as a readout, which is what a rider actually looks up
+ * when they open the page.
+ */
+function pmcKey(today) {
+  const box = el('div', { class: 'pmc-key' });
+  if (!today) return box;
+  const rows = [
+    ['var(--series-1)', 'Fitness', 'CTL', today.ctl,
+     'The training you have banked, as a 42-day average. Slow to build, slow to lose.'],
+    ['var(--series-2)', 'Fatigue', 'ATL', today.atl,
+     'What the last 7 days have taken out of you. Rises and falls fast.'],
+    ['var(--series-3)', 'Form', 'TSB', today.form,
+     'Fitness minus fatigue. Above zero you are fresh, below it you are carrying work.'],
+  ];
+  rows.forEach(([colour, name, abbr, value, meaning]) => {
+    const k = el('div', { class: 'pk' });
+    const head = el('div', { class: 'pk-head' });
+    head.appendChild(el('span', { class: 'pk-swatch', style: `background:${colour}` }));
+    head.appendChild(el('span', { class: 'pk-name', text: name }));
+    head.appendChild(el('span', { class: 'pk-abbr', text: abbr }));
+    head.appendChild(el('span', { class: 'pk-value num',
+      text: (value > 0 && abbr === 'TSB' ? '+' : '') + fmt(value, 0) }));
+    k.appendChild(head);
+    k.appendChild(el('p', { class: 'pk-meaning', text: meaning }));
+    box.appendChild(k);
+  });
+  return box;
+}
+
 function pmcChart(series) {
   const W = 720, H = 260, L = 44, R = 56, T = 16, B = 28;
   const iw = W - L - R, ih = H - T - B;
@@ -1802,17 +1833,19 @@ function pmcChart(series) {
   const atl = line('atl', 'var(--series-2)');
   const form = line('form', 'var(--series-3)');
 
-  // Direct labels at the right edge, nudged apart so they never collide.
+  // Direct labels at the right edge, each beside the line it names. Highest
+  // value first, so working down the chart a label is only ever pushed further
+  // down — the old rule pushed one *up* whenever it sat more than a line-height
+  // below its neighbour, which parked "Form" against "Fitness" 80px from the
+  // line it belonged to.
   const labels = [
     { v: ctl, t: 'Fitness ' + Math.round(ctl) },
     { v: atl, t: 'Fatigue ' + Math.round(atl) },
     { v: form, t: 'Form ' + Math.round(form) },
-  ].sort((a, b) => a.v - b.v);
-  let prevY = Infinity;
-  labels.slice().reverse().forEach(l => {
-    let ly = y(l.v) + 4;
-    if (ly - prevY < 14 && ly > prevY) ly = prevY + 14;
-    if (prevY - ly < 14 && prevY !== Infinity) ly = prevY + 14;
+  ].sort((a, b) => b.v - a.v);
+  let prevY = -Infinity;
+  labels.forEach(l => {
+    const ly = Math.max(y(l.v) + 4, prevY + 14);
     prevY = ly;
     svg.appendChild(el('text', { class: 'axis', x: W - R + 6, y: ly,
                                  fill: 'var(--text-2)', text: l.t }));

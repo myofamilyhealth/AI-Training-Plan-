@@ -499,6 +499,32 @@ input[type=file].hidden-input { display: none; }
 /* ---------------------------------------------------------------- landing */
 .landing { max-width: 1000px; margin: 0 auto; }
 
+/* ------------------------------------------------ fitness chart key */
+.pmc-key {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px; margin-bottom: 18px;
+}
+@media (max-width: 640px) { .pmc-key { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+.pk {
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--bg); padding: 11px 13px 12px;
+}
+.pk-head { display: flex; align-items: baseline; gap: 8px; }
+.pk-swatch {
+  width: 11px; height: 11px; border-radius: 3px; flex: none;
+  align-self: center;
+}
+.pk-name { font-size: 13.5px; font-weight: 620; color: var(--text); }
+.pk-abbr {
+  font-size: 10.5px; font-weight: 620; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.pk-value {
+  margin-left: auto; font-size: 17px; font-weight: 680;
+  letter-spacing: -.02em; color: var(--text);
+}
+.pk-meaning { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-3); }
+
 /* --------------------------------------------------------- ride today */
 .ride-today { margin-bottom: 20px; padding: 24px 26px 26px; }
 .rt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

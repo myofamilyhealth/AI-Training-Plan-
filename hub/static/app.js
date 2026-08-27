@@ -19,10 +19,10 @@ const el = (tag, attrs, kids) => {
 const SVG_TAGS = new Set(['g','rect','circle','path','line','text','svg','polyline','defs','clipPath']);
 const fmt = (n, d) => Number(n).toLocaleString(undefined, {
   minimumFractionDigits: d == null ? 0 : d, maximumFractionDigits: d == null ? 0 : d });
-const shortDate = s => {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
+/* Dates read month, day, year — 08/25/2026 — everywhere they are written out,
+   and month/day where an axis or a calendar cell has no room for the year. */
+const fmtDate = Analytics.fmtDate;
+const shortDate = Analytics.fmtDayMonth;
 const hrs = h => Math.floor(h) + 'h ' + Math.round((h % 1) * 60) + 'm';
 
 /* ------------------------------------------------------------------ tooltip */
@@ -116,7 +116,7 @@ function columnChart(rows, key, unitLabel) {
         ['Load', fmt(r.load)],
       ];
       if (r.partial) rows.push(['Note', 'week still in progress']);
-      hoverable(bar, 'Week of ' + shortDate(r.week), rows);
+      hoverable(bar, 'Week of ' + fmtDate(r.week), rows);
       svg.appendChild(bar);
     }
     if (i % Math.ceil(rows.length / 8) === 0 || i === rows.length - 1) {
@@ -184,7 +184,7 @@ function lineChart(rows, key, label) {
                              fill: 'transparent' });
     const lr = [['Load', fmt(r[key])]];
     if (r.partial) lr.push(['Note', 'week still in progress']);
-    hoverable(hit, 'Week of ' + shortDate(r.week), lr);
+    hoverable(hit, 'Week of ' + fmtDate(r.week), lr);
     svg.appendChild(hit);
   });
   return svg;
@@ -239,10 +239,8 @@ function twoWeekCalendar(days) {
     // The date, and the month with it where the month turns over — a fortnight
     // can straddle two and "1" on its own would be ambiguous.
     const [, month, dom] = d.date.split('-');
-    const monthName = new Date(Date.UTC(2000, Number(month) - 1, 1))
-      .toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
     cell.appendChild(el('span', { class: 'dnum num',
-      text: dom === '01' ? `1 ${monthName}` : String(Number(dom)) }));
+      text: dom === '01' ? `${Number(month)}/1` : String(Number(dom)) }));
 
     if (d.future) {
       cell.appendChild(el('span', { class: 'dval', text: '—' }));
@@ -254,7 +252,7 @@ function twoWeekCalendar(days) {
       stress.appendChild(el('span', { class: 'u', text: ' TSS' }));
       cell.appendChild(stress);
       const names = d.rides.map(r => r.name).filter(Boolean);
-      hoverable(cell, shortDate(d.date), [
+      hoverable(cell, fmtDate(d.date), [
         ['Time', shortTime(d.seconds)],
         ['Stress', fmt(d.tss) + ' TSS' + (d.estimated ? ' (est.)' : '')],
         ['Rides', d.rides.length === 1 && names.length ? names[0] : String(d.rides.length)],
@@ -360,7 +358,7 @@ function deleteRide(id) {
   if (!gone) return;
 
   const label = (gone.name ? `"${gone.name}"` : 'that ride') +
-                (gone.date ? ` from ${shortDate(gone.date)}` : '');
+                (gone.date ? ` from ${fmtDate(gone.date)}` : '');
   if (!window.confirm(
         `Delete ${label}?\n\nIts distance, time and power leave every total on ` +
         `this page. This cannot be undone — you would have to load the file again.`)) {
@@ -459,7 +457,7 @@ function activityTable() {
     const tbody = el('tbody');
     rows.slice(0, 400).forEach(r => {
       const row = el('tr');
-      row.appendChild(el('td', { class: 'num', text: r.date }));
+      row.appendChild(el('td', { class: 'num', text: fmtDate(r.date) }));
       const nameCell = el('td', { class: 'name' });
       nameCell.appendChild(document.createTextNode(r.name || '—'));
       if (r.source) {
@@ -480,7 +478,7 @@ function activityTable() {
       const cell = el('td', { class: 'r act' });
       const del = el('button', { class: 'del', type: 'button', text: '\u00d7',
         title: 'Remove this ride',
-        'aria-label': `Remove ${r.name || 'ride'} on ${r.date}` });
+        'aria-label': `Remove ${r.name || 'ride'} on ${fmtDate(r.date)}` });
       del.addEventListener('click', () => deleteRide(r.id));
       cell.appendChild(del);
       row.appendChild(cell);
@@ -545,7 +543,7 @@ function planCard() {
   p.days.forEach(d => {
     const row = el('div', { class: 'plan-day' + (d.today ? ' is-today' : '') });
     row.appendChild(el('span', { class: 'd num',
-      text: d.date ? d.weekday + ' ' + d.date.slice(5) : d.weekday }));
+      text: d.date ? d.weekday + ' ' + shortDate(d.date) : d.weekday }));
     const w = el('span', { class: 'w' });
     w.appendChild(document.createTextNode(d.label || '—'));
     if (d.structured) {
@@ -1270,7 +1268,7 @@ function detectedBar(payload) {
     const t = el('span', { class: 'grow' });
     t.appendChild(el('strong', { style: 'color:var(--text)', text: 'Removed' }));
     t.appendChild(document.createTextNode(
-      `  ${i.removed}${i.removedDate ? ' from ' + shortDate(i.removedDate) : ''}` +
+      `  ${i.removed}${i.removedDate ? ' from ' + fmtDate(i.removedDate) : ''}` +
       `  \u00b7  ${plural(i.unique, 'session')} left`));
     bar.appendChild(t);
     if (i.remembered === false) {
@@ -1388,7 +1386,7 @@ function drawDashboard() {
   const cliHint = $('#cli-hint');
   if (cliHint) cliHint.hidden = !!DATA.imported;
   $('#range-sub').textContent =
-    `${fmt(t.activities)} session${t.activities === 1 ? '' : 's'} since ${t.first}`;
+    `${fmt(t.activities)} session${t.activities === 1 ? '' : 's'} since ${fmtDate(t.first)}`;
 
   if (DATA.demo_note) {
     const b = el('div', { class: 'demo' });
@@ -1468,7 +1466,7 @@ function bikeKpiRow() {
   const sp = Cycling.speedStats(RAW_ACTIVITIES, imperial());
   if (sp) {
     row.appendChild(tile('Avg speed', String(sp.average), sp.unit,
-      el('span', { text: `best ride ${sp.best} ${sp.unit} on ${sp.bestDate}` })));
+      el('span', { text: `best ride ${sp.best} ${sp.unit} on ${fmtDate(sp.bestDate)}` })));
   } else if (PROFILE.ftp && PROFILE.weightKg) {
     const vo2 = Cycling.vo2maxEstimate(PROFILE.ftp, PROFILE.weightKg);
     row.appendChild(tile('VO2 max', String(vo2), '',
@@ -1517,7 +1515,7 @@ function fitnessCard() {
       const tbody = el('tbody');
       rows.forEach(p => {
         const r = el('tr');
-        r.appendChild(el('td', { class: 'num', text: p.date }));
+        r.appendChild(el('td', { class: 'num', text: fmtDate(p.date) }));
         [p.tss, p.ctl, p.atl, p.form].forEach(v =>
           r.appendChild(el('td', { class: 'r num', text: fmt(v, 1) })));
         tbody.appendChild(r);
@@ -1700,7 +1698,7 @@ function powerProfileCard() {
       w.appendChild(document.createTextNode(`  ${Math.round(100 * b.watts / PROFILE.ftp)}% FTP`));
     }
     row.appendChild(w);
-    row.appendChild(el('span', { class: 'd num', style: 'text-align:right', text: b.date }));
+    row.appendChild(el('span', { class: 'd num', style: 'text-align:right', text: fmtDate(b.date) }));
     hoverable(row, b.name || b.band, [
       ['Power', b.watts + ' W'],
       ['Basis', b.normalized ? 'normalized power' : 'ride average'],
@@ -1829,7 +1827,7 @@ function pmcChart(series) {
   pts.forEach((p, i) => {
     const hit = el('rect', { x: x(i) - iw / pts.length / 2, y: T,
                              width: iw / pts.length, height: ih, fill: 'transparent' });
-    hoverable(hit, shortDate(p.date), [
+    hoverable(hit, fmtDate(p.date), [
       ['Fitness (CTL)', fmt(p.ctl, 1)], ['Fatigue (ATL)', fmt(p.atl, 1)],
       ['Form (TSB)', fmt(p.form, 1)], ['TSS that day', p.tss ? fmt(p.tss) : 'rest'],
     ]);
@@ -1985,7 +1983,7 @@ function profileCard() {
     } else if (est) {
       box.appendChild(el('strong', { text: `Looks like roughly ${est.ftp} W. ` }));
       box.appendChild(document.createTextNode(
-        `Taken from your best ${est.from} — ${est.watts} W ${est.source} on ${est.date}. ` +
+        `Taken from your best ${est.from} — ${est.watts} W ${est.source} on ${fmtDate(est.date)}. ` +
         'Ride averages include coasting, so this usually reads low. Treat it as a starting ' +
         'point and replace it after a real test.'));
       const use = el('button', { class: 'chip', type: 'button',
@@ -2476,7 +2474,7 @@ function planView() {
     const totalTss = plan.weeks.reduce((s, w) => s + w.tss, 0);
     head.appendChild(el('p', { class: 'hint',
       text: `${plan.weeks.length} weeks · ${Math.round(totalTss).toLocaleString()} TSS total` +
-            (plan.eventDate ? ` · finishing ${plan.eventDate}` : '') }));
+            (plan.eventDate ? ` · finishing ${fmtDate(plan.eventDate)}` : '') }));
     if (plan.goalNote) {
       head.appendChild(el('p', { class: 'rec-note', style: 'margin:-6px 0 18px', text: plan.goalNote }));
     }
@@ -2488,7 +2486,9 @@ function planView() {
 
     plan.weeks.forEach(w => {
       const row = el('div', { class: 'week-row' + (w.recovery ? ' is-recovery' : '') });
-      row.appendChild(el('span', { class: 'wk num', text: String(w.week) }));
+      const wk = el('span', { class: 'wk num', text: String(w.week) });
+      if (w.date) hoverable(wk, 'Week ' + w.week, [['Starting', fmtDate(w.date)]]);
+      row.appendChild(wk);
       row.appendChild(el('span', { text: w.phase }));
       row.appendChild(el('span', { class: 'num', text: w.hours + 'h' }));
       row.appendChild(el('span', { class: 'num', text: String(w.tss) }));
@@ -2542,7 +2542,7 @@ function planText(plan) {
   if (plan.ftp) out.push('FTP: ' + plan.ftp + ' W');
   out.push('');
   plan.weeks.forEach(w => {
-    out.push(`Week ${w.week} — ${w.phase}${w.date ? '  (' + w.date + ')' : ''}   ${w.hours}h, ${w.tss} TSS`);
+    out.push(`Week ${w.week} — ${w.phase}${w.date ? '  (' + fmtDate(w.date) + ')' : ''}   ${w.hours}h, ${w.tss} TSS`);
     out.push('  ' + w.blurb);
     w.days.forEach(d => {
       const b = Workouts.timeBreakdown(d.workout, plan.ftp);

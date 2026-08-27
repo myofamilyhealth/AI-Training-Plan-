@@ -218,6 +218,25 @@
     return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
   }
 
+  /**
+   * A date as it is written: month, day, year.
+   *
+   * Formatted out of the digits rather than through a Date, because putting a
+   * day through a Date and back is exactly how a ride ends up on the wrong one.
+   */
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = String(iso).slice(0, 10).split('-');
+    return (y && m && d) ? `${pad2(m)}/${pad2(d)}/${y}` : String(iso);
+  }
+
+  /** Month and day alone, for an axis tick with no room for a year. */
+  function fmtDayMonth(iso) {
+    if (!iso) return '';
+    const [, m, d] = String(iso).slice(0, 10).split('-');
+    return (m && d) ? `${Number(m)}/${Number(d)}` : String(iso);
+  }
+
   /** Speed the way a cyclist reads it. A cyclist thinks in mph, not in minutes
    *  per mile — pace is a runner's unit, and this is a bike site. */
   function fmtSpeed(mps, imperial) {
@@ -315,7 +334,7 @@
   }
 
   const api = { trainingLoad, dailyLoad, acwr, weekly, easyHardSplit, bests,
-                fitnessTrend, buildPayload, fmtDuration, fmtPace, fmtSpeed, mondayOf };
+                fitnessTrend, buildPayload, fmtDuration, fmtPace, fmtSpeed, fmtDate, fmtDayMonth, mondayOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Analytics = api;
 })(typeof self !== 'undefined' ? self : this);

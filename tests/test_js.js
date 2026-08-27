@@ -635,6 +635,18 @@ check('a name beats a keyword that came earlier',
 check('the earliest keyword wins a tie',
       Wk.fromText('leadout jumps', { ftp: 250 }).name, 'Leadout and sprint');
 
+/* ---------------------------------------------- dates on the screen */
+// Dates are written month, day, year wherever they are spelled out. Formatted
+// from the digits, never through a Date, so nothing can shift a day by a zone
+// on the way to the screen.
+check('a date reads month, day, year', A.fmtDate('2026-08-25'), '08/25/2026');
+check('the day is not the month', A.fmtDate('2026-11-03'), '11/03/2026');
+check('a full timestamp gives the day it names',
+      A.fmtDate('2026-08-24T19:30:00'), '08/24/2026');
+check('nothing formats to nothing', A.fmtDate(null), '');
+check('an axis tick drops the year', A.fmtDayMonth('2026-08-05'), '8/5');
+check('and keeps month before day', A.fmtDayMonth('2026-11-03'), '11/3');
+
 /* --------------------------------------- three ways to ride today */
 // The rider gets a say: the recommendation, one that costs less, one that
 // costs more. What must never happen is the option labelled easier costing

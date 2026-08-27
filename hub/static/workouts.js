@@ -290,7 +290,11 @@
 
     const steps = [step('warmup', wrap, 0.50, 0.70, 'Warm up')]
       .concat(body)
-      .concat([step('cooldown', wrap, 0.55, 0.40, 'Cool down')]);
+      // lo is always the bottom of the range: a step written 0.55 to 0.40 read
+      // as "55-40% FTP" on screen, and anything taking a zone off it got the
+      // pair backwards. The downward direction lives in `ramp` instead, which
+      // is all the .ZWO writer needs it for.
+      .concat([step('cooldown', wrap, 0.40, 0.55, 'Cool down', { ramp: 'down' })]);
     workout.steps = steps;
     workout.seconds = totalSeconds(steps);
     workout.ftp = ftp || null;
@@ -402,7 +406,9 @@
         if (s.role === 'warmup') {
           body.push(`    <Warmup Duration="${s.seconds}" PowerLow="${s.lo.toFixed(3)}" PowerHigh="${s.hi.toFixed(3)}"/>`);
         } else if (s.role === 'cooldown') {
-          body.push(`    <Cooldown Duration="${s.seconds}" PowerLow="${s.lo.toFixed(3)}" PowerHigh="${s.hi.toFixed(3)}"/>`);
+          // Zwift reads a Cooldown as PowerLow first, PowerHigh second, and
+          // ramps between them in that order — so a fade ends on the low one.
+          body.push(`    <Cooldown Duration="${s.seconds}" PowerLow="${s.hi.toFixed(3)}" PowerHigh="${s.lo.toFixed(3)}"/>`);
         } else {
           const p = ((s.lo + s.hi) / 2).toFixed(3);
           body.push(`    <SteadyState Duration="${s.seconds}" Power="${p}"/>`);

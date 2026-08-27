@@ -54,7 +54,7 @@ def _iso(value) -> str | None:
 def _blank() -> dict:
     return {
         "id": None, "source": None, "source_id": None, "name": None, "type": None,
-        "start": None, "distance_m": None, "moving_s": None, "elapsed_s": None,
+        "start": None, "date": None, "distance_m": None, "moving_s": None, "elapsed_s": None,
         "elevation_m": None, "avg_hr": None, "max_hr": None, "avg_watts": None,
         "avg_speed_mps": None, "calories": None, "device": None, "description": None,
         "raw_type": None,
@@ -71,6 +71,7 @@ def normalise_strava(a: dict) -> dict:
         raw_type=a.get("sport_type") or a.get("type"),
         type=canonical_type(a.get("sport_type") or a.get("type")),
         start=_iso(a.get("start_date")),
+        date=str(a.get("start_date_local") or a.get("start_date") or "")[:10] or None,
         distance_m=a.get("distance"),
         moving_s=a.get("moving_time"),
         elapsed_s=a.get("elapsed_time"),
@@ -97,6 +98,10 @@ def normalise_garmin(a: dict) -> dict:
         raw_type=type_key,
         type=canonical_type(type_key),
         start=_iso(a.get("startTimeGMT") or a.get("startTimeLocal")),
+        # Garmin sends both clocks. The rider's own is the one that says
+        # which day the ride belongs to: an evening ride in Denver is
+        # tomorrow in GMT, and would be filed under a day it never happened.
+        date=str(a.get("startTimeLocal") or a.get("startTimeGMT") or "")[:10] or None,
         distance_m=a.get("distance"),
         moving_s=a.get("movingDuration") or a.get("duration"),
         elapsed_s=a.get("elapsedDuration") or a.get("duration"),
@@ -115,7 +120,7 @@ def normalise_garmin(a: dict) -> dict:
 # --------------------------------------------------------------------------- disk
 
 def _path_for(act: dict) -> Path:
-    day = (act.get("start") or "unknown")[:10]
+    day = (act.get("date") or act.get("start") or "unknown")[:10]
     return config.ACTIVITIES / f"{day}-{act['id']}.json"
 
 

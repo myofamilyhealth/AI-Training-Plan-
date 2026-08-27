@@ -137,8 +137,7 @@
     const dist = opts.distance_m || 0;
     if (secs <= 0 || dist <= 0) return null;
 
-    const start = opts.start || (opts.date ? opts.date + 'T12:00:00Z'
-                                           : new Date().toISOString());
+    const start = opts.start || ((opts.date || todayLocal()) + 'T12:00:00');
     const watts = estimatePower({ seconds: secs, distance_m: dist,
                                   weightKg: opts.weightKg,
                                   elevation_m: opts.elevation_m });
@@ -149,6 +148,7 @@
       name: opts.name || 'Manual ride',
       type: 'cycling',
       start: start,
+      date: start.slice(0, 10),
       distance_m: dist,
       moving_s: secs,
       elapsed_s: secs,
@@ -219,6 +219,14 @@
   }
 
   const isoDay = d => d.toISOString().slice(0, 10);
+  /** Today where the rider is, not in UTC. */
+  const todayLocal = () => {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+  /** The day a ride was completed, as recorded — never re-derived from a
+   *  timestamp, which is how an evening ride ends up on tomorrow. */
+  const rideDay = a => a.date || (a.start ? String(a.start).slice(0, 10) : null);
   const asDate = v => (v instanceof Date ? new Date(v.getTime())
                      : new Date(String(v).length === 10 ? v + 'T00:00:00Z' : v));
 
@@ -242,8 +250,8 @@
 
     const byDay = new Map();
     (activities || []).forEach(a => {
-      if (!a.start) return;
-      const k = isoDay(new Date(a.start));
+      const k = rideDay(a);
+      if (!k) return;
       if (!byDay.has(k)) byDay.set(k, []);
       byDay.get(k).push(a);
     });
@@ -309,8 +317,8 @@
     const ftp = opts.ftp, restHr = opts.restHr || 50, maxHr = opts.maxHr || 190;
     const daily = {};
     activities.forEach(a => {
-      if (!a.start) return;
-      const day = a.start.slice(0, 10);
+      const day = rideDay(a);
+      if (!day) return;
       daily[day] = (daily[day] || 0) + rideTSS(a, ftp, restHr, maxHr).tss;
     });
 

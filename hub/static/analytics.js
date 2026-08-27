@@ -10,8 +10,30 @@
   const M_PER_MILE = 1609.344;
   const DAY = 86400000;
 
-  const dayOf = a => (a.start ? new Date(a.start) : null);
+  const pad2 = n => String(n).padStart(2, '0');
+
+  /**
+   * The calendar day a session was completed, as the file recorded it.
+   *
+   * Activities carry `date` from the importer, the .FIT parser and the manual
+   * form alike, so no timezone conversion happens here — a 7pm ride stays on
+   * the day it was ridden instead of moving to tomorrow. Older stored payloads
+   * have only `start`; its first ten characters are that same day.
+   */
+  const dayStr = a => a.date || (a.start ? String(a.start).slice(0, 10) : null);
+
+  // Days are compared as UTC midnights: same-length days, no daylight saving
+  // to trip over, and never converted back to anybody's wall clock.
+  const dayOf = a => {
+    const k = dayStr(a);
+    if (!k) return null;
+    const d = new Date(k + 'T00:00:00Z');
+    return isNaN(d) ? null : d;
+  };
   const dayKey = d => d.toISOString().slice(0, 10);
+  /** Now, reduced to the viewer's own calendar day. */
+  const startOfToday = d => new Date(
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T00:00:00Z`);
 
   function hrReserveFraction(hr, restHr, maxHr) {
     const span = Math.max(maxHr - restHr, 1);
@@ -48,11 +70,11 @@
   }
 
   function acwr(activities, restHr, maxHr, today) {
-    today = today || new Date();
+    today = startOfToday(today || new Date());
     const loads = dailyLoad(activities, restHr, maxHr);
     let acute = 0, chronic28 = 0;
     Object.keys(loads).forEach(k => {
-      const age = Math.floor((today - new Date(k + 'T00:00:00Z')) / DAY);
+      const age = Math.round((today - new Date(k + 'T00:00:00Z')) / DAY);
       if (age >= 0 && age < 7) acute += loads[k];
       if (age >= 0 && age < 28) chronic28 += loads[k];
     });
@@ -82,7 +104,7 @@
   }
 
   function weekly(activities, weeks, restHr, maxHr, today) {
-    today = today || new Date();
+    today = startOfToday(today || new Date());
     const thisMonday = mondayOf(today);
     const buckets = new Map();
     for (let i = weeks - 1; i >= 0; i--) {
@@ -145,7 +167,7 @@
         if (!out[label] || speed > out[label]._speed) {
           out[label] = {
             _speed: speed, date: dayKey(dayOf(a)), name: a.name,
-            time: fmtDuration(secs), pace: fmtPace(speed, imperial),
+            time: fmtDuration(secs), speed_text: fmtSpeed(speed, imperial),
           };
         }
       });
@@ -158,7 +180,7 @@
    *  older half. Noisy under about a dozen runs, so it says so instead. */
   function fitnessTrend(activities, days, today) {
     days = days || 90;
-    today = today || new Date();
+    today = startOfToday(today || new Date());
     const cutoff = today.getTime() - days * DAY;
     const pts = [];
     activities.forEach(a => {
@@ -196,6 +218,14 @@
     return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
   }
 
+  /** Speed the way a cyclist reads it. A cyclist thinks in mph, not in minutes
+   *  per mile — pace is a runner's unit, and this is a bike site. */
+  function fmtSpeed(mps, imperial) {
+    if (!mps || mps <= 0) return '';
+    const v = mps * (imperial ? 2.236936 : 3.6);
+    return `${(Math.round(v * 10) / 10).toFixed(1)} ${imperial ? 'mph' : 'km/h'}`;
+  }
+
   function fmtPace(mps, imperial) {
     if (!mps || mps <= 0) return '';
     const per = imperial ? M_PER_MILE : 1000;
@@ -217,7 +247,7 @@
     const imperial = opts.unit !== 'km';
     const unit = imperial ? 'mi' : 'km';
     const divisor = imperial ? M_PER_MILE : 1000;
-    const today = opts.today || new Date();
+    const today = startOfToday(opts.today || new Date());
     const weeksBack = opts.weeks || 16;
 
     const thisMonday = dayKey(mondayOf(today));
@@ -238,7 +268,7 @@
         distance: Math.round(((a.distance_m || 0) / divisor) * 100) / 100,
         seconds: Math.round(a.moving_s || 0),
         duration: fmtDuration(a.moving_s || 0),
-        pace: speed ? fmtPace(speed, imperial) : '',
+        speed_text: speed ? fmtSpeed(speed, imperial) : '',
         speed: Math.round(speed * 10000) / 10000,
         hr: a.avg_hr ? Math.round(a.avg_hr) : null,
         elevation: Math.round(a.elevation_m || 0),
@@ -285,7 +315,7 @@
   }
 
   const api = { trainingLoad, dailyLoad, acwr, weekly, easyHardSplit, bests,
-                fitnessTrend, buildPayload, fmtDuration, fmtPace, mondayOf };
+                fitnessTrend, buildPayload, fmtDuration, fmtPace, fmtSpeed, mondayOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Analytics = api;
 })(typeof self !== 'undefined' ? self : this);

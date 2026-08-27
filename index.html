@@ -510,6 +510,17 @@ input[type=file].hidden-input { display: none; }
 /* ---------------------------------------------------------------- landing */
 .landing { max-width: 1000px; margin: 0 auto; }
 
+/* -------------------------------------------------------- walkthrough */
+.walkthrough { max-width: 760px; margin: 26px auto 0; }
+.walkthrough h3 {
+  margin: 0 0 5px; font-size: 15.5px; font-weight: 620; letter-spacing: -.012em;
+}
+.walkthrough .hint { margin: 0 0 16px; }
+.walkthrough video {
+  display: block; width: 100%; height: auto; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+
 /* ------------------------------------------------------ manual entry */
 .manual { max-width: 640px; margin: 26px auto 0; }
 .manual h3 { margin: 0 0 5px; font-size: 15.5px; font-weight: 620; letter-spacing: -.012em; }
@@ -757,6 +768,24 @@ footer.foot a:hover { color: var(--text); }
     return isNaN(d) ? null : d;
   }
 
+  const pad2 = n => String(n).padStart(2, '0');
+
+  /**
+   * The moment as the file wrote it, with no timezone conversion applied.
+   *
+   * Garmin and Strava both export the rider's own clock. Turning that into UTC
+   * — which is what toISOString() does — moves an evening ride onto the next
+   * day for anybody west of Greenwich and a morning ride onto the previous one
+   * east of it, and the ride then shows up under a day it did not happen on.
+   * So the wall clock is kept as a wall clock, with no Z on the end to invite
+   * anyone to convert it.
+   */
+  function localISO(d) {
+    if (!d || isNaN(d)) return null;
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+           `T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+
   /* ------------------------------------------------------------- headers */
 
   // Ordered: the first alias that matches a header wins, so specific patterns
@@ -932,12 +961,17 @@ footer.foot a:hover { color: var(--text); }
         }
       }
 
+      const localStart = localISO(date);
       out.push({
         id: source + '-' + i + '-' + date.getTime(),
         source: source,
         name: values(r, map.name)[0] || '',
         type: type,
-        start: date.toISOString(),
+        start: localStart,
+        // The day the ride was completed, straight out of the file. Nothing
+        // downstream needs to work it out, so nothing downstream can get it
+        // wrong.
+        date: localStart.slice(0, 10),
         distance_m: distance_m,
         moving_s: moving_s,
         elapsed_s: elapsed_s,
@@ -1127,7 +1161,7 @@ footer.foot a:hover { color: var(--text); }
     return kept.concat(loose);
   }
 
-  const api = { parseCSV, parse, dedupe, sameSession, canonicalType,
+  const api = { parseCSV, parse, dedupe, sameSession, canonicalType, localISO,
                 humanDuration, humanDistance, seconds, num, parseDate,
                 inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -1446,7 +1480,7 @@ footer.foot a:hover { color: var(--text); }
     0x90: [8, null, null],
   };
 
-  const RECORD = 20, SESSION = 18, FILE_ID = 0;
+  const RECORD = 20, SESSION = 18, FILE_ID = 0, ACTIVITY = 34;
 
   // Only the fields this page uses; the rest are stepped over.
   const RECORD_FIELDS = {
@@ -1462,6 +1496,12 @@ footer.foot a:hover { color: var(--text); }
     20: ['avg_power', 1, 0], 21: ['max_power', 1, 0], 22: ['total_ascent', 1, 0],
     34: ['normalized_power', 1, 0], 35: ['training_stress_score', 10, 0],
     36: ['intensity_factor', 1000, 0], 254: ['message_index', 1, 0],
+  };
+  // The activity message is the only place a .FIT says what time it was where
+  // the rider was. Everything else in the file is UTC, and a ride that started
+  // at 7pm in Colorado is filed on the following day without this.
+  const ACTIVITY_FIELDS = {
+    253: ['timestamp', 1, 0], 5: ['local_timestamp', 1, 0],
   };
   const SPORTS = { 0: 'other', 1: 'running', 2: 'cycling', 5: 'swimming', 11: 'walking', 17: 'hiking' };
 
@@ -1481,6 +1521,7 @@ footer.foot a:hover { color: var(--text); }
     const records = [];
     const sessions = [];
     let fileTime = null;
+    let activity = null;
 
     while (pos < end) {
       const header = view.getUint8(pos++);
@@ -1519,7 +1560,8 @@ footer.foot a:hover { color: var(--text); }
 
       const out = {};
       const map = def.globalNum === RECORD ? RECORD_FIELDS
-                : def.globalNum === SESSION ? SESSION_FIELDS : null;
+                : def.globalNum === SESSION ? SESSION_FIELDS
+                : def.globalNum === ACTIVITY ? ACTIVITY_FIELDS : null;
 
       def.fields.forEach(f => {
         const spec = BASE_TYPES[f.type];
@@ -1542,13 +1584,14 @@ footer.foot a:hover { color: var(--text); }
 
       if (def.globalNum === RECORD) records.push(out);
       else if (def.globalNum === SESSION) sessions.push(out);
+      else if (def.globalNum === ACTIVITY && !activity) activity = out;
       else if (def.globalNum === FILE_ID && out.timestamp) fileTime = out.timestamp;
     }
 
     if (!records.length && !sessions.length) {
       throw new Error('No ride data could be read out of that .FIT file.');
     }
-    return buildActivity(records, sessions, fileTime);
+    return buildActivity(records, sessions, fileTime, activity);
   }
 
   function fitTimeToISO(t) {
@@ -1556,9 +1599,33 @@ footer.foot a:hover { color: var(--text); }
     return new Date((t + FIT_EPOCH_OFFSET) * 1000).toISOString();
   }
 
+  /**
+   * How far the rider's clock was from UTC, in seconds.
+   *
+   * The activity message carries the same moment twice, once in UTC and once
+   * as the watch displayed it; the difference is the offset that was in force
+   * that day, daylight saving and all. Files without the message fall back to
+   * zero, which is what this code did before it knew any better.
+   */
+  function utcOffset(activity) {
+    if (!activity || activity.local_timestamp == null || activity.timestamp == null) return 0;
+    const diff = activity.local_timestamp - activity.timestamp;
+    // Real offsets run from -12h to +14h. Anything else is a broken file.
+    if (!Number.isFinite(diff) || Math.abs(diff) > 14 * 3600) return 0;
+    return Math.round(diff / 900) * 900;                  // quarter-hour zones
+  }
+
+  /** A FIT timestamp as the wall clock the rider actually rode by: no zone
+   *  suffix, because the whole point is that it is not being converted. */
+  function fitTimeToLocalISO(t, offsetS) {
+    if (t == null) return null;
+    return new Date((t + FIT_EPOCH_OFFSET + (offsetS || 0)) * 1000)
+      .toISOString().slice(0, 19);
+  }
+
   /** Turn the decoded messages into the same activity shape the CSV path
    *  produces, plus the streams a CSV can never carry. */
-  function buildActivity(records, sessions, fileTime) {
+  function buildActivity(records, sessions, fileTime, activity) {
     const s = sessions[0] || {};
     const power = records.map(r => (r.power == null ? 0 : r.power));
     const hasPower = power.some(p => p > 0);
@@ -1566,8 +1633,13 @@ footer.foot a:hover { color: var(--text); }
     const cadence = records.map(r => r.cadence || null);
     const speed = records.map(r => r.speed || null);
 
-    const start = fitTimeToISO(s.start_time != null ? s.start_time : (records[0] || {}).timestamp)
-               || fitTimeToISO(fileTime);
+    // The day a ride belongs to is the day the rider rode it. FIT records are
+    // UTC, so an evening ride west of Greenwich lands on tomorrow unless the
+    // file's own offset is applied first.
+    const offsetS = utcOffset(activity);
+    const startFit = s.start_time != null ? s.start_time
+                   : ((records[0] || {}).timestamp != null ? records[0].timestamp : fileTime);
+    const start = fitTimeToLocalISO(startFit, offsetS);
     const moving = s.total_timer_time || s.total_elapsed_time || records.length;
 
     const np = hasPower ? normalizedPower(power) : null;
@@ -1578,6 +1650,11 @@ footer.foot a:hover { color: var(--text); }
       name: null,
       type: SPORTS[s.sport] || 'cycling',
       start: start,
+      // The calendar day it was completed, settled here once so nothing
+      // downstream has to convert a timezone to work it out.
+      date: start ? start.slice(0, 10) : null,
+      utc_start: fitTimeToISO(startFit),
+      utc_offset_s: offsetS,
       distance_m: s.total_distance || null,
       moving_s: moving,
       elapsed_s: s.total_elapsed_time || moving,
@@ -1691,20 +1768,31 @@ footer.foot a:hover { color: var(--text); }
 
   /** Seconds spent in each power zone — the real distribution, sample by
    *  sample, rather than a whole ride dropped into one bucket. */
+  /**
+   * Seconds spent in each power zone.
+   *
+   * Takes zones in either shape: Cycling.ZONES states its bounds as fractions
+   * of FTP in `hi`, while Cycling.zones(ftp) resolves them to watts and keeps
+   * the fractions in `hiPct`. Reading only `hiPct` meant a bare ZONES table
+   * compared every sample against undefined, fell through to the last zone,
+   * and reported a whole ride as neuromuscular.
+   */
   function zoneSeconds(power, ftp, zones) {
     if (!ftp) return null;
-    const out = zones.map(z => 0);
+    const tops = zones.map(z => (z.hiPct != null ? z.hiPct : z.hi));
+    const out = zones.map(() => 0);
     power.forEach(w => {
       if (w <= 0) { out[0] += 1; return; }
       const pct = w / ftp;
       for (let i = 0; i < zones.length; i++) {
-        if (pct <= zones[i].hiPct || i === zones.length - 1) { out[i] += 1; break; }
+        if (pct <= tops[i] || i === zones.length - 1) { out[i] += 1; break; }
       }
     });
     return out;
   }
 
   const api = { parse, powerCurve, mergeCurves, ftpFromCurve, normalizedPower,
+                utcOffset, fitTimeToLocalISO,
                 zoneSeconds, CURVE_DURATIONS, fitTimeToISO };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Fit = api;
@@ -1722,8 +1810,30 @@ footer.foot a:hover { color: var(--text); }
   const M_PER_MILE = 1609.344;
   const DAY = 86400000;
 
-  const dayOf = a => (a.start ? new Date(a.start) : null);
+  const pad2 = n => String(n).padStart(2, '0');
+
+  /**
+   * The calendar day a session was completed, as the file recorded it.
+   *
+   * Activities carry `date` from the importer, the .FIT parser and the manual
+   * form alike, so no timezone conversion happens here — a 7pm ride stays on
+   * the day it was ridden instead of moving to tomorrow. Older stored payloads
+   * have only `start`; its first ten characters are that same day.
+   */
+  const dayStr = a => a.date || (a.start ? String(a.start).slice(0, 10) : null);
+
+  // Days are compared as UTC midnights: same-length days, no daylight saving
+  // to trip over, and never converted back to anybody's wall clock.
+  const dayOf = a => {
+    const k = dayStr(a);
+    if (!k) return null;
+    const d = new Date(k + 'T00:00:00Z');
+    return isNaN(d) ? null : d;
+  };
   const dayKey = d => d.toISOString().slice(0, 10);
+  /** Now, reduced to the viewer's own calendar day. */
+  const startOfToday = d => new Date(
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T00:00:00Z`);
 
   function hrReserveFraction(hr, restHr, maxHr) {
     const span = Math.max(maxHr - restHr, 1);
@@ -1760,11 +1870,11 @@ footer.foot a:hover { color: var(--text); }
   }
 
   function acwr(activities, restHr, maxHr, today) {
-    today = today || new Date();
+    today = startOfToday(today || new Date());
     const loads = dailyLoad(activities, restHr, maxHr);
     let acute = 0, chronic28 = 0;
     Object.keys(loads).forEach(k => {
-      const age = Math.floor((today - new Date(k + 'T00:00:00Z')) / DAY);
+      const age = Math.round((today - new Date(k + 'T00:00:00Z')) / DAY);
       if (age >= 0 && age < 7) acute += loads[k];
       if (age >= 0 && age < 28) chronic28 += loads[k];
     });
@@ -1794,7 +1904,7 @@ footer.foot a:hover { color: var(--text); }
   }
 
   function weekly(activities, weeks, restHr, maxHr, today) {
-    today = today || new Date();
+    today = startOfToday(today || new Date());
     const thisMonday = mondayOf(today);
     const buckets = new Map();
     for (let i = weeks - 1; i >= 0; i--) {
@@ -1857,7 +1967,7 @@ footer.foot a:hover { color: var(--text); }
         if (!out[label] || speed > out[label]._speed) {
           out[label] = {
             _speed: speed, date: dayKey(dayOf(a)), name: a.name,
-            time: fmtDuration(secs), pace: fmtPace(speed, imperial),
+            time: fmtDuration(secs), speed_text: fmtSpeed(speed, imperial),
           };
         }
       });
@@ -1870,7 +1980,7 @@ footer.foot a:hover { color: var(--text); }
    *  older half. Noisy under about a dozen runs, so it says so instead. */
   function fitnessTrend(activities, days, today) {
     days = days || 90;
-    today = today || new Date();
+    today = startOfToday(today || new Date());
     const cutoff = today.getTime() - days * DAY;
     const pts = [];
     activities.forEach(a => {
@@ -1908,6 +2018,14 @@ footer.foot a:hover { color: var(--text); }
     return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
   }
 
+  /** Speed the way a cyclist reads it. A cyclist thinks in mph, not in minutes
+   *  per mile — pace is a runner's unit, and this is a bike site. */
+  function fmtSpeed(mps, imperial) {
+    if (!mps || mps <= 0) return '';
+    const v = mps * (imperial ? 2.236936 : 3.6);
+    return `${(Math.round(v * 10) / 10).toFixed(1)} ${imperial ? 'mph' : 'km/h'}`;
+  }
+
   function fmtPace(mps, imperial) {
     if (!mps || mps <= 0) return '';
     const per = imperial ? M_PER_MILE : 1000;
@@ -1929,7 +2047,7 @@ footer.foot a:hover { color: var(--text); }
     const imperial = opts.unit !== 'km';
     const unit = imperial ? 'mi' : 'km';
     const divisor = imperial ? M_PER_MILE : 1000;
-    const today = opts.today || new Date();
+    const today = startOfToday(opts.today || new Date());
     const weeksBack = opts.weeks || 16;
 
     const thisMonday = dayKey(mondayOf(today));
@@ -1950,7 +2068,7 @@ footer.foot a:hover { color: var(--text); }
         distance: Math.round(((a.distance_m || 0) / divisor) * 100) / 100,
         seconds: Math.round(a.moving_s || 0),
         duration: fmtDuration(a.moving_s || 0),
-        pace: speed ? fmtPace(speed, imperial) : '',
+        speed_text: speed ? fmtSpeed(speed, imperial) : '',
         speed: Math.round(speed * 10000) / 10000,
         hr: a.avg_hr ? Math.round(a.avg_hr) : null,
         elevation: Math.round(a.elevation_m || 0),
@@ -1997,7 +2115,7 @@ footer.foot a:hover { color: var(--text); }
   }
 
   const api = { trainingLoad, dailyLoad, acwr, weekly, easyHardSplit, bests,
-                fitnessTrend, buildPayload, fmtDuration, fmtPace, mondayOf };
+                fitnessTrend, buildPayload, fmtDuration, fmtPace, fmtSpeed, mondayOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Analytics = api;
 })(typeof self !== 'undefined' ? self : this);
@@ -2141,8 +2259,7 @@ footer.foot a:hover { color: var(--text); }
     const dist = opts.distance_m || 0;
     if (secs <= 0 || dist <= 0) return null;
 
-    const start = opts.start || (opts.date ? opts.date + 'T12:00:00Z'
-                                           : new Date().toISOString());
+    const start = opts.start || ((opts.date || todayLocal()) + 'T12:00:00');
     const watts = estimatePower({ seconds: secs, distance_m: dist,
                                   weightKg: opts.weightKg,
                                   elevation_m: opts.elevation_m });
@@ -2153,6 +2270,7 @@ footer.foot a:hover { color: var(--text); }
       name: opts.name || 'Manual ride',
       type: 'cycling',
       start: start,
+      date: start.slice(0, 10),
       distance_m: dist,
       moving_s: secs,
       elapsed_s: secs,
@@ -2223,6 +2341,14 @@ footer.foot a:hover { color: var(--text); }
   }
 
   const isoDay = d => d.toISOString().slice(0, 10);
+  /** Today where the rider is, not in UTC. */
+  const todayLocal = () => {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+  /** The day a ride was completed, as recorded — never re-derived from a
+   *  timestamp, which is how an evening ride ends up on tomorrow. */
+  const rideDay = a => a.date || (a.start ? String(a.start).slice(0, 10) : null);
   const asDate = v => (v instanceof Date ? new Date(v.getTime())
                      : new Date(String(v).length === 10 ? v + 'T00:00:00Z' : v));
 
@@ -2246,8 +2372,8 @@ footer.foot a:hover { color: var(--text); }
 
     const byDay = new Map();
     (activities || []).forEach(a => {
-      if (!a.start) return;
-      const k = isoDay(new Date(a.start));
+      const k = rideDay(a);
+      if (!k) return;
       if (!byDay.has(k)) byDay.set(k, []);
       byDay.get(k).push(a);
     });
@@ -2313,8 +2439,8 @@ footer.foot a:hover { color: var(--text); }
     const ftp = opts.ftp, restHr = opts.restHr || 50, maxHr = opts.maxHr || 190;
     const daily = {};
     activities.forEach(a => {
-      if (!a.start) return;
-      const day = a.start.slice(0, 10);
+      const day = rideDay(a);
+      if (!day) return;
       daily[day] = (daily[day] || 0) + rideTSS(a, ftp, restHr, maxHr).tss;
     });
 
@@ -3691,7 +3817,11 @@ footer.foot a:hover { color: var(--text); }
 
     const steps = [step('warmup', wrap, 0.50, 0.70, 'Warm up')]
       .concat(body)
-      .concat([step('cooldown', wrap, 0.55, 0.40, 'Cool down')]);
+      // lo is always the bottom of the range: a step written 0.55 to 0.40 read
+      // as "55-40% FTP" on screen, and anything taking a zone off it got the
+      // pair backwards. The downward direction lives in `ramp` instead, which
+      // is all the .ZWO writer needs it for.
+      .concat([step('cooldown', wrap, 0.40, 0.55, 'Cool down', { ramp: 'down' })]);
     workout.steps = steps;
     workout.seconds = totalSeconds(steps);
     workout.ftp = ftp || null;
@@ -3803,7 +3933,9 @@ footer.foot a:hover { color: var(--text); }
         if (s.role === 'warmup') {
           body.push(`    <Warmup Duration="${s.seconds}" PowerLow="${s.lo.toFixed(3)}" PowerHigh="${s.hi.toFixed(3)}"/>`);
         } else if (s.role === 'cooldown') {
-          body.push(`    <Cooldown Duration="${s.seconds}" PowerLow="${s.lo.toFixed(3)}" PowerHigh="${s.hi.toFixed(3)}"/>`);
+          // Zwift reads a Cooldown as PowerLow first, PowerHigh second, and
+          // ramps between them in that order — so a fade ends on the low one.
+          body.push(`    <Cooldown Duration="${s.seconds}" PowerLow="${s.hi.toFixed(3)}" PowerHigh="${s.lo.toFixed(3)}"/>`);
         } else {
           const p = ((s.lo + s.hi) / 2).toFixed(3);
           body.push(`    <SteadyState Duration="${s.seconds}" Power="${p}"/>`);
@@ -4225,7 +4357,9 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     for (let i = 0; i < weeks; i++) {
       const recovery = (i + 1) % 4 === 0 && i < weeks - 3;
       const phase = recovery ? 'recovery' : phaseFor(i, weeks);
-      const isRaceWeek = !recovery && i === weeks - 1;
+      // Without a date in the diary there is no race to sharpen for, so the
+      // last week of the block is simply the end of the taper.
+      const isRaceWeek = !recovery && i === weeks - 1 && !!eventDate;
 
       if (!recovery && i > 0 && phase !== 'taper') {
         hours = Math.min(hours * 1.08, startHours * 1.6);
@@ -4664,7 +4798,8 @@ function activityTable() {
   const COLS = [
     ['date', 'Date', false], ['name', 'Session', false], ['type', 'Type', false],
     ['distance', DATA.unit === 'mi' ? 'Miles' : 'Km', true], ['seconds', 'Time', true],
-    ['speed', 'Pace', true], ['hr', 'Avg HR', true], ['load', 'Load', true],
+    ['speed', DATA.unit === 'mi' ? 'Avg mph' : 'Avg km/h', true],
+    ['hr', 'Avg HR', true], ['load', 'Load', true],
   ];
 
   function draw() {
@@ -4714,7 +4849,10 @@ function activityTable() {
       row.appendChild(el('td', { text: r.type }));
       row.appendChild(el('td', { class: 'r num', text: fmt(r.distance, 2) }));
       row.appendChild(el('td', { class: 'r num', text: r.duration }));
-      row.appendChild(el('td', { class: 'r num', text: r.pace || '—' }));
+      // Speed, not pace: minutes per mile is a runner's unit and this is a
+      // bike site. The column sorts on the number behind the text.
+      row.appendChild(el('td', { class: 'r num',
+        text: r.speed_text ? r.speed_text.replace(/ (mph|km\/h)$/, '') : '—' }));
       row.appendChild(el('td', { class: 'r num', text: r.hr == null ? '—' : r.hr }));
       row.appendChild(el('td', { class: 'r num', text: fmt(r.load) }));
       tbody.appendChild(row);
@@ -4791,33 +4929,6 @@ function planCard() {
   return card;
 }
 
-function bestsCard() {
-  const card = el('div', { class: 'card' });
-  card.appendChild(el('h2', { text: 'Best efforts' }));
-  card.appendChild(el('p', { class: 'hint',
-    text: 'Fastest average pace across a whole activity — not verified race results.' }));
-  const order = ['5k', '10k', 'half', 'marathon'];
-  const found = order.filter(k => DATA.bests[k]);
-  if (!found.length) {
-    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
-      text: 'Nothing in a standard distance band yet.' }));
-    return card;
-  }
-  found.forEach(k => {
-    const b = DATA.bests[k];
-    const row = el('div', { class: 'plan-day' });
-    row.appendChild(el('span', { class: 'd', text: k }));
-    const w = el('span', { class: 'w num', style: 'flex:1' });
-    w.appendChild(el('strong', { style: 'color:var(--text)', text: b.time }));
-    w.appendChild(document.createTextNode('  ' + b.pace));
-    row.appendChild(w);
-    row.appendChild(el('span', { class: 'd num', style: 'text-align:right', text: b.date }));
-    card.appendChild(row);
-  });
-  return card;
-}
-
-/* ------------------------------------------------------------------ assemble */
 function kpiRow() {
   const row = el('div', { class: 'grid kpis' });
   const t = DATA.totals;
@@ -5127,6 +5238,38 @@ function addToHistory(incoming, prior, opts) {
 }
 
 /**
+ * The walkthrough: exporting a whole Garmin history and loading it here.
+ *
+ * Kept as a file beside the page rather than inlined, so a visitor who does not
+ * watch it never downloads it. Everything else on this page works with no
+ * network at all; this is the one part that needs the file to be there, and it
+ * takes itself off the page if it is not.
+ */
+function walkthroughCard() {
+  const card = el('div', { class: 'card walkthrough' });
+  card.appendChild(el('h3', { text: 'How to upload all past Garmin rides' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Half a minute, no sound. Garmin Connect \u2192 Activities \u2192 Export CSV, ' +
+          'then drop that file above and every ride you have ever recorded is in.' }));
+
+  const video = el('video', {
+    controls: 'controls', preload: 'metadata', playsinline: 'playsinline',
+    poster: 'media/uploading-past-rides.jpg',
+    'aria-label': 'How to upload all past Garmin rides',
+  });
+  // H.264 first for Safari and iOS, VP9 behind it for the Chromium builds that
+  // ship without the patented decoder — between them every current browser has
+  // one it can play.
+  video.appendChild(el('source', { src: 'media/uploading-past-rides.mp4', type: 'video/mp4' }));
+  video.appendChild(el('source', { src: 'media/uploading-past-rides.webm', type: 'video/webm' }));
+  // Only once every source has been tried and failed — a page copied away from
+  // its media folder should not sit there showing a broken frame.
+  video.addEventListener('error', () => { card.hidden = true; });
+  card.appendChild(video);
+  return card;
+}
+
+/**
  * Add a ride without a file: a date, how long, how far, and nothing else.
  *
  * Time and distance are the two things a rider always knows, and everything the
@@ -5293,6 +5436,7 @@ function importScreen(errorMessage) {
     style: 'margin:18px 0 0;text-align:center',
     text: 'Nothing leaves your browser. No account, no password.' }));
   wrap.appendChild(hero);
+  wrap.appendChild(walkthroughCard());
   wrap.appendChild(manualEntryCard(DATA && DATA.unit ? DATA.unit : unitPref));
 
   if (errorMessage) {

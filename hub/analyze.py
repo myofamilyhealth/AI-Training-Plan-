@@ -11,14 +11,22 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from . import config
-from .units import M_PER_MILE, format_distance, format_duration, format_pace
+from .units import M_PER_MILE, format_distance, format_duration, format_speed
 
 
 def _day(act: dict) -> date | None:
-    if not act.get("start"):
+    """The calendar day a session was completed, as recorded.
+
+    `date` is written by the importer, the .FIT parser and the sync, and is
+    already the rider's own day. Falling back to the first ten characters of
+    `start` reads that same day off the timestamp without converting it into
+    another timezone, which is what moved evening rides onto tomorrow.
+    """
+    raw = act.get("date") or act.get("start")
+    if not raw:
         return None
     try:
-        return datetime.fromisoformat(act["start"]).date()
+        return date.fromisoformat(str(raw)[:10])
     except ValueError:
         return None
 
@@ -160,7 +168,7 @@ def easy_hard_split(activities: list[dict], rest_hr: float = 50, max_hr: float =
 
 
 def bests(activities: list[dict]) -> dict:
-    """Fastest average pace at each distance band, run-only. Not a true race PR
+    """Fastest average speed at each distance band, run-only. Not a true race PR
     — it's the best sustained average over a whole activity of that length."""
     bands = [("5k", 4800, 5400), ("10k", 9600, 10800),
              ("half", 20500, 21800), ("marathon", 41500, 43500)]
@@ -177,7 +185,7 @@ def bests(activities: list[dict]) -> dict:
                 if label not in out or speed > out[label]["speed_mps"]:
                     out[label] = {"speed_mps": speed, "date": str(_day(act)),
                                   "name": act.get("name"), "time": format_duration(secs),
-                                  "pace": format_pace(speed, config.imperial())}
+                                  "speed_text": format_speed(speed, config.imperial())}
     for value in out.values():
         value.pop("speed_mps", None)
     return out
@@ -256,7 +264,7 @@ def summary(activities: list[dict], weeks: int = 12, **kw) -> str:
         for label in ("5k", "10k", "half", "marathon"):
             if label in best:
                 b = best[label]
-                lines.append(f"  {label:<9} {b['time']:>9}  {b['pace']:>10}   {b['date']}")
+                lines.append(f"  {label:<9} {b['time']:>9}  {b['speed_text']:>10}   {b['date']}")
 
     lines.append("")
     return "\n".join(lines)

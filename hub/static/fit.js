@@ -38,7 +38,7 @@
     0x90: [8, null, null],
   };
 
-  const RECORD = 20, SESSION = 18, FILE_ID = 0;
+  const RECORD = 20, SESSION = 18, FILE_ID = 0, ACTIVITY = 34;
 
   // Only the fields this page uses; the rest are stepped over.
   const RECORD_FIELDS = {
@@ -54,6 +54,12 @@
     20: ['avg_power', 1, 0], 21: ['max_power', 1, 0], 22: ['total_ascent', 1, 0],
     34: ['normalized_power', 1, 0], 35: ['training_stress_score', 10, 0],
     36: ['intensity_factor', 1000, 0], 254: ['message_index', 1, 0],
+  };
+  // The activity message is the only place a .FIT says what time it was where
+  // the rider was. Everything else in the file is UTC, and a ride that started
+  // at 7pm in Colorado is filed on the following day without this.
+  const ACTIVITY_FIELDS = {
+    253: ['timestamp', 1, 0], 5: ['local_timestamp', 1, 0],
   };
   const SPORTS = { 0: 'other', 1: 'running', 2: 'cycling', 5: 'swimming', 11: 'walking', 17: 'hiking' };
 
@@ -73,6 +79,7 @@
     const records = [];
     const sessions = [];
     let fileTime = null;
+    let activity = null;
 
     while (pos < end) {
       const header = view.getUint8(pos++);
@@ -111,7 +118,8 @@
 
       const out = {};
       const map = def.globalNum === RECORD ? RECORD_FIELDS
-                : def.globalNum === SESSION ? SESSION_FIELDS : null;
+                : def.globalNum === SESSION ? SESSION_FIELDS
+                : def.globalNum === ACTIVITY ? ACTIVITY_FIELDS : null;
 
       def.fields.forEach(f => {
         const spec = BASE_TYPES[f.type];
@@ -134,13 +142,14 @@
 
       if (def.globalNum === RECORD) records.push(out);
       else if (def.globalNum === SESSION) sessions.push(out);
+      else if (def.globalNum === ACTIVITY && !activity) activity = out;
       else if (def.globalNum === FILE_ID && out.timestamp) fileTime = out.timestamp;
     }
 
     if (!records.length && !sessions.length) {
       throw new Error('No ride data could be read out of that .FIT file.');
     }
-    return buildActivity(records, sessions, fileTime);
+    return buildActivity(records, sessions, fileTime, activity);
   }
 
   function fitTimeToISO(t) {
@@ -148,9 +157,33 @@
     return new Date((t + FIT_EPOCH_OFFSET) * 1000).toISOString();
   }
 
+  /**
+   * How far the rider's clock was from UTC, in seconds.
+   *
+   * The activity message carries the same moment twice, once in UTC and once
+   * as the watch displayed it; the difference is the offset that was in force
+   * that day, daylight saving and all. Files without the message fall back to
+   * zero, which is what this code did before it knew any better.
+   */
+  function utcOffset(activity) {
+    if (!activity || activity.local_timestamp == null || activity.timestamp == null) return 0;
+    const diff = activity.local_timestamp - activity.timestamp;
+    // Real offsets run from -12h to +14h. Anything else is a broken file.
+    if (!Number.isFinite(diff) || Math.abs(diff) > 14 * 3600) return 0;
+    return Math.round(diff / 900) * 900;                  // quarter-hour zones
+  }
+
+  /** A FIT timestamp as the wall clock the rider actually rode by: no zone
+   *  suffix, because the whole point is that it is not being converted. */
+  function fitTimeToLocalISO(t, offsetS) {
+    if (t == null) return null;
+    return new Date((t + FIT_EPOCH_OFFSET + (offsetS || 0)) * 1000)
+      .toISOString().slice(0, 19);
+  }
+
   /** Turn the decoded messages into the same activity shape the CSV path
    *  produces, plus the streams a CSV can never carry. */
-  function buildActivity(records, sessions, fileTime) {
+  function buildActivity(records, sessions, fileTime, activity) {
     const s = sessions[0] || {};
     const power = records.map(r => (r.power == null ? 0 : r.power));
     const hasPower = power.some(p => p > 0);
@@ -158,8 +191,13 @@
     const cadence = records.map(r => r.cadence || null);
     const speed = records.map(r => r.speed || null);
 
-    const start = fitTimeToISO(s.start_time != null ? s.start_time : (records[0] || {}).timestamp)
-               || fitTimeToISO(fileTime);
+    // The day a ride belongs to is the day the rider rode it. FIT records are
+    // UTC, so an evening ride west of Greenwich lands on tomorrow unless the
+    // file's own offset is applied first.
+    const offsetS = utcOffset(activity);
+    const startFit = s.start_time != null ? s.start_time
+                   : ((records[0] || {}).timestamp != null ? records[0].timestamp : fileTime);
+    const start = fitTimeToLocalISO(startFit, offsetS);
     const moving = s.total_timer_time || s.total_elapsed_time || records.length;
 
     const np = hasPower ? normalizedPower(power) : null;
@@ -170,6 +208,11 @@
       name: null,
       type: SPORTS[s.sport] || 'cycling',
       start: start,
+      // The calendar day it was completed, settled here once so nothing
+      // downstream has to convert a timezone to work it out.
+      date: start ? start.slice(0, 10) : null,
+      utc_start: fitTimeToISO(startFit),
+      utc_offset_s: offsetS,
       distance_m: s.total_distance || null,
       moving_s: moving,
       elapsed_s: s.total_elapsed_time || moving,
@@ -283,20 +326,31 @@
 
   /** Seconds spent in each power zone — the real distribution, sample by
    *  sample, rather than a whole ride dropped into one bucket. */
+  /**
+   * Seconds spent in each power zone.
+   *
+   * Takes zones in either shape: Cycling.ZONES states its bounds as fractions
+   * of FTP in `hi`, while Cycling.zones(ftp) resolves them to watts and keeps
+   * the fractions in `hiPct`. Reading only `hiPct` meant a bare ZONES table
+   * compared every sample against undefined, fell through to the last zone,
+   * and reported a whole ride as neuromuscular.
+   */
   function zoneSeconds(power, ftp, zones) {
     if (!ftp) return null;
-    const out = zones.map(z => 0);
+    const tops = zones.map(z => (z.hiPct != null ? z.hiPct : z.hi));
+    const out = zones.map(() => 0);
     power.forEach(w => {
       if (w <= 0) { out[0] += 1; return; }
       const pct = w / ftp;
       for (let i = 0; i < zones.length; i++) {
-        if (pct <= zones[i].hiPct || i === zones.length - 1) { out[i] += 1; break; }
+        if (pct <= tops[i] || i === zones.length - 1) { out[i] += 1; break; }
       }
     });
     return out;
   }
 
   const api = { parse, powerCurve, mergeCurves, ftpFromCurve, normalizedPower,
+                utcOffset, fitTimeToLocalISO,
                 zoneSeconds, CURVE_DURATIONS, fitTimeToISO };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Fit = api;

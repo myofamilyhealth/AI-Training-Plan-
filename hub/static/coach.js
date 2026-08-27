@@ -326,7 +326,9 @@
     for (let i = 0; i < weeks; i++) {
       const recovery = (i + 1) % 4 === 0 && i < weeks - 3;
       const phase = recovery ? 'recovery' : phaseFor(i, weeks);
-      const isRaceWeek = !recovery && i === weeks - 1;
+      // Without a date in the diary there is no race to sharpen for, so the
+      // last week of the block is simply the end of the taper.
+      const isRaceWeek = !recovery && i === weeks - 1 && !!eventDate;
 
       if (!recovery && i > 0 && phase !== 'taper') {
         hours = Math.min(hours * 1.08, startHours * 1.6);

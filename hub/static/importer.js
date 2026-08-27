@@ -73,6 +73,24 @@
     return isNaN(d) ? null : d;
   }
 
+  const pad2 = n => String(n).padStart(2, '0');
+
+  /**
+   * The moment as the file wrote it, with no timezone conversion applied.
+   *
+   * Garmin and Strava both export the rider's own clock. Turning that into UTC
+   * — which is what toISOString() does — moves an evening ride onto the next
+   * day for anybody west of Greenwich and a morning ride onto the previous one
+   * east of it, and the ride then shows up under a day it did not happen on.
+   * So the wall clock is kept as a wall clock, with no Z on the end to invite
+   * anyone to convert it.
+   */
+  function localISO(d) {
+    if (!d || isNaN(d)) return null;
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+           `T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+
   /* ------------------------------------------------------------- headers */
 
   // Ordered: the first alias that matches a header wins, so specific patterns
@@ -248,12 +266,17 @@
         }
       }
 
+      const localStart = localISO(date);
       out.push({
         id: source + '-' + i + '-' + date.getTime(),
         source: source,
         name: values(r, map.name)[0] || '',
         type: type,
-        start: date.toISOString(),
+        start: localStart,
+        // The day the ride was completed, straight out of the file. Nothing
+        // downstream needs to work it out, so nothing downstream can get it
+        // wrong.
+        date: localStart.slice(0, 10),
         distance_m: distance_m,
         moving_s: moving_s,
         elapsed_s: elapsed_s,
@@ -443,7 +466,7 @@
     return kept.concat(loose);
   }
 
-  const api = { parseCSV, parse, dedupe, sameSession, canonicalType,
+  const api = { parseCSV, parse, dedupe, sameSession, canonicalType, localISO,
                 humanDuration, humanDistance, seconds, num, parseDate,
                 inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

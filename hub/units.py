@@ -126,6 +126,13 @@ def parse_pace_range(text: str) -> tuple[float, float]:
     return (mps * 0.98, mps * 1.02)
 
 
+def format_speed(mps: float, imperial: bool = True) -> str:
+    """Speed the way a cyclist reads it — pace is a runner's unit."""
+    if mps <= 0:
+        return "—"
+    return f"{mps * (2.236936 if imperial else 3.6):.1f} {'mph' if imperial else 'km/h'}"
+
+
 def format_pace(mps: float, imperial: bool = True) -> str:
     if mps <= 0:
         return "—"

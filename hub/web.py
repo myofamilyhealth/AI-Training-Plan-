@@ -8,20 +8,29 @@ self-contained and small.
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import analyze, config, plan as plan_mod, store
-from .units import format_distance, format_duration, format_pace
+from .units import format_distance, format_duration, format_speed
 
 M_PER_MILE = 1609.344
 
 
 def _day(act: dict) -> date | None:
-    if not act.get("start"):
+    """The calendar day a session was completed, as recorded.
+
+    `date` is written by the importer, the .FIT parser and the sync, and is
+    already the rider's own day. Falling back to the first ten characters of
+    `start` reads that same day off the timestamp without converting it into
+    another timezone, which is what moved evening rides onto tomorrow.
+    """
+    raw = act.get("date") or act.get("start")
+    if not raw:
         return None
     try:
-        return datetime.fromisoformat(act["start"]).date()
+        return date.fromisoformat(str(raw)[:10])
     except ValueError:
         return None
 
@@ -67,7 +76,7 @@ def build_payload(activities: list[dict], rest_hr: float = 50, max_hr: float = 1
             "distance": round((act.get("distance_m") or 0) / divisor, 2),
             "seconds": int(act.get("moving_s") or 0),
             "duration": format_duration(act.get("moving_s") or 0),
-            "pace": format_pace(speed, imperial) if speed else "",
+            "speed_text": format_speed(speed, imperial) if speed else "",
             "speed": round(speed, 4),
             "hr": int(act["avg_hr"]) if act.get("avg_hr") else None,
             "elevation": round(act.get("elevation_m") or 0),
@@ -204,5 +213,28 @@ def build(out: Path | str | None = None, standalone: bool = True, **kw) -> Path:
         # .nojekyll stops Pages running the files through Jekyll, which is what
         # turns a repo with no root index.html into a rendered README.
         (target.parent / ".nojekyll").touch()
+        _copy_media(target.parent)
         written.append(target)
     return written[0]
+
+
+def _copy_media(dest_dir: Path) -> None:
+    """Keep media/ beside every copy of the page.
+
+    The walkthrough video is referenced with a relative path, so it has to sit
+    next to whichever index.html the browser actually loaded — the root one,
+    the docs/ one, or a copy opened straight off disk. Too big to inline, and
+    inlining it would put a megabyte and a half into every page load whether
+    the visitor watches it or not.
+    """
+    src = config.ROOT / "media"
+    if not src.is_dir() or src.resolve() == (dest_dir / "media").resolve():
+        return
+    out = dest_dir / "media"
+    out.mkdir(parents=True, exist_ok=True)
+    for f in src.iterdir():
+        if f.is_file():
+            target = out / f.name
+            if not target.exists() or target.stat().st_mtime < f.stat().st_mtime \
+                    or target.stat().st_size != f.stat().st_size:
+                shutil.copy2(f, target)

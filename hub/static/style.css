@@ -499,6 +499,17 @@ input[type=file].hidden-input { display: none; }
 /* ---------------------------------------------------------------- landing */
 .landing { max-width: 1000px; margin: 0 auto; }
 
+/* -------------------------------------------------------- walkthrough */
+.walkthrough { max-width: 760px; margin: 26px auto 0; }
+.walkthrough h3 {
+  margin: 0 0 5px; font-size: 15.5px; font-weight: 620; letter-spacing: -.012em;
+}
+.walkthrough .hint { margin: 0 0 16px; }
+.walkthrough video {
+  display: block; width: 100%; height: auto; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+
 /* ------------------------------------------------------ manual entry */
 .manual { max-width: 640px; margin: 26px auto 0; }
 .manual h3 { margin: 0 0 5px; font-size: 15.5px; font-weight: 620; letter-spacing: -.012em; }

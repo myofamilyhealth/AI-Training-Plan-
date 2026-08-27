@@ -179,12 +179,6 @@ check('short duration drops the hour', A.fmtDuration(185), '3:05');
 check('pace formats imperial', A.fmtPace(1609.344 / 450, true), '7:30/mi');
 check('pace formats metric', A.fmtPace(1000 / 240, false), '4:00/km');
 
-if (failures.length) {
-  console.log(`FAILED (${failures.length})`);
-  failures.forEach(f => console.log('  -', f));
-  process.exit(1);
-}
-console.log('all javascript checks passed');
 
 /* ------------------------------------------------------------- cycling */
 const Cy = require(path.join(__dirname, '..', 'hub', 'static', 'cycling.js'));
@@ -224,6 +218,38 @@ const est = Cy.estimateFTP(testRides);
 check('20 min effort discounted to 95%', est.ftp, 285);
 check('estimate says where it came from', /20-35/.test(est.from), true);
 check('nothing to estimate from returns null', Cy.estimateFTP([]), null);
+
+/* --------------------------------------- the day a ride happened on */
+// A ride belongs to the day it was ridden. Exports carry the rider's own
+// clock, so converting it to UTC — which is what toISOString does — moves an
+// evening ride onto tomorrow, and every one of these guards that.
+const eveningCsv = 'Activity Type,Date,Title,Distance,Time,Avg HR\n' +
+                   'Cycling,2026-08-24 19:30:00,Evening ride,20.0,1:10:00,140\n';
+const evening = I.parse(eveningCsv, { preferredUnit: 'mi' }).activities[0];
+check('the ride keeps the day the file gave it', evening.date, '2026-08-24');
+check('and the clock is the wall clock, unconverted', evening.start, '2026-08-24T19:30:00');
+check('with no Z to invite anyone to convert it', /Z$/.test(evening.start), false);
+check('localISO does not shift a time',
+      I.localISO(new Date(2026, 7, 24, 19, 30, 0)), '2026-08-24T19:30:00');
+
+const dayRows = A.buildPayload([
+  { id: 'e1', source: 'garmin', type: 'cycling', start: '2026-08-24T19:30:00',
+    date: '2026-08-24', distance_m: 32000, moving_s: 4200, avg_speed_mps: 7.62 },
+], { today: new Date('2026-08-26T00:00:00Z'), unit: 'mi' });
+check('the payload files it under that day', dayRows.activities[0].date, '2026-08-24');
+check('an older payload with only a start still works',
+      A.buildPayload([{ id: 'e2', source: 'garmin', type: 'cycling',
+                        start: '2026-08-24T19:30:00', distance_m: 32000, moving_s: 4200 }],
+                     { today: new Date('2026-08-26T00:00:00Z') }).activities[0].date,
+      '2026-08-24');
+
+/* ------------------------------------------------------ speed, not pace */
+check('speed reads in mph', A.fmtSpeed(8.05, true), '18.0 mph');
+check('or km/h', A.fmtSpeed(8.05, false), '29.0 km/h');
+check('a session that never moved has no speed', A.fmtSpeed(0, true), '');
+check('rows carry speed rather than pace',
+      dayRows.activities[0].speed_text, '17.0 mph');
+check('and pace is gone from them', 'pace' in dayRows.activities[0], false);
 
 /* ------------------------------------------------ a ride typed in */
 check('a colon means hours and minutes', I.humanDuration('1:20'), 4800);
@@ -403,7 +429,11 @@ const plan = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, eventDate: '202
 check('twelve weeks built', plan.weeks.length, 12);
 check('week four recovers', plan.weeks[3].recovery, true);
 check('recovery week is lighter', plan.weeks[3].tss < plan.weeks[2].tss, true);
-check('the block ends in a taper', plan.weeks[11].phase, 'Taper');
+check('the block tapers into the event', plan.weeks[10].phase, 'Taper');
+check('and the last week is the event itself', plan.weeks[11].phase, 'Event week');
+// With nothing in the diary there is no event to sharpen for.
+const noEvent = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8 });
+check('a plan with no date just ends on a taper', noEvent.weeks[11].phase, 'Taper');
 check('the final week is the lightest of the taper',
       plan.weeks[11].tss < plan.weeks[10].tss, true);
 check('load builds across the block', plan.weeks[6].tss > plan.weeks[0].tss, true);
@@ -471,6 +501,17 @@ check('a steady effort has NP near its own average',
       Math.abs(Fit.normalizedPower(new Array(600).fill(200)) - 200) <= 1, true);
 check('too short for a 30s window', Fit.normalizedPower([100, 110]), null);
 
+// The .FIT side of the same problem: records are UTC, and only the activity
+// message knows what time it was where the rider was.
+check('the offset comes from the two clocks in the activity message',
+      Fit.utcOffset({ timestamp: 1000000, local_timestamp: 1000000 - 25200 }), -25200);
+check('a file without the message is not guessed at', Fit.utcOffset(null), 0);
+check('nor is a nonsense one', Fit.utcOffset({ timestamp: 0, local_timestamp: 99999999 }), 0);
+check('applying it moves the clock, not the instant',
+      Fit.fitTimeToLocalISO(0, -25200), '1989-12-30T17:00:00');
+check('and without an offset it is UTC as before',
+      Fit.fitTimeToLocalISO(0, 0), '1989-12-31T00:00:00');
+
 const curve = Fit.powerCurve(samples);
 const at = s => (curve.find(p => p.seconds === s) || {}).watts;
 check('best 20 minutes is the sustained block', at(1200), 280);
@@ -506,7 +547,16 @@ check('a non-FIT file is rejected by its header', /not a \.FIT/.test(fitErr || '
 
 const zoneSecs = Fit.zoneSeconds(samples, 266, Cy.ZONES);
 check('zone seconds total the ride', zoneSecs.reduce((a, b) => a + b, 0), 2400);
-check('the 280W block lands at threshold', zoneSecs[3], 1200);
+// 280 W against a measured 266 is 105.3% — a shade over the top of threshold.
+// Asserting the index by hand hid the fact that it belongs one zone higher.
+check('the 280W block lands where the zone table puts it',
+      zoneSecs[Cy.zoneFor(280, 266).n - 1], 1200);
+// Both zone shapes must give the same answer: fractions of FTP, or watts.
+check('resolved zones agree with the raw table',
+      JSON.stringify(Fit.zoneSeconds(samples, 266, Cy.zones(266))),
+      JSON.stringify(zoneSecs));
+check('the easy block is endurance, not neuromuscular', zoneSecs[1], 600);
+check('which is just above threshold', Cy.zoneFor(280, 266).key, 'vo2max');
 
 /* ------------------------------------------------------------- library */
 const Lib = require(path.join(__dirname, '..', 'hub', 'static', 'library.js'));
@@ -577,8 +627,13 @@ check('terrain steers the choice',
       Wk.fromText('something hilly', { ftp: 250 }).terrain.indexOf('hilly') !== -1, true);
 check('hyphens do not break matching',
       Wk.fromText('over-geared climbing', { ftp: 250 }).name, 'Over-geared climbing');
+// A session's own name beats another session's keyword, whichever came first
+// in the sentence: "leadout sprints" names Sprints outright.
+check('a name beats a keyword that came earlier',
+      Wk.fromText('leadout sprints', { ftp: 250 }).name, 'Sprints');
+// With no name to go on, the earliest keyword in the sentence wins.
 check('the earliest keyword wins a tie',
-      Wk.fromText('leadout sprints', { ftp: 250 }).name, 'Leadout and sprint');
+      Wk.fromText('leadout jumps', { ftp: 250 }).name, 'Leadout and sprint');
 
 /* ------------------------------------------------- plans use the library */
 check('every goal is defined', Object.keys(Co.GOALS).length >= 6, true);
@@ -828,3 +883,17 @@ Zip.extract(deflatedZip).then(files => {
   console.log('FAILED: built-in inflate threw —', e.message);
   process.exit(1);
 });
+
+/* Every check in this file lands here, not just the ones above the first
+   section. The gate used to sit a third of the way down, so everything after
+   it — the cycling maths, the library, the planner, the .FIT reader — recorded
+   its failures into a list nothing ever looked at.
+
+   The zip tests below run on promises and exit(1) themselves; this covers the
+   synchronous ones. */
+if (failures.length) {
+  console.log(`FAILED (${failures.length})`);
+  failures.forEach(f => console.log('  -', f));
+  process.exit(1);
+}
+console.log('all javascript checks passed');

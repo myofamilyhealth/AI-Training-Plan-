@@ -367,7 +367,8 @@ function activityTable() {
   const COLS = [
     ['date', 'Date', false], ['name', 'Session', false], ['type', 'Type', false],
     ['distance', DATA.unit === 'mi' ? 'Miles' : 'Km', true], ['seconds', 'Time', true],
-    ['speed', 'Pace', true], ['hr', 'Avg HR', true], ['load', 'Load', true],
+    ['speed', DATA.unit === 'mi' ? 'Avg mph' : 'Avg km/h', true],
+    ['hr', 'Avg HR', true], ['load', 'Load', true],
   ];
 
   function draw() {
@@ -417,7 +418,10 @@ function activityTable() {
       row.appendChild(el('td', { text: r.type }));
       row.appendChild(el('td', { class: 'r num', text: fmt(r.distance, 2) }));
       row.appendChild(el('td', { class: 'r num', text: r.duration }));
-      row.appendChild(el('td', { class: 'r num', text: r.pace || '—' }));
+      // Speed, not pace: minutes per mile is a runner's unit and this is a
+      // bike site. The column sorts on the number behind the text.
+      row.appendChild(el('td', { class: 'r num',
+        text: r.speed_text ? r.speed_text.replace(/ (mph|km\/h)$/, '') : '—' }));
       row.appendChild(el('td', { class: 'r num', text: r.hr == null ? '—' : r.hr }));
       row.appendChild(el('td', { class: 'r num', text: fmt(r.load) }));
       tbody.appendChild(row);
@@ -494,33 +498,6 @@ function planCard() {
   return card;
 }
 
-function bestsCard() {
-  const card = el('div', { class: 'card' });
-  card.appendChild(el('h2', { text: 'Best efforts' }));
-  card.appendChild(el('p', { class: 'hint',
-    text: 'Fastest average pace across a whole activity — not verified race results.' }));
-  const order = ['5k', '10k', 'half', 'marathon'];
-  const found = order.filter(k => DATA.bests[k]);
-  if (!found.length) {
-    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
-      text: 'Nothing in a standard distance band yet.' }));
-    return card;
-  }
-  found.forEach(k => {
-    const b = DATA.bests[k];
-    const row = el('div', { class: 'plan-day' });
-    row.appendChild(el('span', { class: 'd', text: k }));
-    const w = el('span', { class: 'w num', style: 'flex:1' });
-    w.appendChild(el('strong', { style: 'color:var(--text)', text: b.time }));
-    w.appendChild(document.createTextNode('  ' + b.pace));
-    row.appendChild(w);
-    row.appendChild(el('span', { class: 'd num', style: 'text-align:right', text: b.date }));
-    card.appendChild(row);
-  });
-  return card;
-}
-
-/* ------------------------------------------------------------------ assemble */
 function kpiRow() {
   const row = el('div', { class: 'grid kpis' });
   const t = DATA.totals;
@@ -830,6 +807,38 @@ function addToHistory(incoming, prior, opts) {
 }
 
 /**
+ * The walkthrough: exporting a whole Garmin history and loading it here.
+ *
+ * Kept as a file beside the page rather than inlined, so a visitor who does not
+ * watch it never downloads it. Everything else on this page works with no
+ * network at all; this is the one part that needs the file to be there, and it
+ * takes itself off the page if it is not.
+ */
+function walkthroughCard() {
+  const card = el('div', { class: 'card walkthrough' });
+  card.appendChild(el('h3', { text: 'How to upload all past Garmin rides' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Half a minute, no sound. Garmin Connect \u2192 Activities \u2192 Export CSV, ' +
+          'then drop that file above and every ride you have ever recorded is in.' }));
+
+  const video = el('video', {
+    controls: 'controls', preload: 'metadata', playsinline: 'playsinline',
+    poster: 'media/uploading-past-rides.jpg',
+    'aria-label': 'How to upload all past Garmin rides',
+  });
+  // H.264 first for Safari and iOS, VP9 behind it for the Chromium builds that
+  // ship without the patented decoder — between them every current browser has
+  // one it can play.
+  video.appendChild(el('source', { src: 'media/uploading-past-rides.mp4', type: 'video/mp4' }));
+  video.appendChild(el('source', { src: 'media/uploading-past-rides.webm', type: 'video/webm' }));
+  // Only once every source has been tried and failed — a page copied away from
+  // its media folder should not sit there showing a broken frame.
+  video.addEventListener('error', () => { card.hidden = true; });
+  card.appendChild(video);
+  return card;
+}
+
+/**
  * Add a ride without a file: a date, how long, how far, and nothing else.
  *
  * Time and distance are the two things a rider always knows, and everything the
@@ -996,6 +1005,7 @@ function importScreen(errorMessage) {
     style: 'margin:18px 0 0;text-align:center',
     text: 'Nothing leaves your browser. No account, no password.' }));
   wrap.appendChild(hero);
+  wrap.appendChild(walkthroughCard());
   wrap.appendChild(manualEntryCard(DATA && DATA.unit ? DATA.unit : unitPref));
 
   if (errorMessage) {

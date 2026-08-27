@@ -760,44 +760,180 @@ async function handleFiles(files, unitPref, prior) {
     throw new Error('Nothing readable in those files.');
   }
 
-  // Everything already loaded goes in with the new rides. dedupe() decides what
-  // is genuinely new, so dropping the same file twice changes nothing, and a
-  // .FIT of a ride already known from a CSV upgrades that ride in place.
+  return addToHistory(incoming, prior, {
+    unit: unit,
+    curves: curves,
+    imported: {
+      source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
+      filename: archives === 1 && Array.from(files).length === 1
+        ? Array.from(files)[0].name
+        : (list.length === 1 ? list[0].name : `${list.length} files`),
+      fromArchive: archives,
+      unitCertain: csvResult ? csvResult.unitCertain : true,
+      skipped: csvResult ? csvResult.skipped : 0,
+    },
+  });
+}
+
+/**
+ * Fold new rides into the history and rebuild everything from the result.
+ *
+ * The one place rides enter the page, whether they came out of a file or were
+ * typed into the form. Keeping it single means a manual ride is deduped,
+ * counted and remembered by exactly the same rules as an uploaded one.
+ */
+function addToHistory(incoming, prior, opts) {
+  opts = opts || {};
   const before = (prior && prior.raw) ? prior.raw : [];
+  // dedupe() decides what is genuinely new, so adding the same ride twice
+  // changes nothing, and a .FIT of a ride already known from a CSV — or from a
+  // row typed by hand — upgrades that ride in place.
   const merged = Importer.dedupe(before.concat(incoming));
   const added = merged.length - before.length;
 
-  // A second upload never re-labels the distances of the first: the display
+  // A later addition never re-labels the distances of the first: the display
   // unit is settled by the import that started the history.
   const display = before.length
     ? (prior.unit === 'km' ? 'km' : 'mi')
-    : (unit === 'km' || unit === 'm' ? 'km' : 'mi');
+    : (opts.unit === 'km' || opts.unit === 'm' ? 'km' : 'mi');
 
   const payload = Analytics.buildPayload(merged, { unit: display });
 
   // Bests hold across uploads too — the curve keeps the highest power seen at
   // each duration, whichever ride and whichever session it came from.
-  const allCurves = (prior && prior.curve ? [prior.curve] : []).concat(curves);
+  const allCurves = (prior && prior.curve ? [prior.curve] : []).concat(opts.curves || []);
   payload.curve = allCurves.length ? Fit.mergeCurves(allCurves) : null;
 
-  payload.imported = {
-    source: fits.length && !csvs.length ? 'fit' : (csvResult ? csvResult.source : 'fit'),
-    filename: archives === 1 && Array.from(files).length === 1
-      ? Array.from(files)[0].name
-      : (list.length === 1 ? list[0].name : `${list.length} files`),
-    fromArchive: archives,
+  payload.imported = Object.assign({
+    source: 'fit',
+    filename: 'your rides',
     rows: incoming.length,
     added: added,
     duplicates: Math.max(0, incoming.length - added),
     unique: merged.length,
     held: before.length,
-    unit: unit,
-    unitCertain: before.length ? true : (csvResult ? csvResult.unitCertain : true),
+    unit: opts.unit,
+    unitCertain: true,
     displayUnit: payload.unit,
-    skipped: csvResult ? csvResult.skipped : 0,
+    skipped: 0,
     fitCount: merged.filter(a => a.source === 'fit').length,
-  };
+  }, opts.imported || {});
+  // Whatever the caller claimed, these are facts about the merge.
+  payload.imported.rows = incoming.length;
+  payload.imported.added = added;
+  payload.imported.duplicates = Math.max(0, incoming.length - added);
+  payload.imported.unique = merged.length;
+  payload.imported.held = before.length;
+  payload.imported.displayUnit = payload.unit;
+  if (before.length) payload.imported.unitCertain = true;
   return payload;
+}
+
+/**
+ * Add a ride without a file: a date, how long, how far, and nothing else.
+ *
+ * Time and distance are the two things a rider always knows, and everything the
+ * site needs can be derived from them — speed exactly, power from the physics of
+ * moving a bike at that speed, and training stress from that power. What it
+ * cannot know is wind, traffic lights, drafting or how hard it felt, so every
+ * figure it produces is labelled an estimate and kept out of anything that
+ * claims to be measured: FTP, the power curve and the power profile all ignore
+ * these rides.
+ */
+function manualEntryCard(startUnit) {
+  const card = el('div', { class: 'card manual' });
+  card.appendChild(el('h3', { text: 'No file? Add the ride by hand' }));
+  card.appendChild(el('p', { class: 'hint',
+    text: 'Time and distance are all it needs. Speed, power and training stress ' +
+          'are worked out from them — estimates, and marked as estimates.' }));
+
+  let unit = startUnit === 'km' ? 'km' : 'mi';
+  const today = (DATA && DATA.today) || new Date().toISOString().slice(0, 10);
+
+  const fields = el('div', { class: 'fields' });
+  const mk = (label, hint, attrs) => {
+    const f = el('div', { class: 'field' });
+    f.appendChild(el('label', { text: label }));
+    const input = el('input', attrs || {});
+    f.appendChild(input);
+    f.appendChild(el('span', { class: 'unit-hint', text: hint }));
+    fields.appendChild(f);
+    return input;
+  };
+  const dateIn = mk('Date', 'when you rode', { type: 'date', value: today, max: today });
+  const timeIn = mk('Time', '1:20, or 90 for minutes',
+                    { type: 'text', inputmode: 'decimal', placeholder: '1:20' });
+  const distIn = mk('Distance', 'how far you went',
+                    { type: 'text', inputmode: 'decimal', placeholder: unit === 'km' ? '40' : '25' });
+
+  const unitField = el('div', { class: 'field' });
+  unitField.appendChild(el('label', { text: 'In' }));
+  unitField.appendChild(seg(['mi', 'km'], unit, v => {
+    unit = v;
+    distIn.setAttribute('placeholder', v === 'km' ? '40' : '25');
+    preview();
+  }, v => v === 'mi' ? 'Miles' : 'Km'));
+  // An empty hint keeps this column's rows lined up with the inputs beside it.
+  unitField.appendChild(el('span', { class: 'unit-hint', text: 'miles or km' }));
+  fields.appendChild(unitField);
+  card.appendChild(fields);
+
+  const row = el('div', { class: 'manual-row' });
+  const add = el('button', { class: 'btn', type: 'button', text: 'Add this ride' });
+  row.appendChild(add);
+  const note = el('span', { class: 'manual-note' });
+  row.appendChild(note);
+  card.appendChild(row);
+
+  // The estimate, live, before anything is saved — so a mistyped distance shows
+  // up as a wild number here rather than as a bad week in the totals.
+  function preview() {
+    const secs = Importer.humanDuration(timeIn.value);
+    const metres = Importer.humanDistance(distIn.value, unit);
+    if (!secs || !metres) { note.textContent = ''; return; }
+    const speed = metres / secs * (unit === 'km' ? 3.6 : 2.236936);
+    const watts = Cycling.estimatePower({ seconds: secs, distance_m: metres,
+                                          weightKg: PROFILE.weight });
+    note.classList.remove('bad');
+    note.textContent = `${fmt(speed, 1)} ${unit === 'km' ? 'km/h' : 'mph'}` +
+                       (watts ? `  ·  about ${fmt(watts)} W` : '');
+  }
+  [timeIn, distIn].forEach(i => i.addEventListener('input', preview));
+
+  const fail = msg => {
+    note.textContent = msg;
+    note.classList.add('bad');
+  };
+  const submit = () => {
+    note.classList.remove('bad');
+    const secs = Importer.humanDuration(timeIn.value);
+    if (!secs) return fail('How long did you ride? Try 1:20, or 90 for minutes.');
+    if (secs > 24 * 3600) return fail('That is longer than a day — check the time.');
+    const metres = Importer.humanDistance(distIn.value, unit);
+    if (!metres) return fail(`How far did you go? A number in ${unit === 'km' ? 'kilometres' : 'miles'}.`);
+    const speed = metres / secs;
+    if (speed > 25) return fail('That works out at over 55 mph — check the time and distance.');
+
+    const ride = Cycling.manualRide({
+      date: dateIn.value || today,
+      seconds: secs,
+      distance_m: metres,
+      weightKg: PROFILE.weight,
+    });
+    const prior = (DATA && DATA.imported && DATA.raw && DATA.raw.length) ? DATA : null;
+    const payload = addToHistory([ride], prior, {
+      unit: unit,
+      imported: { source: 'manual', filename: 'Added by hand', unitCertain: true },
+    });
+    payload.imported.remembered = saveLocal(payload);
+    render(payload);
+  };
+  add.addEventListener('click', submit);
+  [timeIn, distIn].forEach(i => i.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  }));
+
+  return card;
 }
 
 function importScreen(errorMessage) {
@@ -860,6 +996,7 @@ function importScreen(errorMessage) {
     style: 'margin:18px 0 0;text-align:center',
     text: 'Nothing leaves your browser. No account, no password.' }));
   wrap.appendChild(hero);
+  wrap.appendChild(manualEntryCard(DATA && DATA.unit ? DATA.unit : unitPref));
 
   if (errorMessage) {
     const box = el('div', { class: 'err', style: 'margin-top:24px' });
@@ -1021,9 +1158,11 @@ function detectedBar(payload) {
   const bar = el('div', { class: 'detected' });
   const text = el('span', { class: 'grow' });
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const origin = i.source === 'fit'
-    ? plural(i.fitCount || i.unique, '.FIT ride')
-    : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`;
+  const origin = i.source === 'manual'
+    ? 'estimated from time and distance'
+    : (i.source === 'fit'
+        ? plural(i.fitCount || i.unique, '.FIT ride')
+        : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`);
   const parts = [origin];
   if (i.held) {
     // Say what the upload changed, then what is now held, so it is obvious

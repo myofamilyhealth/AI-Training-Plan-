@@ -286,6 +286,53 @@
     };
   }
 
+  /* ------------------------------------------------- typed by a human */
+
+  /**
+   * A duration as somebody would actually write one: "1:20", "1:20:30",
+   * "90", "90min", "1h30", "1.5h".
+   *
+   * A bare number is minutes and a single colon is hours and minutes, because
+   * this is a field for rides. Nobody enters a 90-second one, and reading "90"
+   * as a minute and a half — which is what a stopwatch parser would do — is the
+   * kind of wrong that gets noticed a week later in the totals.
+   */
+  function humanDuration(text) {
+    if (text == null) return null;
+    const s = String(text).trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!s) return null;
+
+    if (s.indexOf(':') !== -1) {
+      const parts = s.split(':');
+      if (parts.length > 3 || !parts.every(p => /^\d*\.?\d*$/.test(p))) return null;
+      const n = parts.map(p => parseFloat(p) || 0);
+      const secs = n.length === 3 ? n[0] * 3600 + n[1] * 60 + n[2]
+                                  : n[0] * 3600 + n[1] * 60;
+      return secs > 0 ? Math.round(secs) : null;
+    }
+
+    // "1h30" and "1h30m" both mean the same thing, so the trailing m is optional.
+    let m = s.match(/^(\d*\.?\d+) ?h(?:ours?|rs?|r)? ?(?:(\d*\.?\d+) ?m?(?:in(?:ute)?s?)?)?$/);
+    if (m) return Math.round(parseFloat(m[1]) * 3600 + (parseFloat(m[2]) || 0) * 60) || null;
+    m = s.match(/^(\d*\.?\d+) ?m(?:in(?:ute)?s?)?$/);
+    if (m) return Math.round(parseFloat(m[1]) * 60) || null;
+    m = s.match(/^(\d*\.?\d+)$/);
+    if (m) return Math.round(parseFloat(m[1]) * 60) || null;
+    return null;
+  }
+
+  /** A distance in the unit on screen, unless the text names its own. */
+  function humanDistance(text, unit) {
+    if (text == null) return null;
+    const s = String(text).trim().toLowerCase().replace(/,/g, '');
+    const m = s.match(/^(\d*\.?\d+) ?(mi|mile|miles|km|kms|kilometres|kilometers|k)?$/);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    if (!(n > 0)) return null;
+    const u = m[2] || (unit === 'km' ? 'km' : 'mi');
+    return u[0] === 'm' ? n * M_PER_MILE : n * 1000;
+  }
+
   /* -------------------------------------------------------------- dedupe */
 
   // Two files describing the same ride never agree exactly: a watch writes the
@@ -294,8 +341,13 @@
   // match is a tolerance, not an equality.
   const SAME_START_S = 150;      // 2.5 minutes apart is still the same ride
   const SAME_DISTANCE_M = 500;   // half a kilometre of disagreement is fine
+  // A ride typed in by hand has a date but no clock time, so it is matched
+  // against the day and a looser distance — somebody who rode 25.9 miles types
+  // 25, and the file that turns up later is the same ride either way.
+  const VAGUE_DISTANCE_M = 1500;
+  const SCAN_MS = 36 * 3600 * 1000;   // how far back a match could possibly be
 
-  const SOURCE_RANK = { fit: 3, garmin: 2, strava: 1 };
+  const SOURCE_RANK = { fit: 3, garmin: 2, strava: 1, manual: 0 };
 
   /** How much a copy of a ride actually knows, used to pick which one to keep. */
   function richness(a) {
@@ -323,17 +375,30 @@
     if (canonicalType(a.type) !== canonicalType(b.type)) return false;
     const ta = startMs(a), tb = startMs(b);
     if (ta == null || tb == null) return false;
-    if (Math.abs(ta - tb) > SAME_START_S * 1000) return false;
+
+    const vague = !!(a.manual || b.manual);
+    if (vague) {
+      if (a.start.slice(0, 10) !== b.start.slice(0, 10)) return false;
+    } else if (Math.abs(ta - tb) > SAME_START_S * 1000) return false;
+
     const da = a.distance_m, db = b.distance_m;
     if (da == null || db == null) return true;   // one side cannot disagree
-    return Math.abs(da - db) <= Math.max(SAME_DISTANCE_M, da * 0.02);
+    return Math.abs(da - db) <= (vague
+      ? Math.max(VAGUE_DISTANCE_M, da * 0.05)
+      : Math.max(SAME_DISTANCE_M, da * 0.02));
   }
+
+  // Where a value came from belongs to the copy being kept. Without this, a
+  // measured ride that replaced a hand-typed one would inherit `manual: true`
+  // and be treated as an estimate for the rest of its life.
+  const PROVENANCE = ['id', 'source', 'manual', 'streams'];
 
   /** Keep every field the winner is missing. A CSV row often carries a TSS the
    *  .FIT never stored, and there is no reason to throw it away. */
   function fillGaps(keep, drop) {
     const out = Object.assign({}, keep);
     Object.keys(drop).forEach(k => {
+      if (PROVENANCE.indexOf(k) !== -1) return;
       if (out[k] == null && drop[k] != null) out[k] = drop[k];
     });
     return out;
@@ -367,7 +432,7 @@
       // Sorted by time, so only the tail of the list can still be within
       // tolerance — no need to rescan a season of rides for every new one.
       for (let i = kept.length - 1; i >= 0; i--) {
-        if (startMs(a) - startMs(kept[i]) > SAME_START_S * 1000) break;
+        if (startMs(a) - startMs(kept[i]) > SCAN_MS) break;
         if (sameSession(a, kept[i])) {
           kept[i] = rank(a) > rank(kept[i]) ? fillGaps(a, kept[i]) : fillGaps(kept[i], a);
           return;
@@ -378,7 +443,8 @@
     return kept.concat(loose);
   }
 
-  const api = { parseCSV, parse, dedupe, sameSession, canonicalType, seconds, num, parseDate,
+  const api = { parseCSV, parse, dedupe, sameSession, canonicalType,
+                humanDuration, humanDistance, seconds, num, parseDate,
                 inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Importer = api;

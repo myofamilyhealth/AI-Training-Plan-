@@ -38,6 +38,13 @@ and analysed by JavaScript in your own browser, and remembered only in that
 browser's local storage. Close the tab and it is still yours; press Clear and
 it is gone. No account, no login, no password, and nobody else can see it.
 
+**No file? Type it in.** A ride needs a date, how long you were out and how far
+you went — nothing else. Speed comes straight out of those two, average power
+from the physics of moving a bike at that speed, and training stress from that
+power. Every one of those is labelled an estimate and kept out of anything that
+claims to be measured: a typed ride can never set your FTP or enter your power
+curve. Drop the real file in later and it takes the typed ride's place.
+
 **Files add up.** After the first import you only ever add the new ride: drop in
 the .zip Garmin gives you after a session and it joins the history already there.
 Nothing is replaced, and a ride the page has already seen is recognised and

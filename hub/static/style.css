@@ -499,6 +499,22 @@ input[type=file].hidden-input { display: none; }
 /* ---------------------------------------------------------------- landing */
 .landing { max-width: 1000px; margin: 0 auto; }
 
+/* ------------------------------------------------------ manual entry */
+.manual { max-width: 640px; margin: 26px auto 0; }
+.manual h3 { margin: 0 0 5px; font-size: 15.5px; font-weight: 620; letter-spacing: -.012em; }
+.manual .hint { margin: 0; }
+.manual .fields {
+  margin-top: 18px; align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+.manual .field .seg { padding: 5px; }
+.manual-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 18px; flex-wrap: wrap;
+}
+.manual-note { font-size: 13.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.manual-note.bad { color: var(--crit); }
+
 .hero { text-align: center; padding: 14px 0 8px; }
 .hero .eyebrow {
   font-size: 12px; font-weight: 620; letter-spacing: .09em;

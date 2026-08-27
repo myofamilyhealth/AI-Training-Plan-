@@ -225,6 +225,70 @@ check('20 min effort discounted to 95%', est.ftp, 285);
 check('estimate says where it came from', /20-35/.test(est.from), true);
 check('nothing to estimate from returns null', Cy.estimateFTP([]), null);
 
+/* ------------------------------------------------ a ride typed in */
+check('a colon means hours and minutes', I.humanDuration('1:20'), 4800);
+check('with seconds too', I.humanDuration('1:20:30'), 4830);
+check('a bare number is minutes, not seconds', I.humanDuration('90'), 5400);
+check('90min', I.humanDuration('90min'), 5400);
+check('1h30', I.humanDuration('1h30'), 5400);
+check('1.5h', I.humanDuration('1.5h'), 5400);
+check('45m', I.humanDuration('45m'), 2700);
+check('nothing is nothing', I.humanDuration(''), null);
+check('nonsense is rejected rather than guessed', I.humanDuration('soon'), null);
+check('zero is not a ride', I.humanDuration('0'), null);
+
+check('a distance takes the unit on screen', Math.round(I.humanDistance('30', 'km')), 30000);
+check('or the one it names', Math.round(I.humanDistance('30km', 'mi')), 30000);
+check('miles convert', Math.round(I.humanDistance('18', 'mi')), 28968);
+check('a distance must be a number', I.humanDistance('far', 'mi'), null);
+check('and above zero', I.humanDistance('0', 'mi'), null);
+
+// Power from speed: the shape of the physics matters more than any one value.
+const watts = v => Cy.estimatePower({ seconds: 3600, distance_m: v * 3600, weightKg: 75 });
+check('faster costs more', watts(9) > watts(7), true);
+check('drag is cubic, so the cost rises faster than the speed',
+      watts(10) / watts(5) > 2, true);
+check('a heavier rider needs more to hold the same speed',
+      Cy.estimatePower({ seconds: 3600, distance_m: 30000, weightKg: 95 }) >
+      Cy.estimatePower({ seconds: 3600, distance_m: 30000, weightKg: 65 }), true);
+check('climbing is only counted when it is known',
+      Cy.estimatePower({ seconds: 3600, distance_m: 30000, weightKg: 75, elevation_m: 600 }) >
+      Cy.estimatePower({ seconds: 3600, distance_m: 30000, weightKg: 75 }), true);
+check('an hour at 30 km/h lands in the right ballpark',
+      Cy.estimatePower({ seconds: 3600, distance_m: 30000, weightKg: 75 }) > 120 &&
+      Cy.estimatePower({ seconds: 3600, distance_m: 30000, weightKg: 75 }) < 200, true);
+check('nothing to go on returns nothing', Cy.estimatePower({ seconds: 0, distance_m: 30000 }), null);
+
+const typed = Cy.manualRide({ date: '2026-08-26', seconds: 4800, distance_m: 40000, weightKg: 75 });
+check('a typed ride is a ride', typed.type, 'cycling');
+check('speed is exact — it is the one thing we do know',
+      Math.round(typed.avg_speed_mps * 1000), Math.round(40000 / 4800 * 1000));
+check('power is filled in', typed.avg_watts > 0, true);
+check('and it is flagged as an estimate', typed.manual, true);
+check('time and distance are required', Cy.manualRide({ date: '2026-08-26', seconds: 3600 }), null);
+check('its stress says where it came from',
+      Cy.rideTSS(typed, 250).basis, 'estimated from speed');
+
+// An estimate must never masquerade as a measurement.
+check('a typed ride cannot set your FTP', Cy.estimateFTP([typed]), null);
+check('nor appear in the power profile', Cy.powerProfile([typed]).length, 0);
+const realRide = { id: 'r1', source: 'fit', type: 'cycling', start: '2026-08-26T07:12:00Z',
+                   moving_s: 4790, distance_m: 41200, np: 190, avg_watts: 180 };
+check('a measured ride still can', Cy.powerProfile([typed, realRide]).length, 1);
+
+// The file for a day already typed in is the same ride, not a second one.
+const bothCopies = I.dedupe([typed, realRide]);
+check('a typed ride and its file collapse', bothCopies.length, 1);
+check('the measured copy wins', bothCopies[0].source, 'fit');
+check('and does not inherit the estimate flag', bothCopies[0].manual, undefined);
+check('typing the same ride twice adds nothing', I.dedupe([typed, typed]).length, 1);
+check('a different day is a different ride',
+      I.dedupe([typed, Cy.manualRide({ date: '2026-08-27', seconds: 4800, distance_m: 40000 })]).length, 2);
+check('so is another ride the same day',
+      I.dedupe([typed, { id: 'r2', source: 'fit', type: 'cycling',
+                         start: '2026-08-26T18:00:00Z', moving_s: 3600,
+                         distance_m: 20000 }]).length, 2);
+
 /* ------------------------------------------- the two-week calendar */
 const calRides = [
   { type: 'cycling', start: '2026-08-19T07:00:00Z', moving_s: 5400, tss: 150, distance_m: 50000 },

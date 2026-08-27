@@ -40,6 +40,8 @@
   /* -------------------------------------------------------------- FTP */
 
   const isRide = a => a.type === 'cycling';
+  /** A ride whose power was recorded rather than inferred from its speed. */
+  const isMeasured = a => isRide(a) && !a.manual;
 
   /** Best power a ride sustained. Garmin's own NP is preferred where present —
    *  it is computed from the stream we do not have. */
@@ -61,7 +63,7 @@
       { lo: 3000, hi: 5400, factor: 1.00, label: '50-90 min effort' },
     ];
     let best = null;
-    activities.filter(isRide).forEach(a => {
+    activities.filter(isMeasured).forEach(a => {
       const p = ridePower(a);
       const secs = a.moving_s || 0;
       if (!p || !secs) return;
@@ -77,6 +79,86 @@
       });
     });
     return best;
+  }
+
+  /* ------------------------------------------------- a ride typed by hand */
+
+  // A road bike, a rider on the hoods, dry tarmac, sea level. Every one of
+  // these is an assumption, which is exactly why what comes out is labelled an
+  // estimate wherever it is shown.
+  const BIKE_KG = 9;              // bike, bottles, tools, what is in your pockets
+  const DEFAULT_RIDER_KG = 75;
+  const CRR = 0.006;              // ordinary tyres on ordinary roads
+  const CDA = 0.36;               // m², a rider moving between hoods and drops
+  const RHO = 1.226;              // kg/m³ at sea level, 15 °C
+  const DRIVETRAIN = 0.97;
+  const G = 9.80665;
+
+  /**
+   * Average power from speed, by physics rather than by guesswork.
+   *
+   * Rolling resistance is linear in speed and air drag is cubic, so the split
+   * between them changes completely between a 15 km/h potter and a 40 km/h
+   * chaingang — which is what makes this worth doing properly instead of
+   * multiplying hours by a constant.
+   *
+   * It cannot know about wind, drafting, position or surface, so it reads a
+   * shade low for a solo rider into a headwind and high for one in a bunch.
+   * Treat it as the right order of magnitude, not as a power meter.
+   */
+  function estimatePower(opts) {
+    opts = opts || {};
+    const secs = opts.seconds || 0;
+    const dist = opts.distance_m || 0;
+    if (secs <= 0 || dist <= 0) return null;
+
+    const v = dist / secs;                                   // m/s
+    const mass = (opts.weightKg || DEFAULT_RIDER_KG) + BIKE_KG;
+    const rolling = CRR * mass * G * v;
+    const aero = 0.5 * RHO * CDA * v * v * v;
+    // Climbing is only counted when the rider told us about it. What goes up
+    // comes back down, but not for free: descending returns less than the climb
+    // took, which is why gross ascent still costs power over a loop.
+    const climb = opts.elevation_m ? (mass * G * opts.elevation_m * 0.5) / secs : 0;
+    return Math.round((rolling + aero + climb) / DRIVETRAIN);
+  }
+
+  /**
+   * Turn a duration and a distance into an activity the rest of the site can
+   * read, filling in everything else.
+   *
+   * Marked `manual` so nothing downstream mistakes the estimate for a
+   * measurement: it is kept out of FTP estimation and the power profile, and
+   * its stress score says where it came from.
+   */
+  function manualRide(opts) {
+    opts = opts || {};
+    const secs = Math.round(opts.seconds || 0);
+    const dist = opts.distance_m || 0;
+    if (secs <= 0 || dist <= 0) return null;
+
+    const start = opts.start || (opts.date ? opts.date + 'T12:00:00Z'
+                                           : new Date().toISOString());
+    const watts = estimatePower({ seconds: secs, distance_m: dist,
+                                  weightKg: opts.weightKg,
+                                  elevation_m: opts.elevation_m });
+    return {
+      id: 'manual-' + start,
+      source: 'manual',
+      manual: true,
+      name: opts.name || 'Manual ride',
+      type: 'cycling',
+      start: start,
+      distance_m: dist,
+      moving_s: secs,
+      elapsed_s: secs,
+      elevation_m: opts.elevation_m || null,
+      avg_hr: null,
+      avg_watts: watts,
+      np: null,
+      tss: null,
+      avg_speed_mps: dist / secs,
+    };
   }
 
   /* ----------------------------------------------------- effort scoring */
@@ -105,7 +187,8 @@
     if (np && ftp) {
       const IF = np / ftp;
       return { tss: Math.round((secs * np * IF) / (ftp * 3600) * 100 * 10) / 10,
-               basis: a.np ? 'power' : 'average power' };
+               basis: a.manual ? 'estimated from speed'
+                    : (a.np ? 'power' : 'average power') };
     }
     if (a.avg_hr && maxHr) {
       // hrTSS: an hour at threshold heart rate is 100 points, scaled by the
@@ -314,7 +397,7 @@
     const out = [];
     bands.forEach(([label, lo, hi]) => {
       let best = null;
-      activities.filter(isRide).forEach(a => {
+      activities.filter(isMeasured).forEach(a => {
         const secs = a.moving_s || 0, p = ridePower(a);
         if (!p || secs < lo || secs >= hi) return;
         if (!best || p > best.watts) {
@@ -461,6 +544,7 @@
 
   const api = { ZONES, zones, zoneFor, estimateFTP, ridePower, intensityFactor, riderContext,
                 rideTSS, recentDays, daysSummary, BANDS, bandFor,
+                estimatePower, manualRide,
                 pmc, formVerdict, wattsPerKg, vo2maxEstimate, vo2Rating,
                 powerProfile, speedStats, zoneDistribution };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -169,6 +169,14 @@ Two input paths with different fidelity, and the difference matters:
   continuous 20 minutes, normalized power is computed from the stream, and a
   mean maximal power curve is real.
 
+Rides can also be typed in: `Cycling.manualRide()` takes a date, a duration and
+a distance and fills in the rest — speed exactly, average power from a rolling
+resistance and air drag model (`estimatePower`), stress from that power. Those
+rides carry `manual: true`, which keeps them out of `estimateFTP` and
+`powerProfile` and makes `rideTSS` report a basis of "estimated from speed".
+Never let a manual ride into anything presented as measured, and never let
+`fillGaps` copy the flag onto a measured ride that replaced one.
+
 Uploads accumulate. `handleFiles(files, unitPref, prior)` merges what was
 dropped into the rides already loaded and `Importer.dedupe` decides what is
 genuinely new, matching on start time (within 2.5 min) and distance (within

@@ -298,6 +298,11 @@
     workout.steps = steps;
     workout.seconds = totalSeconds(steps);
     workout.ftp = ftp || null;
+    // Climbing sessions are ridden by effort, because the gradient decides the
+    // power and the rider only decides how hard to push against it.
+    const entry = workout.key ? byKey(workout.key) : null;
+    workout.effortBased = !!(entry && (entry.focus === 'climbing' ||
+      (entry.terrain || []).indexOf('mountainous') !== -1));
     if (ftp) {
       workout.tss = estimateTSS(steps, ftp);
       workout.if = Math.round(averageIntensity(steps) * 100) / 100;
@@ -354,6 +359,37 @@
     return ftp ? Math.round(fraction * ftp) : null;
   }
 
+  /**
+   * Effort, in words, for the sessions where a watt number is the wrong target.
+   *
+   * On a climb the gradient sets the power, not the rider: you cannot hold 260
+   * watts up a wall that demands 340, and you cannot avoid 340 by wishing. A
+   * road-cyclist's climbing session is ridden by effort and cadence, with power
+   * read afterwards — which is how it is coached, and how it has to be written
+   * down. Rating of perceived exertion runs 1 to 10; the breathing cue is what
+   * makes it usable without looking down.
+   */
+  const EFFORTS = [
+    { max: 0.55, name: 'Very easy',  rpe: 'RPE 2',    cue: 'full conversation, nothing in the legs' },
+    { max: 0.75, name: 'Easy',       rpe: 'RPE 3-4',  cue: 'whole sentences, could go all day' },
+    { max: 0.90, name: 'Steady',     rpe: 'RPE 5-6',  cue: 'short sentences, breathing noticeable' },
+    { max: 1.05, name: 'Hard',       rpe: 'RPE 7-8',  cue: 'a few words at a time, right at the edge of sustainable' },
+    { max: 1.20, name: 'Very hard',  rpe: 'RPE 9',    cue: 'breathing sets the limit, minutes not hours' },
+    { max: 99,   name: 'Flat out',   rpe: 'RPE 10',   cue: 'no talking, seconds not minutes' },
+  ];
+  const effortFor = fraction => EFFORTS.find(e => fraction <= e.max) || EFFORTS[EFFORTS.length - 1];
+
+  /** How a step should be described: watts on the flat, effort on a climb. */
+  function stepTarget(s, ftp, effortBased) {
+    if (effortBased) {
+      const e = effortFor((s.lo + s.hi) / 2);
+      return `${e.name} · ${e.rpe}`;
+    }
+    if (!ftp) return `${Math.round(s.lo * 100)}-${Math.round(s.hi * 100)}% FTP`;
+    const a = watts(s.lo, ftp), b = watts(s.hi, ftp);
+    return a === b ? `${a} W` : `${Math.min(a, b)}-${Math.max(a, b)} W`;
+  }
+
   function describe(workout, ftp) {
     ftp = ftp || workout.ftp;
     const lines = [];
@@ -361,11 +397,7 @@
       const m = Math.floor(s / 60), sec = s % 60;
       return sec ? `${m}:${String(sec).padStart(2, '0')}` : `${m} min`;
     };
-    const target = s => {
-      if (!ftp) return `${Math.round(s.lo * 100)}-${Math.round(s.hi * 100)}% FTP`;
-      const a = watts(s.lo, ftp), b = watts(s.hi, ftp);
-      return a === b ? `${a} W` : `${Math.min(a, b)}-${Math.max(a, b)} W`;
-    };
+    const target = s => stepTarget(s, ftp, workout.effortBased);
     const walk = (steps, indent) => {
       steps.forEach(s => {
         if (s.repeat) {
@@ -500,6 +532,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
   }
 
   const api = { LIBRARY, byKey, fromText, describe, toZWO, toCourseFile, timeBreakdown,
+                stepTarget, effortFor, EFFORTS,
                 checkAgainstCurve,
                 detectTerrain, forTerrain, TERRAIN,
                 flatten, totalSeconds, estimateTSS, averageIntensity, watts,

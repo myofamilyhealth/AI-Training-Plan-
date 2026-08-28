@@ -163,64 +163,40 @@ Python and the JavaScript suites together.
   rest day, not a session; above the hardest it is the same session, longer.
   The tests pin the ordering across short, long and easy-only histories.
 
-### `buildPlan` — the block
+### The daily recommendation
 
-`buildPlan({weeks, ftp, rider, weeklyHours, goal, events, days, doubles, ctl,
-startDate})` returns **every day of every week**, ridden or not. A plan that
-lists three sessions and leaves four days blank is not a week: the rider cannot
-tell whether Friday is a rest day or an oversight. Each day carries a `role`
-(quality / long / easy / recovery / openers / off / race) and an array of
-`sessions`, which is how doubles are expressed — an AM and a PM entry.
+`options()` wraps `recommend()` in the three the dashboard shows: the
+recommendation, one that costs clearly less, one that costs clearly more. All
+three are built to comparable lengths, so intensity is what separates them, and
+the neighbours are chosen by resulting TSS rather than off a fixed ladder — the
+ladder put a long threshold session under "if you are feeling weaker" next to a
+shorter VO2 one, because a session with long recoveries is not the same thing as
+a cheap one. The easier option is additionally capped at the recommendation's
+zone: steep pitches cost less than a VO2 hour and are far worse to ride on flat
+legs. Below the easiest session the answer is a rest day, not a session; above
+the hardest it is the same session, longer.
 
-- **The calendar drives the phases, not the week number.** `events` is a list
-  of `{date, name, priority}`. An A race gets the week before it as a taper, its
-  own week as `event`, and the week after as recovery; a B race gets easy days
-  in front of it; a C race is trained through. With no dates the block falls
-  back to proportions — 30% base, 40% build, 20% peak, the rest taper — which
-  scales to any length, unlike the fixed "last five weeks are the peak" rule it
-  replaced.
-- **The rider's week is a preference, not a constraint.** `days` maps each
-  weekday to hard / endurance / recovery / off / any. Two hard days back to back
-  is one hard day and one bad one, so `chooseHardDays` spaces them and pushes a
-  note onto the week saying what it moved and why. Never rearrange a rider's
-  week silently; every deviation appends to `week.notes`.
-- **Session length scales with the hours the rider has.** Floors used to hand a
-  three-hour-a-week rider a 4.6-hour week; hard sessions are now capped at 35%
-  of the week's budget and recovery spins are dropped to rest days rather than
-  inflating it. Where the rider's own longest ride is known, no single ride is
-  stretched past it and the week says so instead of silently prescribing a ride
-  they will not do.
-- Pools rotate by week index so consecutive weeks differ — a plan that
-  prescribes the same Tuesday twelve times is a spreadsheet. Keys are chosen
-  for the week as a whole (`takeFrom`), never day by day, or two rotations land
-  on the same session in one week. The first quality day comes from `quality`,
-  the second from `second`, and every third week that second day goes to
-  `hills`: gradient work is not a speciality for climbers, and every plan gets
-  some. Base deliberately ignores the goal overlay, because base is base
-  whatever you are training for. `GOALS` is deliberately short: road, climbing,
-  general fitness.
-- **An endurance ride is never under an hour.** `shortestFor()` holds the floor
-  per session and `ENDURANCE_MIN` is 60: under that there is not enough time at
-  low intensity for the adaptations the ride exists for, so it is a commute with
-  a label on it. Where the week cannot fund another one, the day becomes rest
-  and the week says why — three real rides beat six that do nothing. Sessions
-  whose `build()` cannot reach the floor fall back to the plain endurance ride,
-  which honours minutes exactly.
-- **Nothing is ever prescribed fasted.** The old `fasted` session is gone,
-  replaced by `fuelled` — a long ride whose point is practising 60–90 g of
-  carbohydrate an hour. Long rides and quality days carry a `fuel` line saying
-  what to eat and when. Never add a session that trains low; if a rider searches
-  for one, `fuelled` answers them and explains why.
-- **Weekly distance** (`week.miles`, `week.km`) is the week's riding time at the
-  rider's own average speed, adjusted per role, and `plan.speedFrom` says where
-  that speed came from. With no rides it assumes 26 km/h and says so. It is a
-  target, not a promise — the plan is built on hours and TSS.
+`HILLS` sits in the same candidate pool, so a climb turns up among the day's
+three for every rider, not only the ones who asked for climbing. There is no
+block planner: it was removed, and what it knew lives here and in the workout
+builder.
 
-A plan saved from the browser lives at `DATA.savedPlan`, stripped of its built
-workouts (`slimPlan`) and rebuilt on demand from the session key and its length.
-Anything that rebuilds the payload — an upload, a delete, a unit switch — must
-carry `savedPlan` across, or the rider's plan vanishes the next time they add a
-ride.
+**An endurance ride is never under an hour.** `shortestFor()` holds the floor
+per session and `ENDURANCE_MIN` is 60: under that there is not enough time at
+low intensity for the adaptations the ride exists for.
+
+**Nothing is ever prescribed fasted.** There is no `fasted` session; `fuelled`
+replaced it — a long ride whose point is practising 60–90 g of carbohydrate an
+hour. `fuelNote()` attaches the numbers to anything long or hard. Never add a
+session that trains low; if a rider searches for one, `fuelled` answers them and
+explains why.
+
+**Climbs are ridden by effort, not watts.** `workout.effortBased` is set for any
+session whose focus is climbing (or whose terrain is mountainous), and
+`stepTarget()` then renders RPE and a breathing cue instead of a watt range. The
+gradient decides the power on a climb; the rider only decides how hard to push
+against it. File exports (.zwo, .mrc, .erg) still carry numbers, because a file
+format cannot hold "RPE 7".
 
 Two input paths with different fidelity, and the difference matters:
 

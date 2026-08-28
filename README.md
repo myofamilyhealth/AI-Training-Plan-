@@ -318,24 +318,9 @@ Three things follow from that:
 
 ### Recommendations and plans
 
-**The training plan** lays out every day of every week, with a weekly distance
-target alongside the hours — the intervals, the
-endurance rides, the recovery spins and the days off, each with what it is for
-and what it will cost you. You give it the dates you are pointing at (as many as
-you have, each an A, B or C), the days you can actually ride, and how many hours
-a week you have now; it works back from the calendar, ramps about 6% a week,
-backs off every fourth week, and tapers into each A race. Where your days
-collide — two hard days in a row — it spreads them out and tells you what it
-moved. Save it to the dashboard and the week you are in shows up there, with
-today marked; click any session to open the full workout.
-
-Two things it will not do. It never prescribes an endurance ride shorter than
-an hour — under that there is not enough time at low intensity to build
-anything, so the day becomes rest and the week tells you why. And it never asks
-you to ride fasted: long rides carry a fuelling line (60–90 g of carbohydrate an
-hour, from the first hour), and interval days say to arrive fed.
-
-**Ride today** gives you three sessions, not one. The recommendation comes from
+**Ride today** gives you three sessions, not one — and one of them is often a
+climb, because gradient is force at aerobic intensity and every rider needs some
+of it. The recommendation comes from
 your current form, how long since your last hard ride, and where your intensity
 distribution is thin — and states the rule it applied, so you can disagree with
 the reasoning rather than just the answer. Either side of it sits one that costs
@@ -345,15 +330,12 @@ same length, so what you are choosing between is how hard it will be; each says
 when you would pick it, and the easiest option is a rest day when that is
 honestly the right call.
 
-**Training plan** lays out a block that ramps from the volume you are actually
-riding, with a recovery week every fourth week and a taper into your event —
-drawing on the whole library, typically **18–22 distinct sessions** across a
-twelve-week block rather than the same Tuesday repeated twelve times.
+**Build a workout** takes what you type — "2x20 at threshold", "climb repeats",
+"90 minute endurance" — and builds it from your FTP, at the length you actually
+ride. Climbing sessions come back as efforts rather than watt targets, every
+session says what it is for and where to ride it, and anything long or hard
+carries its fuelling.
 
-Pick what you are training for and the plan changes shape: road racing,
-climbing, criterium, time trial, gravel, gran fondo, or general fitness. A
-climbing block puts summit finishes and climb repeats where a criterium block
-puts corner accelerations and repeated sprints.
 
 It gives you, at a glance:
 

@@ -425,197 +425,6 @@ for (let i = 0; i < 40; i += 2) greyZone.push(mk(i, 4800, 205));
 check('tempo overuse is flagged',
       /tempo/.test(Co.recommend(greyZone, { ftp: 250 }, now).pattern || ''), true);
 
-/* ------------------------------------------------------------- plans */
-// A block pointed at a date: base, build, peak, a taper the week before, the
-// race week itself, then a week of soft pedalling.
-const plan = Co.buildPlan({
-  weeks: 12, ftp: 250, weeklyHours: 8, startDate: '2026-08-31',
-  events: [{ date: '2026-11-15', name: 'District RR', priority: 'A' }],
-});
-check('twelve weeks built', plan.weeks.length, 12);
-check('week four recovers', plan.weeks[3].recovery, true);
-check('recovery week is lighter', plan.weeks[3].tss < plan.weeks[2].tss, true);
-check('the block tapers into the event', plan.weeks[9].phaseKey, 'taper');
-check('and the race week is its own thing', plan.weeks[10].phaseKey, 'event');
-check('the race lands in the week it falls in',
-      plan.weeks[10].events.map(e => e.date).join(), '2026-11-15');
-check('race week is the lightest of the two',
-      plan.weeks[10].tss < plan.weeks[9].tss, true);
-check('load builds across the block', plan.weeks[6].tss > plan.weeks[0].tss, true);
-
-// Every day of every week is present, ridden or not — a plan that lists three
-// sessions and leaves four days blank is not a week.
-check('every week has all seven days',
-      plan.weeks.every(w => w.days.length === 7), true);
-check('and they are in order',
-      plan.weeks[0].days.map(d => d.day).join(','), 'Mon,Tue,Wed,Thu,Fri,Sat,Sun');
-check('a day with no riding says so',
-      plan.weeks[0].days.filter(d => d.role === 'off').every(d => d.note && !d.sessions.length), true);
-check('every session names itself and its length',
-      plan.weeks.every(w => w.days.every(d => d.sessions.every(x => x.name && x.minutes > 0))), true);
-check('every session explains itself in a line',
-      plan.weeks.every(w => w.days.every(d => d.sessions.every(x => x.blurb && x.blurb.length > 20))), true);
-check('the week dates run Monday to Sunday',
-      new Date(plan.weeks[0].weekOf + 'T00:00:00Z').getUTCDay(), 1);
-
-// Varying intensity: a loading week is neither all hard nor all easy.
-const loading = plan.weeks.find(w => w.phaseKey === 'build') || plan.weeks[5];
-const zones = loading.days.reduce((a, d) => a.concat(d.sessions.map(s => s.zone)), []);
-check('a build week has hard days', zones.some(z => z >= 4), true);
-check('and easy ones', zones.some(z => z <= 2), true);
-check('the same session is never prescribed twice in a week',
-      new Set(loading.days.reduce((a, d) => a.concat(d.sessions.map(s => s.key)), []).filter(k => k !== 'recovery')).size,
-      loading.days.reduce((a, d) => a.concat(d.sessions.map(s => s.key)), []).filter(k => k !== 'recovery').length);
-
-// Several dates in the diary, each treated for what it is.
-const multi = Co.buildPlan({
-  weeks: 16, ftp: 250, weeklyHours: 9, startDate: '2026-08-31',
-  events: [{ date: '2026-09-27', name: 'Club 10', priority: 'C' },
-           { date: '2026-10-25', name: 'Regional', priority: 'B' },
-           { date: '2026-12-06', name: 'Nationals', priority: 'A' }],
-});
-check('all three events are placed', multi.events.length, 3);
-check('each lands in its own week',
-      multi.events.map(e => e.week).join(','), '4,8,14');
-check('the week before the A race is a taper',
-      multi.weeks[12].phaseKey, 'taper');
-check('the A race week is its own phase', multi.weeks[13].phaseKey, 'event');
-check('the week after it recovers', multi.weeks[14].phaseKey, 'recovery');
-check('two easy weeks never run into a race',
-      multi.weeks[11].phaseKey === 'recovery' && multi.weeks[12].phaseKey === 'taper', false);
-check('a C race is trained through, not tapered for',
-      multi.weeks[3].phaseKey === 'taper', false);
-check('the race day itself carries no session',
-      multi.weeks[13].days.filter(d => d.race).every(d => !d.sessions.length), true);
-check('and says which race it is',
-      multi.weeks[13].days.find(d => d.race).race.name, 'Nationals');
-
-// The rider's own week comes first, but never at the cost of the training.
-const notes = [];
-const crowded = Co.buildPlan({
-  weeks: 3, ftp: 250, weeklyHours: 9, startDate: '2026-08-31',
-  days: { Mon: 'off', Tue: 'hard', Wed: 'hard', Thu: 'hard', Fri: 'off',
-          Sat: 'endurance', Sun: 'endurance' },
-});
-crowded.weeks.forEach(w => w.notes.forEach(n => notes.push(n)));
-const hardDays = crowded.weeks[0].days.filter(d => d.role === 'quality').map(d => d.day);
-check('three hard days asked for, two given', hardDays.length, 2);
-check('and they are not back to back',
-      Math.abs(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(hardDays[0]) -
-               ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(hardDays[1])) >= 2, true);
-check('the rider is told what happened to the third',
-      notes.some(n => /stayed easy/.test(n)), true);
-check('a day marked off is never ridden',
-      crowded.weeks.every(w => w.days.filter(d => d.day === 'Mon' || d.day === 'Fri')
-        .every(d => !d.sessions.length)), true);
-
-// Left open, the plan writes the week a coach would: quality midweek with a
-// day between them, the long ride at the weekend, and a rest day taken.
-const open = { Mon: 'any', Tue: 'any', Wed: 'any', Thu: 'any', Fri: 'any', Sat: 'any', Sun: 'any' };
-const openPlan = Co.buildPlan({ weeks: 3, ftp: 250, weeklyHours: 8, days: open,
-                                startDate: '2026-08-31' });
-const w1 = openPlan.weeks[0];
-check('an open week puts the quality days midweek',
-      w1.days.filter(d => d.role === 'quality').map(d => d.day).join(','), 'Tue,Thu');
-check('and takes a rest day rather than riding seven',
-      w1.days.some(d => d.role === 'off'), true);
-check('and says that it did',
-      w1.notes.some(n => /rest day/.test(n)), true);
-check('the long ride lands at the weekend',
-      ['Sat', 'Sun'].indexOf((w1.days.find(d => d.role === 'long') || {}).day) !== -1, true);
-check('a rider who marks every day off gets no rest-day lecture',
-      Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: 8, startDate: '2026-08-31',
-                     days: { Mon: 'endurance', Tue: 'hard', Wed: 'endurance', Thu: 'hard',
-                             Fri: 'endurance', Sat: 'endurance', Sun: 'endurance' } })
-        .weeks[0].notes.some(n => /rest day/.test(n)), false);
-
-// An endurance ride is time at low intensity. Under an hour there is not enough
-// of it to be one, whatever the week's arithmetic says.
-[3, 4, 5, 6, 8, 12, 16].forEach(h => {
-  const w = Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: h, startDate: '2026-08-31' }).weeks[0];
-  const endurance = w.days.filter(d => d.role === 'easy' || d.role === 'long')
-    .reduce((a, d) => a.concat(d.sessions), []);
-  check(`${h}h: no endurance ride is shorter than an hour`,
-        endurance.every(s => s.minutes >= 60), true);
-  check(`${h}h: the week still lands near the hours asked for`,
-        w.hours <= h * 1.15, true);
-});
-
-// Nothing is ever prescribed fasted, and the long rides say what to eat.
-const fuelPlan = Co.buildPlan({ weeks: 8, ftp: 250, weeklyHours: 12, startDate: '2026-08-31',
-                                rider: { ftp: 250, longestMinutes: 240 } });
-const everySession = p2 => p2.weeks.reduce((a, w) =>
-  a.concat(w.days.reduce((b, d) => b.concat(d.sessions), [])), []);
-check('no session is ridden fasted',
-      everySession(fuelPlan).some(s => s.key === 'fasted' || /fasted|before breakfast/i.test(s.blurb || '')),
-      false);
-check('long rides say what to eat',
-      everySession(fuelPlan).filter(s => s.minutes >= 150).every(s => /carbohydrate/.test(s.fuel || '')), true);
-check('and interval days say to arrive fed',
-      everySession(fuelPlan).filter(s => s.minutes < 90 && /interval|sweet|threshold|VO2/i.test(s.name))
-        .every(s => s.fuel == null || /fed|carbohydrate/.test(s.fuel)), true);
-
-// Hills belong in every plan, not only the ones built for climbing.
-['fitness', 'road', 'climbing'].forEach(g => {
-  const keys = new Set();
-  Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 9, goal: g, startDate: '2026-08-31' })
-    .weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(x => keys.add(x.key))));
-  check(`${g}: the block includes hill work`,
-        [...keys].some(k => /climb|hill|summit|steep/.test(k)), true);
-});
-
-// Weekly distance: the week's riding time at the rider's own average speed.
-const milesPlan = Co.buildPlan({ weeks: 4, ftp: 250, weeklyHours: 9, startDate: '2026-08-31',
-                                 speedMps: 8.05 });
-check('every week carries a distance target',
-      milesPlan.weeks.every(w => w.miles > 0 && w.km > 0), true);
-check('and it is the hours at that speed, near enough',
-      Math.abs(milesPlan.weeks[0].miles - milesPlan.weeks[0].hours * 8.05 * 3.6 / 1.609344) < 12, true);
-check('the block totals its distance',
-      milesPlan.totalMiles, milesPlan.weeks.reduce((s, w) => s + w.miles, 0));
-check('and says where the speed came from', milesPlan.speedFrom, 'your own average speed');
-check('with no rides it says the number is assumed',
-      /assumed/.test(Co.buildPlan({ weeks: 1, ftp: 250 }).speedFrom), true);
-check('a faster rider covers more ground in the same hours',
-      Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: 9, startDate: '2026-08-31', speedMps: 10 }).weeks[0].miles >
-      Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: 9, startDate: '2026-08-31', speedMps: 7 }).weeks[0].miles, true);
-
-// Doubles: only when asked for, only on the big weeks, never more than twice.
-const dbl = Co.buildPlan({ weeks: 6, ftp: 250, weeklyHours: 13, doubles: true,
-                           ctl: 60, startDate: '2026-08-31' });
-const doubleDays = w => w.days.filter(d => d.sessions.length > 1);
-check('doubles appear when the week is big enough',
-      dbl.weeks.some(w => doubleDays(w).length > 0), true);
-check('never more than two in a week',
-      dbl.weeks.every(w => doubleDays(w).length <= 2), true);
-check('the extra ride is the easy one',
-      dbl.weeks.every(w => doubleDays(w).every(d => d.sessions[0].key === 'recovery' &&
-                                                    d.sessions[0].slot === 'AM')), true);
-const single = Co.buildPlan({ weeks: 6, ftp: 250, weeklyHours: 13, startDate: '2026-08-31' });
-check('and never without being asked for',
-      single.weeks.every(w => doubleDays(w).length === 0), true);
-
-// A recovery spin is never two hours long, whatever the arithmetic says.
-check('easy sessions are capped at something recoverable',
-      plan.weeks.every(w => w.days.every(d =>
-        d.sessions.every(s => s.key !== 'recovery' || s.minutes <= 60))), true);
-
-// Built from the rider's own numbers when there are any.
-const capped = Co.buildPlan({ weeks: 4, ftp: 250, weeklyHours: 12, startDate: '2026-08-31',
-                              rider: { ftp: 250, typicalMinutes: 70, longestMinutes: 120 } });
-check('the long ride grows from the longest ride the rider has actually done',
-      capped.weeks[0].days.every(d => d.sessions.every(s => s.minutes <= 132)), true);
-const uncapped = Co.buildPlan({ weeks: 4, ftp: 250, weeklyHours: 12, startDate: '2026-08-31' });
-check('with no history it works from what it was told',
-      uncapped.weeks[0].days.some(d => d.sessions.some(s => s.minutes > 132)), true);
-
-check('a plan with no date still ends on a taper',
-      Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8 }).weeks[11].phaseKey, 'taper');
-check('short plans are still legal', Co.buildPlan({ weeks: 4, ftp: 250 }).weeks.length, 4);
-check('one week is legal too', Co.buildPlan({ weeks: 1, ftp: 250 }).weeks.length, 1);
-check('the plan totals its own work',
-      plan.totalTss, plan.weeks.reduce((s, w) => s + w.tss, 0));
-
 /* ------------------------------------------------------------------ FIT */
 const Fit = require(path.join(__dirname, '..', 'hub', 'static', 'fit.js'));
 
@@ -865,11 +674,32 @@ check('nothing easier than recovery is a rest day', beat.options[0].rest, true);
 check('and a rest day has no workout to open', !!beat.options[0].workout, false);
 check('which still says when to take it', /bad sleep|ill|nothing/i.test(beat.options[0].when), true);
 
-// Same length, so what separates them is intensity and not duration.
-const lengths = Co.options(ridesOver(40, 4800, 170), { ftp: 250 }, now)
-  .options.filter(o => o.workout).map(o => Math.round(o.workout.seconds / 60));
-check('the options are built to one length',
-      Math.max.apply(null, lengths) - Math.min.apply(null, lengths) <= 2, true);
+// Much the same length, so what separates them is intensity rather than
+// duration — within the floors each session needs to be worth riding.
+const dayOptions = Co.options(ridesOver(40, 4800, 170), { ftp: 250 }, now).options;
+const lengths = dayOptions.filter(o => o.workout).map(o => Math.round(o.workout.seconds / 60));
+check('the options are built to comparable lengths',
+      Math.max.apply(null, lengths) / Math.min.apply(null, lengths) <= 1.4, true);
+check('and none is shorter than it is worth riding',
+      dayOptions.every(o => !o.workout ||
+        Math.round(o.workout.seconds / 60) >= Co.shortestFor(o.key) - 1), true);
+
+// The hills are among the day's choices, not filed under "for climbers".
+const seenHills = new Set();
+[[40, 4800, 170], [40, 3600, 235], [45, 5400, 150]].forEach(([d, secs, np]) => {
+  Co.options(ridesOver(d, secs, np), { ftp: 250 }, now).options
+    .forEach(o => { if (o.climbing) seenHills.add(o.key); });
+});
+check('a climb turns up among the daily options', seenHills.size > 0, true);
+check('and it is flagged as one',
+      dayOptions.every(o => o.climbing === undefined || typeof o.climbing === 'boolean'), true);
+
+// Fuelling travels with the session, and no option is ever ridden fasted.
+check('long options say what to eat',
+      dayOptions.filter(o => o.workout && o.workout.seconds >= 150 * 60)
+        .every(o => /carbohydrate/.test(o.fuel || '')), true);
+check('nothing among them is fasted',
+      dayOptions.every(o => !/fasted/i.test(o.name || '')), true);
 
 // Every session in the library must survive being exported, including the ones
 // built from sets of intervals — reading a repeat block as a plain on/off pair
@@ -882,40 +712,43 @@ const zwoBroken = Lib.SESSIONS.filter(s => {
 });
 check('every session exports a .zwo', zwoBroken.map(s => s.key).join(','), '');
 
-/* ------------------------------------------------- plans use the library */
-check('every goal is defined', Object.keys(Co.GOALS).length >= 3, true);
-const sessionKeys = p => {
-  const out = new Set();
-  p.weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(s => out.add(s.key))));
-  return out;
-};
-Object.keys(Co.GOALS).forEach(g => {
-  const p2 = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: g, startDate: '2026-08-31' });
-  check(g + ' draws widely on the library', sessionKeys(p2).size >= 10, true);
-  check(g + ' names every session it prescribes',
-        p2.weeks.every(w => w.days.every(d => d.sessions.every(s => s.name))), true);
-  check(g + ' carries the rationale through',
-        p2.weeks.every(w => w.days.every(d => d.sessions.every(s => s.why && s.why.length > 40))), true);
-  check(g + ' has a note explaining the focus', !!Co.GOALS[g].note, true);
-});
+/* ------------------------------------- climbs are ridden by effort */
+// A watt target up a climb is a fiction: the gradient sets the power and the
+// rider only decides how hard to push against it.
+const climbSession = Wk.fromText('sustained climb 70 min', { ftp: 250 });
+const flatSession = Wk.fromText('threshold intervals 70 min', { ftp: 250 });
+check('a climbing session is ridden by effort', climbSession.effortBased, true);
+check('a flat interval session is not', flatSession.effortBased, false);
+check('so the climb describes efforts', /RPE/.test(Wk.describe(climbSession, 250)), true);
+check('and never a watt target', / W\b/.test(Wk.describe(climbSession, 250)), false);
+check('while the flat one keeps its watts', / W\b/.test(Wk.describe(flatSession, 250)), true);
+check('every climbing session in the library is effort-based',
+      Lib.SESSIONS.filter(x => x.focus === 'climbing')
+        .every(x => Wk.fromText(x.name, { ftp: 250 }).effortBased), true);
 
-const climb = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: 'climbing', startDate: '2026-08-31' });
+check('effort words run from easy to flat out',
+      [0.5, 0.65, 0.85, 1.0, 1.15, 1.6].map(f => Wk.effortFor(f).name).join(','),
+      'Very easy,Easy,Steady,Hard,Very hard,Flat out');
+check('each one carries an RPE', Wk.EFFORTS.every(e => /RPE/.test(e.rpe)), true);
+check('and a cue you can use without looking down',
+      Wk.EFFORTS.every(e => e.cue && e.cue.length > 12), true);
+check('a step on a climb reads as an effort',
+      /RPE/.test(Wk.stepTarget({ lo: 0.95, hi: 1.05 }, 250, true)), true);
+check('and on the flat as watts',
+      Wk.stepTarget({ lo: 0.95, hi: 1.05 }, 250, false), '238-263 W');
+// The file formats still need numbers — a .zwo cannot hold "RPE 7".
+check('the trainer file still exports power',
+      /Power/.test(Wk.toZWO(climbSession, 250)), true);
+
+/* ------------------------------------------------- the library holds up */
 check('the library has no fasted session at all',
       Lib.SESSIONS.some(s => /fasted/i.test(s.name)), false);
 check('but a rider looking for one is answered',
       Wk.fromText('fasted ride', { ftp: 250 }).name, 'Fuelled endurance');
-
-check('a climbing plan prescribes climbing',
-      [...sessionKeys(climb)].some(k => (Lib.SESSIONS.find(s => s.key === k) || {}).focus === 'climbing'), true);
-const road = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: 'road', startDate: '2026-08-31' });
-check('a road plan prescribes race work',
-      [...sessionKeys(road)].some(k => ['attacks', 'groupride', 'anaerobic'].indexOf(k) !== -1), true);
-check('different goals give different plans',
-      [...sessionKeys(climb)].join(',') !== [...sessionKeys(road)].join(','), true);
-
-// Weeks must not be carbon copies of each other.
-const wk = (p2, i) => p2.weeks[i].days.reduce((a, d) => a.concat(d.sessions.map(s => s.key)), []).join(',');
-check('consecutive build weeks differ', wk(climb, 4) !== wk(climb, 5), true);
+check('there are climbing sessions to draw on',
+      Co.HILLS.every(k => !!Wk.byKey(k)), true);
+check('and they are actually climbing sessions',
+      Co.HILLS.every(k => /climb|hill|summit|steep|pitch/i.test(Wk.byKey(k).name + Wk.byKey(k).focus)), true);
 
 /* ------------------------------------------- totals and course guidance */
 check('every session says where to ride it',
@@ -1006,13 +839,6 @@ check('a rider who rides short gets shorter defaults',
 check('an explicit duration still wins',
       Math.abs(Wk.fromText('endurance 120 min', { rider: shortRider }).seconds / 60 - 120) < 5, true);
 
-// Plans build every session through the same context.
-const pairedPlan = Co.buildPlan({ weeks: 8, ftp: 250, weeklyHours: 8,
-                                  goal: 'climbing', rider: ctx });
-check('the plan records the rider context', pairedPlan.rider.ftp, 250);
-check('and every session in it was built from that context',
-      pairedPlan.weeks.every(w => w.days.every(d => d.sessions.every(s =>
-        s.workout.rider && s.workout.rider.ftp === 250))), true);
 const rec = Co.recommend(pairRides, { ftp: 250 }, new Date('2026-08-25T12:00:00Z'),
                          { rider: ctx });
 check('the recommendation is built from it too', rec.workout.rider.ftp, 250);

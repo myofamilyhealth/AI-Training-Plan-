@@ -379,7 +379,6 @@ function deleteRide(id) {
   // dropped rather than left claiming a best the rider no longer has a ride for.
   const inheritable = (gone.curve || gone.source === 'fit') ? null : (DATA.curve || null);
   payload.curve = curveFor(remaining, inheritable);
-  payload.savedPlan = DATA.savedPlan || null;
   payload.imported = Object.assign({}, DATA.imported, {
     rows: 0, added: 0, duplicates: 0, skipped: 0,
     unique: remaining.length,
@@ -515,48 +514,6 @@ function seg(values, current, onPick, labelFn) {
 }
 
 /* ------------------------------------------------------------------ panels */
-function planCard() {
-  const card = el('div', { class: 'card' });
-  card.appendChild(el('h2', { text: 'Plan' }));
-  if (!DATA.plan) {
-    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
-      text: 'No plan yet. Ask Claude to write one into training/plans/.' }));
-    return card;
-  }
-  const p = DATA.plan;
-  card.appendChild(el('p', { class: 'hint',
-    text: p.days_out != null ? `${p.goal || 'Race'} in ${p.days_out} days${p.target_time ? ' \u00b7 target ' + p.target_time : ''}`
-                             : (p.goal || '') }));
-
-  const head = el('div', { style: 'display:flex;align-items:baseline;gap:9px;margin-bottom:10px' });
-  head.appendChild(el('strong', { style: 'font-size:14px', text: p.name }));
-  if (p.week_number) {
-    const of = p.total_weeks > p.week_number ? ` of ${p.total_weeks}` : '';
-    head.appendChild(el('span', { class: 'pill mute', text: `Week ${p.week_number}${of}` }));
-  }
-  card.appendChild(head);
-
-  if (!p.days.length) {
-    card.appendChild(el('p', { class: 'hint', style: 'margin-bottom:0',
-      text: 'The plan has not started yet.' }));
-    return card;
-  }
-  p.days.forEach(d => {
-    const row = el('div', { class: 'plan-day' + (d.today ? ' is-today' : '') });
-    row.appendChild(el('span', { class: 'd num',
-      text: d.date ? d.weekday + ' ' + shortDate(d.date) : d.weekday }));
-    const w = el('span', { class: 'w' });
-    w.appendChild(document.createTextNode(d.label || '—'));
-    if (d.structured) {
-      w.appendChild(document.createTextNode(' '));
-      w.appendChild(el('span', { class: 'tag', text: 'watch' }));
-    }
-    row.appendChild(w);
-    card.appendChild(row);
-  });
-  return card;
-}
-
 function kpiRow() {
   const row = el('div', { class: 'grid kpis' });
   const t = DATA.totals;
@@ -853,9 +810,6 @@ function addToHistory(incoming, prior, opts) {
   // Bests hold across uploads: adding rides can raise the curve, never lower
   // it, so the stored one goes in alongside the rides' own.
   payload.curve = curveFor(merged, (prior && prior.curve) || null);
-  // Rebuilding the payload from the rides must not throw away everything that
-  // was not derived from them.
-  payload.savedPlan = (prior && prior.savedPlan) || (DATA && DATA.savedPlan) || null;
 
   payload.imported = Object.assign({
     source: 'fit',
@@ -897,15 +851,20 @@ function addToHistory(incoming, prior, opts) {
 const WALKTHROUGHS = [
   ['uploading-past-rides', 'How to upload all past Garmin rides',
    'Half a minute, no sound. Garmin Connect \u2192 Activities \u2192 Export CSV, then drop ' +
-   'that file above and every ride you have ever recorded is in.'],
+   'that file above and every ride you have ever recorded is in.',
+   'Start here', 'This is the first thing to do.'],
   ['uploading-one-ride', 'How to upload a single Garmin ride',
    'For the ride you just finished. Open it in Garmin Connect \u2192 the settings menu ' +
-   '\u2192 Export File, then drop the .zip above. It joins the rides already here.'],
+   '\u2192 Export File, then drop the .zip above. It joins the rides already here.',
+   'After your history is in',
+   'This is for after all your past rides have been uploaded.'],
 ];
 
-function walkthroughCard(slug, title, blurb) {
+function walkthroughCard(slug, title, blurb, step, note) {
   const card = el('div', { class: 'card walkthrough' });
+  if (step) card.appendChild(el('span', { class: 'wt-step', text: step }));
   card.appendChild(el('h3', { text: title }));
+  if (note) card.appendChild(el('p', { class: 'wt-note', text: note }));
   card.appendChild(el('p', { class: 'hint', text: blurb }));
 
   const video = el('video', {
@@ -925,9 +884,24 @@ function walkthroughCard(slug, title, blurb) {
 }
 
 function walkthroughs() {
+  const wrap = el('div', {});
+  // Said once, plainly, above both videos: this is not a Garmin connection.
+  // Nothing is linked, nothing syncs, and a ride appears here only when the
+  // rider brings the file over themselves.
+  const sync = el('div', { class: 'card no-sync' });
+  sync.appendChild(el('h3', { text: 'Nothing syncs from Garmin by itself' }));
+  sync.appendChild(el('p', {
+    text: 'This page is not connected to your Garmin account and never asks for your ' +
+          'password. Rides appear here only when you export them and drop the file in — ' +
+          'which is also why nothing you load ever leaves your browser. Do the two steps ' +
+          'below in order: your whole history once, then each new ride as you finish it.' }));
+  wrap.appendChild(sync);
+
   const row = el('div', { class: 'walkthroughs' });
-  WALKTHROUGHS.forEach(w => row.appendChild(walkthroughCard(w[0], w[1], w[2])));
-  return row;
+  WALKTHROUGHS.forEach((w, i) => row.appendChild(
+    walkthroughCard(w[0], w[1], w[2], `Step ${i + 1} — ${w[3]}`, w[4])));
+  wrap.appendChild(row);
+  return wrap;
 }
 
 /**
@@ -1333,7 +1307,6 @@ function reinterpretUnits(payload, unit) {
   });
   const next = Analytics.buildPayload(acts, { unit: unit });
   next.curve = payload.curve || null;
-  next.savedPlan = payload.savedPlan || null;
   next.imported = Object.assign({}, payload.imported, { displayUnit: unit });
   saveLocal(next);
   render(next);
@@ -1380,7 +1353,6 @@ function drawDashboard() {
   const t = DATA.totals;
   RAW_ACTIVITIES = DATA.raw || [];
   RIDER = riderContext();
-  SAVED_PLAN = DATA.savedPlan || null;
 
   $('#gen').textContent = DATA.imported
     ? (DATA.imported.held
@@ -1403,15 +1375,12 @@ function drawDashboard() {
 
   app.appendChild(tabBar());
   if (TAB === 'workout') { app.appendChild(workoutView()); return; }
-  if (TAB === 'plan') { app.appendChild(planView()); return; }
 
   const setup = setupCard();
   if (setup) app.appendChild(setup);
 
   app.appendChild(bikeKpiRow());
   app.appendChild(recommendCard());
-  const saved = planCardSaved();
-  if (saved) app.appendChild(saved);
 
   const main = el('div', { class: 'grid main' });
   const left = el('div', { class: 'stack' });
@@ -1427,7 +1396,6 @@ function drawDashboard() {
   if (curveCard) left.appendChild(curveCard);
   const powerCard = powerProfileCard();
   if (powerCard) right.appendChild(powerCard);
-  if (!DATA.imported) right.appendChild(planCard());
 
   main.appendChild(left); main.appendChild(right);
   app.appendChild(main);
@@ -1436,7 +1404,6 @@ function drawDashboard() {
 
 let RAW_ACTIVITIES = [];
 let RIDER = null;
-let SAVED_PLAN = null;
 
 /** The single place the rider's profile meets their uploaded rides. Every
  *  workout, recommendation and plan is built from this, so none of them can
@@ -2149,11 +2116,8 @@ function stepRows(workout, ftp) {
     const m = Math.floor(s.seconds / 60), sec = s.seconds % 60;
     return sec ? `${m}:${String(sec).padStart(2, '0')}` : `${m} min`;
   };
-  const power = s => {
-    if (!ftp) return `${Math.round(s.lo * 100)}-${Math.round(s.hi * 100)}% FTP`;
-    const a = Workouts.watts(s.lo, ftp), b = Workouts.watts(s.hi, ftp);
-    return a === b ? `${a} W` : `${Math.min(a, b)}-${Math.max(a, b)} W`;
-  };
+  // On a climb the gradient sets the power, so the target is an effort.
+  const power = s => Workouts.stepTarget(s, ftp, workout.effortBased);
   const row = (s, child) => {
     const r = el('div', { class: 'st' + (child ? ' child' : '') });
     // Bar width tracks duration; colour tracks the zone.
@@ -2209,6 +2173,24 @@ function workoutCard(workout) {
     why.appendChild(el('summary', { style: 'padding:6px 0', text: 'Why this session works' }));
     why.appendChild(el('p', { class: 'rec-note', style: 'margin:0 0 8px', text: workout.why }));
     card.appendChild(why);
+  }
+  if (workout.effortBased) {
+    const box = el('div', { class: 'estimate', style: 'margin:0 0 16px' });
+    box.appendChild(el('strong', { text: 'Ridden by effort, not by watts. ' }));
+    box.appendChild(document.createTextNode(
+      'On a climb the gradient decides the power — you cannot hold 250 W up a wall that ' +
+      'asks for 330, and you cannot avoid it on one that asks for 180. Ride the effort ' +
+      'and the cadence, and read the power afterwards. RPE is out of 10; the breathing ' +
+      'cue is what makes it usable without looking down.'));
+    card.appendChild(box);
+  }
+  const fuel = Coach.fuelNote(Math.round(workout.seconds / 60), (workout.zone || 0) >= 3 ||
+                              (workout.if || 0) >= 0.8);
+  if (fuel) {
+    const box = el('div', { class: 'fuel-note', style: 'margin:0 0 16px' });
+    box.appendChild(el('strong', { text: 'Fuelling. ' }));
+    box.appendChild(document.createTextNode(fuel));
+    card.appendChild(box);
   }
   if (workout.overran) {
     card.appendChild(el('div', { class: 'estimate', style: 'margin:0 0 16px',
@@ -2366,8 +2348,9 @@ function workoutView() {
   const card = el('div', { class: 'card', style: 'margin-bottom:18px' });
   card.appendChild(el('h2', { text: 'Build a workout' }));
   card.appendChild(el('p', { class: 'hint',
-    text: 'Say what you want in your own words, or write the intervals out. ' +
-          'Targets come back as watts from your FTP.' }));
+    text: 'Say what you want in your own words, or write the intervals out. Targets come ' +
+          'back as watts from your FTP — except on the climbs, which come back as an ' +
+          'effort, because the gradient sets the power there and you do not.' }));
 
   const box = el('textarea', { class: 'prompt', id: 'wo-input',
     placeholder: 'e.g. 2x20 at threshold  ·  90 minute endurance ride  ·  4x8min @ 110%  ·  short vo2 session' });
@@ -2392,9 +2375,10 @@ function workoutView() {
   card.appendChild(terrainRow);
 
   const chips = el('div', { class: 'chips' });
-  ['2x20 at threshold', 'hill repeats', 'rønnestad 30/15', 'sweet spot 60 min',
-   'over-unders', 'crit simulation', 'sustained climb', 'big gear torque',
-   'leadout sprints', 'ftp test', 'durability ride', '45 min recovery']
+  ['2x20 at threshold', 'climb repeats', 'sustained climb', 'sweet spot 60 min',
+   'steep pitches', 'rolling hills', 'summit finish', 'over-geared climbing',
+   'rønnestad 30/15', 'over-unders', 'durability ride', 'fuelled endurance',
+   'big gear torque', 'ftp test', '45 min recovery']
     .forEach(t => {
       const c = el('button', { class: 'chip', type: 'button', text: t });
       c.addEventListener('click', () => { box.value = t; build(); });
@@ -2436,526 +2420,6 @@ function workoutView() {
   return wrap;
 }
 
-/* ------------------------------------------------------------- plan view */
-
-let PENDING_PLAN = null;
-
-/** The plan as it is stored: the same weeks without the built workouts, which
- *  are rebuilt from the session key and its length whenever one is opened.
- *  A season of step-by-step intervals is megabytes; this is kilobytes. */
-function slimPlan(plan) {
-  return Object.assign({}, plan, {
-    rider: null,
-    weeks: plan.weeks.map(w => Object.assign({}, w, {
-      days: w.days.map(d => Object.assign({}, d, {
-        sessions: d.sessions.map(s => {
-          const copy = Object.assign({}, s);
-          delete copy.workout;
-          return copy;
-        }),
-      })),
-    })),
-  });
-}
-
-/** Rebuild one session's workout on demand — deterministic from its key. */
-function planWorkout(session, plan) {
-  if (session.workout) return session.workout;
-  const entry = Workouts.byKey(session.key);
-  return Workouts.fromText(`${entry.name} ${session.minutes} min`,
-                           { ftp: (plan && plan.ftp) || PROFILE.ftp, rider: RIDER });
-}
-
-function openPlanSession(session, plan) {
-  PENDING_WORKOUT = planWorkout(session, plan);
-  PENDING_TEXT = session.name;
-  WORKOUT_FIRST = true;
-  switchTab('workout');
-}
-
-/* --------------------------------------------------------------- the form */
-
-const PLAN_FORM = {
-  weeks: 12, hours: null, goal: 'fitness', name: '', doubles: false,
-  days: null, events: null,
-};
-
-function planForm(onBuild) {
-  const card = el('div', { class: 'card', style: 'margin-bottom:18px' });
-  card.appendChild(el('h2', { text: 'Build a training plan' }));
-  card.appendChild(el('p', { class: 'hint',
-    text: 'Every day of every week, built around the dates you are pointing at and ' +
-          'the days you can actually ride. It ramps from the volume you are already ' +
-          'doing, backs off every fourth week so the work lands, and tapers into ' +
-          'each event.' }));
-
-  if (PLAN_FORM.hours == null) {
-    PLAN_FORM.hours = Math.round((Coach.weeklyHours(RAW_ACTIVITIES) || 6) * 10) / 10;
-  }
-  if (!PLAN_FORM.days) PLAN_FORM.days = Object.assign({}, Coach.DEFAULT_DAYS);
-  if (!PLAN_FORM.events) PLAN_FORM.events = [];
-
-  /* ---- what for, how long, how much */
-  const fields = el('div', { class: 'fields' });
-  const mk = (key, label, hint, attrs) => {
-    const f = el('div', { class: 'field' });
-    f.appendChild(el('label', { text: label }));
-    const input = el('input', Object.assign({ value: PLAN_FORM[key] }, attrs || {}));
-    input.addEventListener('change', () => {
-      PLAN_FORM[key] = input.type === 'number' ? Number(input.value) : input.value;
-    });
-    f.appendChild(input);
-    if (hint) f.appendChild(el('span', { class: 'unit-hint', text: hint }));
-    fields.appendChild(f);
-    return input;
-  };
-
-  const goalField = el('div', { class: 'field' });
-  goalField.appendChild(el('label', { text: 'What for' }));
-  const goalSel = el('select');
-  Object.entries(Coach.GOALS).forEach(([key, g]) => {
-    const o = el('option', { value: key, text: g.name });
-    if (key === PLAN_FORM.goal) o.setAttribute('selected', 'selected');
-    goalSel.appendChild(o);
-  });
-  goalSel.addEventListener('change', () => { PLAN_FORM.goal = goalSel.value; });
-  goalField.appendChild(goalSel);
-  goalField.appendChild(el('span', { class: 'unit-hint', text: 'shapes the sessions' }));
-  fields.appendChild(goalField);
-
-  mk('weeks', 'Weeks', '1 to 52', { type: 'number', min: 1, max: 52 });
-  mk('hours', 'Hours a week now', RAW_ACTIVITIES.length ? 'from your rides' : 'your current volume',
-     { type: 'number', min: 2, max: 30, step: 0.5 });
-  mk('name', 'Name', 'optional', { type: 'text', placeholder: 'auto' });
-  card.appendChild(fields);
-
-  /* ---- the dates in the diary */
-  card.appendChild(el('h3', { class: 'plan-sub', text: 'Events' }));
-  card.appendChild(el('p', { class: 'hint',
-    text: 'Add as many as you have. An A race gets a full taper and a recovery week ' +
-          'after it; a B race gets a couple of easy days first; a C race is a hard ' +
-          'training day with a number on your back.' }));
-  const eventBox = el('div', { class: 'ev-list' });
-  card.appendChild(eventBox);
-
-  const drawEvents = () => {
-    eventBox.innerHTML = '';
-    PLAN_FORM.events.forEach((ev, i) => {
-      const row = el('div', { class: 'ev-row' });
-      const date = el('input', { type: 'date', value: ev.date || '' });
-      date.addEventListener('change', () => { ev.date = date.value; });
-      const name = el('input', { type: 'text', value: ev.name || '',
-                                 placeholder: 'What is it?' });
-      name.addEventListener('change', () => { ev.name = name.value; });
-      const prio = seg(['A', 'B', 'C'], ev.priority || 'A',
-                       v => { ev.priority = v; }, v => v);
-      const del = el('button', { class: 'del', type: 'button', text: '×',
-                                 'aria-label': 'Remove this event' });
-      del.addEventListener('click', () => {
-        PLAN_FORM.events.splice(i, 1);
-        drawEvents();
-      });
-      row.appendChild(date); row.appendChild(name);
-      row.appendChild(prio); row.appendChild(del);
-      eventBox.appendChild(row);
-    });
-    const add = el('button', { class: 'ghost', type: 'button',
-                               text: PLAN_FORM.events.length ? 'Add another event' : 'Add an event' });
-    add.addEventListener('click', () => {
-      PLAN_FORM.events.push({ date: '', name: '', priority: 'A' });
-      drawEvents();
-    });
-    eventBox.appendChild(add);
-  };
-  drawEvents();
-
-  /* ---- the shape of a week */
-  const weekHead = el('div', { class: 'sub-head' });
-  weekHead.appendChild(el('h3', { class: 'plan-sub', text: 'Your week' }));
-  const openAll = el('button', { class: 'ghost', type: 'button', text: 'Set all to Open' });
-  weekHead.appendChild(openAll);
-  card.appendChild(weekHead);
-  card.appendChild(el('p', { class: 'hint',
-    text: 'Say what each day is for. The plan follows this where it can, but two hard ' +
-          'days back to back is one hard day and one bad one — where your days collide ' +
-          'it spreads them out and tells you it did.' }));
-  card.appendChild(el('p', { class: 'hint', style: 'margin-top:-6px' },
-    [el('b', { style: 'color:var(--text-2)', text: 'Setting them all to Open is the one to pick ' +
-                      'if you are not sure. ' }),
-     document.createTextNode('The plan then chooses the days itself and spaces the hard ones ' +
-       'properly. Mark a day only where your week is genuinely fixed — the evening you ' +
-       'can never ride, the morning the group goes out.')]));
-
-  const grid = el('div', { class: 'day-grid' });
-  const setDay = [];
-  Coach.DAYS.forEach(day => {
-    const cell = el('div', { class: 'day-pick' });
-    cell.appendChild(el('span', { class: 'dp-day', text: day }));
-    const cycle = el('button', { class: 'dp-btn pref-' + PLAN_FORM.days[day], type: 'button',
-                                 text: Coach.PREFS.find(p => p.key === PLAN_FORM.days[day]).name });
-    const show = pref => {
-      cycle.textContent = Coach.PREFS.find(p => p.key === pref).name;
-      cycle.className = 'dp-btn pref-' + pref;
-    };
-    cycle.addEventListener('click', () => {
-      const keys = Coach.PREFS.map(p => p.key);
-      const next = keys[(keys.indexOf(PLAN_FORM.days[day]) + 1) % keys.length];
-      PLAN_FORM.days[day] = next;
-      show(next);
-    });
-    setDay.push(pref => { PLAN_FORM.days[day] = pref; show(pref); });
-    cell.appendChild(cycle);
-    grid.appendChild(cell);
-  });
-  openAll.addEventListener('click', () => setDay.forEach(set => set('any')));
-  card.appendChild(grid);
-
-  const key = el('div', { class: 'legend', style: 'margin-top:12px' });
-  Coach.PREFS.forEach(p => {
-    const k = el('div', { class: 'key' });
-    k.appendChild(el('span', { class: 'swatch pref-' + p.key }));
-    k.appendChild(el('span', { text: `${p.name} — ${p.blurb}` }));
-    key.appendChild(k);
-  });
-  card.appendChild(key);
-
-  /* ---- doubles */
-  const dbl = el('label', { class: 'check' });
-  const dblBox = el('input', { type: 'checkbox' });
-  if (PLAN_FORM.doubles) dblBox.setAttribute('checked', 'checked');
-  dblBox.addEventListener('change', () => { PLAN_FORM.doubles = dblBox.checked; });
-  dbl.appendChild(dblBox);
-  const dblText = el('span');
-  dblText.appendChild(el('b', { text: 'Allow double days' }));
-  dblText.appendChild(document.createTextNode(
-    ' — an easy spin in the morning before the evening session, on the biggest weeks. ' +
-    'Adds volume a single ride would cost too much fatigue to reach. Only used above ' +
-    'ten hours a week, and never more than twice a week.'));
-  dbl.appendChild(dblText);
-  card.appendChild(dbl);
-
-  const go = el('button', { class: 'btn', type: 'button', text: 'Build the plan',
-                            style: 'margin-top:18px' });
-  go.addEventListener('click', onBuild);
-  card.appendChild(go);
-
-  if (!PROFILE.ftp) {
-    card.appendChild(el('div', { class: 'estimate', style: 'margin-top:14px',
-      text: 'Without an FTP the plan still lays out every week, but sessions come back ' +
-            'as percentages rather than watts. Set it on the Dashboard tab.' }));
-  }
-  if (!RAW_ACTIVITIES.length) {
-    card.appendChild(el('div', { class: 'estimate', style: 'margin-top:10px',
-      text: 'With no rides loaded the plan works entirely from what you type here. ' +
-            'Load your history and it also builds from your current fitness, your ' +
-            'typical ride length and how long your longest ride actually is.' }));
-  }
-  return card;
-}
-
-/* -------------------------------------------------------- the plan itself */
-
-const ROLE_LABEL = {
-  quality: 'Intervals', long: 'Long ride', easy: 'Endurance',
-  recovery: 'Recovery', openers: 'Openers', off: 'Off', race: 'Race',
-};
-
-/** One week, every day of it. */
-function planWeek(w, plan, opts) {
-  opts = opts || {};
-  const box = el('div', { class: 'pw' + (w.recovery ? ' is-recovery' : '') +
-                                 (w.events.length ? ' has-event' : '') });
-
-  const head = el('div', { class: 'pw-head' });
-  head.appendChild(el('span', { class: 'pw-n', text: 'Week ' + w.week }));
-  // On the dashboard the card's own header already says which phase this is.
-  if (!opts.compact) {
-    head.appendChild(el('span', { class: 'pill ' + (w.recovery ? 'mute' : 'good'), text: w.phase }));
-  }
-  head.appendChild(el('span', { class: 'pw-when', text: 'from ' + fmtDate(w.weekOf) }));
-  const stats = el('span', { class: 'pw-stats num' });
-  stats.appendChild(el('b', { text: w.hours + 'h' }));
-  const far = DATA.unit === 'km' ? `${w.km} km` : `${w.miles} mi`;
-  stats.appendChild(document.createTextNode(`  ·  ${far}  ·  ${w.tss} TSS`));
-  head.appendChild(stats);
-  box.appendChild(head);
-
-  if (!opts.compact) box.appendChild(el('p', { class: 'pw-blurb', text: w.blurb }));
-
-  const days = el('div', { class: 'pw-days' });
-  w.days.forEach(d => {
-    const cell = el('div', { class: 'pd role-' + d.role + (d.race ? ' is-race' : '') });
-    const top = el('div', { class: 'pd-top' });
-    top.appendChild(el('span', { class: 'pd-day', text: d.day }));
-    top.appendChild(el('span', { class: 'pd-date num', text: shortDate(d.date) }));
-    cell.appendChild(top);
-    cell.appendChild(el('span', { class: 'pd-role', text: ROLE_LABEL[d.role] || d.role }));
-
-    if (d.race) {
-      cell.appendChild(el('span', { class: 'pd-name', text: d.race.name }));
-      cell.appendChild(el('span', { class: 'pill crit', text: d.race.priority + ' race' }));
-    } else if (!d.sessions.length) {
-      cell.appendChild(el('span', { class: 'pd-off', text: 'Rest' }));
-    } else {
-      d.sessions.forEach(s => {
-        const b = el('button', { class: 'pd-sess', type: 'button' });
-        if (s.slot) b.appendChild(el('span', { class: 'pd-slot', text: s.slot }));
-        b.appendChild(el('span', { class: 'pd-name', text: s.name }));
-        b.appendChild(el('span', { class: 'pd-nums num',
-          text: `${s.minutes} min${s.tss ? '  ·  ' + s.tss + ' TSS' : ''}` }));
-        hoverable(b, s.name, [
-          ['Time', s.minutes + ' min'],
-          ['Stress', s.tss == null ? '—' : s.tss + ' TSS'],
-          ['Focus', s.focus || '—'],
-        ]);
-        b.addEventListener('click', () => openPlanSession(s, plan));
-        cell.appendChild(b);
-        if (!opts.compact) {
-          cell.appendChild(el('span', { class: 'pd-blurb', text: s.blurb }));
-          if (s.fuel) cell.appendChild(el('span', { class: 'pd-fuel', text: s.fuel }));
-        }
-      });
-    }
-    if (d.note && !opts.compact) cell.appendChild(el('span', { class: 'pd-blurb', text: d.note }));
-    days.appendChild(cell);
-  });
-  box.appendChild(days);
-
-  if (!opts.compact) {
-    w.notes.forEach(n => box.appendChild(el('p', { class: 'pw-note', text: n })));
-  }
-  return box;
-}
-
-/** The whole plan: a header, then every week. */
-function planBody(plan, opts) {
-  opts = opts || {};
-  const wrap = el('div', {});
-  const head = el('div', { class: 'card', style: 'margin-bottom:18px' });
-  head.appendChild(el('h2', { text: plan.name }));
-  const bits = [
-    `${plan.weeks.length} week${plan.weeks.length === 1 ? '' : 's'}`,
-    `${plan.totalHours} hours`,
-    DATA.unit === 'km' ? `${plan.totalKm.toLocaleString()} km`
-                       : `${plan.totalMiles.toLocaleString()} miles`,
-    `${plan.totalTss.toLocaleString()} TSS`,
-    `starts ${fmtDate(plan.startDate)}`,
-  ];
-  head.appendChild(el('p', { class: 'hint', text: bits.join('  ·  ') }));
-  head.appendChild(el('p', { class: 'hint', style: 'margin-top:-8px',
-    text: `Weekly distance is the riding time at ${plan.speedFrom}. Hills, wind and ` +
-          'traffic move it — the hours and the stress score are what the plan is ' +
-          'actually built on.' }));
-  if (plan.goalNote) head.appendChild(el('p', { class: 'rec-note', text: plan.goalNote }));
-
-  if (plan.events.length) {
-    const evs = el('div', { class: 'ev-strip' });
-    plan.events.forEach(e => {
-      const chip = el('span', { class: 'ev-chip prio-' + e.priority });
-      chip.appendChild(el('b', { text: e.priority }));
-      chip.appendChild(document.createTextNode(` ${e.name} · ${fmtDate(e.date)} · week ${e.week}`));
-      evs.appendChild(chip);
-    });
-    head.appendChild(evs);
-  }
-
-  const actions = el('div', { class: 'plan-actions' });
-  if (opts.onSave) {
-    const save = el('button', { class: 'btn', type: 'button', text: 'Save to dashboard' });
-    save.addEventListener('click', () => opts.onSave(plan));
-    actions.appendChild(save);
-  }
-  if (opts.onDrop) {
-    const drop = el('button', { class: 'ghost', type: 'button', text: 'Remove this plan' });
-    drop.addEventListener('click', () => opts.onDrop());
-    actions.appendChild(drop);
-  }
-  const txt = el('button', { class: 'ghost', type: 'button', text: 'Download as text' });
-  txt.addEventListener('click', () => download(
-    plan.name.replace(/[^\w]+/g, '-').toLowerCase() + '.txt', planText(plan)));
-  actions.appendChild(txt);
-  head.appendChild(actions);
-  wrap.appendChild(head);
-
-  const weeks = el('div', { class: 'card' });
-  plan.weeks.forEach(w => weeks.appendChild(planWeek(w, plan)));
-  wrap.appendChild(weeks);
-  return wrap;
-}
-
-function planView() {
-  const wrap = el('div', {});
-  const result = el('div', {});
-
-  const build = () => {
-    PENDING_PLAN = Coach.buildPlan({
-      weeks: PLAN_FORM.weeks, ftp: PROFILE.ftp, weeklyHours: PLAN_FORM.hours,
-      goal: PLAN_FORM.goal, rider: RIDER, name: PLAN_FORM.name || null,
-      events: PLAN_FORM.events.filter(e => e.date),
-      days: PLAN_FORM.days, doubles: PLAN_FORM.doubles,
-      ctl: currentCtl(), speedMps: averageSpeed(),
-    });
-    draw();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const form = planForm(build);
-
-  function draw() {
-    result.innerHTML = '';
-    if (!PENDING_PLAN) return;
-    result.appendChild(planBody(PENDING_PLAN, {
-      onSave: plan => {
-        savePlan(plan);
-        PENDING_PLAN = null;
-        switchTab('dashboard');
-      },
-    }));
-  }
-
-  // A saved plan is the thing you came to look at; building a new one is the
-  // thing you do once.
-  if (SAVED_PLAN && !PENDING_PLAN) {
-    wrap.appendChild(planBody(SAVED_PLAN, {
-      onDrop: () => {
-        if (!window.confirm(`Remove "${SAVED_PLAN.name}" from your dashboard? ` +
-                            'The plan itself is not saved anywhere else.')) return;
-        savePlan(null);
-        drawDashboard();
-      },
-    }));
-    const again = el('details', { class: 'more', style: 'margin-top:18px' });
-    again.appendChild(el('summary', { text: 'Build a different plan' }));
-    const inner = el('div', { class: 'inner' });
-    inner.appendChild(form);
-    again.appendChild(inner);
-    wrap.appendChild(again);
-    wrap.appendChild(result);
-    draw();
-    return wrap;
-  }
-
-  wrap.appendChild(form);
-  wrap.appendChild(result);
-  draw();
-  return wrap;
-}
-
-/** The speed this rider actually averages, in metres per second, from every
- *  ride they have loaded. Null when there is nothing to read it from. */
-function averageSpeed() {
-  const rides = (RAW_ACTIVITIES || []).filter(a =>
-    a.type === 'cycling' && a.moving_s > 0 && a.distance_m > 0);
-  if (!rides.length) return null;
-  const secs = rides.reduce((t, a) => t + a.moving_s, 0);
-  const metres = rides.reduce((t, a) => t + a.distance_m, 0);
-  return secs ? metres / secs : null;
-}
-
-/** Today's fitness, where there are rides to read it from. */
-function currentCtl() {
-  if (!RAW_ACTIVITIES.length) return null;
-  const pmc = Cycling.pmc(RAW_ACTIVITIES, {
-    ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
-  return pmc.today ? pmc.today.ctl : null;
-}
-
-/* ------------------------------------------------ the plan on the dashboard */
-
-/** Store the plan with the rest of the payload, or clear it. */
-function savePlan(plan) {
-  SAVED_PLAN = plan ? slimPlan(plan) : null;
-  if (DATA) {
-    DATA.savedPlan = SAVED_PLAN;
-    saveLocal(DATA);
-  }
-}
-
-/** The week of the plan today falls in, or null once it has run out. */
-function planWeekFor(plan, today) {
-  if (!plan || !plan.weeks.length) return null;
-  const day = today || (DATA && DATA.today) || new Date().toISOString().slice(0, 10);
-  return plan.weeks.find(w => {
-    const end = new Date(new Date(w.weekOf + 'T00:00:00Z').getTime() + 7 * 86400000)
-      .toISOString().slice(0, 10);
-    return w.weekOf <= day && day < end;
-  }) || null;
-}
-
-/**
- * This week of the saved plan, on the dashboard.
- *
- * A plan nobody looks at is a document. This puts the week you are actually in
- * on the page you actually open, with today marked.
- */
-function planCardSaved() {
-  const plan = SAVED_PLAN;
-  if (!plan) return null;
-  const card = el('div', { class: 'card saved-plan' });
-  const head = el('div', { class: 'rt-head' });
-  head.appendChild(el('h2', { text: plan.name }));
-  // Before it starts, show the first week rather than an empty card: a plan
-  // built on a Thursday for the following Monday is still the thing the rider
-  // wants to look at.
-  const live = planWeekFor(plan);
-  const week = live || (plan.weeks[0].weekOf > ((DATA && DATA.today) || '') ? plan.weeks[0] : null);
-  if (week) {
-    head.appendChild(el('span', { class: 'pill ' + (week.recovery ? 'mute' : 'good'),
-                                  text: week.phase }));
-    head.appendChild(el('span', { class: 'pill mute',
-      text: live ? `Week ${week.week} of ${plan.weeks.length}`
-                 : `Starts ${fmtDate(week.weekOf)}` }));
-  }
-  const open = el('button', { class: 'ghost', type: 'button', text: 'The whole plan' });
-  open.addEventListener('click', () => switchTab('plan'));
-  head.appendChild(el('span', { class: 'grow' }));
-  head.appendChild(open);
-  card.appendChild(head);
-
-  if (!week) {
-    card.appendChild(el('p', { class: 'hint',
-      text: 'This plan has run its course. Build the next one when you are ready.' }));
-    return card;
-  }
-
-  card.appendChild(el('p', { class: 'hint', text: week.blurb }));
-  const days = planWeek(week, plan, { compact: true });
-  // Mark today so the week reads at a glance.
-  const todayKey = (DATA && DATA.today) || new Date().toISOString().slice(0, 10);
-  [...days.querySelectorAll('.pd')].forEach((cell, i) => {
-    if (week.days[i] && week.days[i].date === todayKey) cell.classList.add('is-today');
-  });
-  card.appendChild(days);
-  week.notes.forEach(n => card.appendChild(el('p', { class: 'pw-note', text: n })));
-  return card;
-}
-
-function planText(plan) {
-  const out = [plan.name, '='.repeat(plan.name.length), ''];
-  plan.events.forEach(e => out.push(`${e.priority} race: ${e.name} — ${fmtDate(e.date)} (week ${e.week})`));
-  if (plan.ftp) out.push('FTP: ' + plan.ftp + ' W');
-  out.push(`${plan.weeks.length} weeks · ${plan.totalHours} hours · ${plan.totalTss} TSS`);
-  out.push('');
-  plan.weeks.forEach(w => {
-    out.push(`Week ${w.week} — ${w.phase}  (from ${fmtDate(w.weekOf)})   ${w.hours}h, ${w.tss} TSS`);
-    out.push('  ' + w.blurb);
-    w.days.forEach(d => {
-      if (d.race) { out.push(`    ${d.day}  ${d.race.name} — ${d.race.priority} race`); return; }
-      if (!d.sessions.length) { out.push(`    ${d.day}  Off`); return; }
-      d.sessions.forEach(sn => {
-        out.push(`    ${d.day}  ${sn.slot ? sn.slot + ' ' : ''}${sn.name} — ` +
-                 `${sn.minutes} min${sn.tss ? ', ' + sn.tss + ' TSS' : ''}`);
-        out.push(`          ${sn.blurb}`);
-        const w2 = planWorkout(sn, plan);
-        out.push(Workouts.describe(w2, plan.ftp).split('\n').map(l => '    ' + l).join('\n'));
-      });
-    });
-    w.notes.forEach(n => out.push('    Note: ' + n));
-    out.push('');
-  });
-  return out.join('\n');
-}
-
 /* ------------------------------------------------------------------ tabs */
 
 function switchTab(name) {
@@ -2966,7 +2430,7 @@ function switchTab(name) {
 
 function tabBar() {
   const bar = el('div', { class: 'tabs', role: 'tablist' });
-  [['dashboard', 'Dashboard'], ['workout', 'Build a workout'], ['plan', 'Training plan']]
+  [['dashboard', 'Dashboard'], ['workout', 'Build a workout']]
     .forEach(([key, label]) => {
       const b = el('button', { type: 'button', role: 'tab',
                                'aria-selected': String(TAB === key), text: label });

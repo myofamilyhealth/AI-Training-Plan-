@@ -207,7 +207,7 @@
   // under 50 TSS is a day that costs you nothing, 100 is a hard day, and an
   // hour at threshold — the definition of 100 — sits exactly on the line.
   const BANDS = [
-    { key: 'rest',     label: 'Rest',     max: 0 },
+    { key: 'rest',     label: 'Day off',  max: 0 },
     { key: 'easy',     label: 'Easy',     max: 50,  note: 'under 50' },
     { key: 'moderate', label: 'Moderate', max: 100, note: '50 to 99' },
     { key: 'hard',     label: 'Hard',     max: Infinity, note: '100 and up' },

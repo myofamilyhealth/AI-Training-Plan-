@@ -335,7 +335,26 @@ check('today is marked', cal.filter(d => d.today).map(d => d.date), ['2026-08-26
 check('days that have not happened are not rest days',
       cal.filter(d => d.future).map(d => d.date),
       ['2026-08-27', '2026-08-28', '2026-08-29', '2026-08-30']);
-check('a day off is a rest day', cal.find(d => d.date === '2026-08-25').band, 'rest');
+check('a day with no ride is a day off', cal.find(d => d.date === '2026-08-25').band, 'rest');
+check('and the legend calls it that',
+      Cy.BANDS.find(b => b.key === 'rest').label, 'Day off');
+
+// The window is anchored to whatever day it is asked about, so a page left
+// open — or a history loaded a fortnight ago — still shows the last two weeks.
+const nowWindow = Cy.recentDays([], {});
+const todayStr = (() => {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+})();
+check('the calendar covers today', nowWindow.some(d => d.date === todayStr), true);
+check('and marks it', nowWindow.filter(d => d.today).length, 1);
+check('a later window moves with the date',
+      Cy.recentDays([], { today: '2026-09-30' })[13].date >
+      Cy.recentDays([], { today: '2026-08-26' })[13].date, true);
+check('a ride added today lands on today',
+      Cy.recentDays([{ type: 'cycling', date: todayStr, start: todayStr + 'T09:00:00',
+                       moving_s: 3600, distance_m: 30000, tss: 60 }], {})
+        .find(d => d.date === todayStr).rides.length, 1);
 
 check('under 50 is easy', Cy.bandFor(38).key, 'easy');
 check('an hour at FTP is hard, exactly on the line', Cy.bandFor(100).key, 'hard');

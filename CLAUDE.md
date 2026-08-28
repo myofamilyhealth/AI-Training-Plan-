@@ -127,7 +127,10 @@ Python and the JavaScript suites together.
   that, so treat it as a fixed point when changing anything here.
   `recentDays()` builds the two-week calendar: whole Monday-to-Sunday weeks,
   every day present whether or not it was ridden, days ahead of today flagged
-  `future` rather than counted as rest. Days are banded rest / easy / moderate
+  `future` rather than counted as rest. The window is anchored to the live date
+  at render time, never to `DATA.today` — that is stamped in at import, so a
+  history loaded a fortnight ago went on showing that fortnight. A day with no
+  ride on it reads "Day off"; a day that has not happened yet reads "To come". Days are banded rest / easy / moderate
   / hard on the TSS boundaries a coach would use, and `BANDS` carries the words
   the legend prints — a shade with no label is what the old heatmap did, and
   nobody could read it.

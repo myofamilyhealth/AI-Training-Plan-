@@ -21,6 +21,12 @@ const fmt = (n, d) => Number(n).toLocaleString(undefined, {
   minimumFractionDigits: d == null ? 0 : d, maximumFractionDigits: d == null ? 0 : d });
 /* Dates read month, day, year — 08/25/2026 — everywhere they are written out,
    and month/day where an axis or a calendar cell has no room for the year. */
+/** Today where the rider is, read fresh every time — never the date stamped
+ *  into the payload when the file was imported. */
+function todayKey() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 const fmtDate = Analytics.fmtDate;
 const shortDate = Analytics.fmtDayMonth;
 const hrs = h => Math.floor(h) + 'h ' + Math.round((h % 1) * 60) + 'm';
@@ -243,9 +249,9 @@ function twoWeekCalendar(days) {
       text: dom === '01' ? `${Number(month)}/1` : String(Number(dom)) }));
 
     if (d.future) {
-      cell.appendChild(el('span', { class: 'dval', text: '—' }));
+      cell.appendChild(el('span', { class: 'dval', text: 'To come' }));
     } else if (!d.rides.length) {
-      cell.appendChild(el('span', { class: 'dval', text: 'Rest' }));
+      cell.appendChild(el('span', { class: 'dval', text: 'Day off' }));
     } else {
       cell.appendChild(el('span', { class: 'dval num', text: shortTime(d.seconds) }));
       const stress = el('span', { class: 'dtss num', text: fmt(d.tss) });
@@ -265,8 +271,12 @@ function twoWeekCalendar(days) {
 }
 
 function calendarCard() {
+  // Today, every time this is drawn — not the day the file happened to be
+  // loaded. `DATA.today` is stamped into the payload at import and then sits
+  // there: a rider who loaded their history a fortnight ago was still being
+  // shown that fortnight, with no sign that the window had stopped moving.
   const days = Cycling.recentDays(RAW_ACTIVITIES || [], {
-    today: DATA.today, ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
+    today: todayKey(), ftp: PROFILE.ftp, restHr: PROFILE.restHr, maxHr: PROFILE.maxHr });
   const sum = Cycling.daysSummary(days);
 
   const card = el('div', { class: 'card' });
@@ -282,7 +292,7 @@ function calendarCard() {
     text: `${sum.days} ride day${sum.days === 1 ? '' : 's'}` }));
   line.appendChild(document.createTextNode(
     `  ·  ${hrs(sum.seconds / 3600)}  ·  ${fmt(sum.tss)} TSS  ·  ` +
-    `${sum.rest} rest day${sum.rest === 1 ? '' : 's'}`));
+    `${sum.rest} day${sum.rest === 1 ? '' : 's'} off`));
   card.appendChild(line);
 
   const legend = el('div', { class: 'cal-legend' });
@@ -923,7 +933,7 @@ function manualEntryCard(startUnit) {
           'are worked out from them — estimates, and marked as estimates.' }));
 
   let unit = startUnit === 'km' ? 'km' : 'mi';
-  const today = (DATA && DATA.today) || new Date().toISOString().slice(0, 10);
+  const today = todayKey();
 
   const fields = el('div', { class: 'fields' });
   const mk = (label, hint, attrs) => {

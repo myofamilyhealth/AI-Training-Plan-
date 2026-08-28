@@ -499,6 +499,119 @@ input[type=file].hidden-input { display: none; }
 /* ---------------------------------------------------------------- landing */
 .landing { max-width: 1000px; margin: 0 auto; }
 
+/* -------------------------------------------------------------- plan */
+.plan-sub {
+  margin: 26px 0 4px; font-size: 14px; font-weight: 620; letter-spacing: -.01em;
+}
+.ev-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.ev-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ev-row input[type=date] { width: 170px; }
+.ev-row input[type=text] { flex: 1; min-width: 160px; }
+.ev-row input {
+  font: inherit; font-size: 14px; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border-strong);
+  border-radius: 9px; padding: 9px 11px;
+}
+
+.day-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px; margin-top: 14px;
+}
+@media (max-width: 620px) { .day-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.day-pick { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.dp-day {
+  font-size: 11px; font-weight: 660; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3); text-align: center;
+}
+.dp-btn {
+  appearance: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 560;
+  border-radius: 9px; padding: 10px 4px; text-align: center;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
+  transition: filter .12s;
+}
+.dp-btn:hover { filter: brightness(0.97); }
+
+/* One colour per kind of day, used by the picker and its key alike. */
+.pref-hard      { background: var(--ramp-4); border-color: var(--ramp-4); color: #fff; }
+.pref-endurance { background: var(--ramp-2); border-color: var(--ramp-2); color: var(--text); }
+.pref-recovery  { background: var(--ramp-1); border-color: var(--ramp-1); color: var(--text); }
+.pref-off       { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
+.pref-any       { background: var(--bg); border-color: var(--border-strong); color: var(--text-2); }
+
+.check {
+  display: flex; gap: 10px; align-items: flex-start; margin-top: 22px;
+  font-size: 13px; color: var(--text-3); line-height: 1.55; cursor: pointer;
+}
+.check input { margin-top: 3px; }
+.check b { color: var(--text); font-weight: 600; }
+
+.ev-strip { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+.ev-chip {
+  font-size: 12.5px; color: var(--text-2); padding: 5px 11px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.ev-chip b { color: var(--text); }
+.ev-chip.prio-A { border-color: var(--series-2); }
+.plan-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+/* ------------------------------------------------------ a week of a plan */
+.pw { padding: 18px 0; border-bottom: 1px solid var(--border); }
+.pw:last-child { border-bottom: 0; padding-bottom: 2px; }
+.pw:first-child { padding-top: 2px; }
+.pw-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pw-n { font-size: 15px; font-weight: 660; letter-spacing: -.015em; }
+.pw-when { font-size: 12.5px; color: var(--text-3); }
+.pw-stats { margin-left: auto; font-size: 13px; color: var(--text-2); }
+.pw-stats b { color: var(--text); }
+.pw-blurb { margin: 8px 0 0; font-size: 13px; color: var(--text-2); line-height: 1.55; max-width: 92ch; }
+.pw-note {
+  margin: 10px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--text-3);
+  border-left: 2px solid var(--border-strong); padding-left: 12px;
+}
+.pw.is-recovery .pw-n { color: var(--text-2); }
+
+.pw-days {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px; margin-top: 14px;
+}
+@media (max-width: 900px) { .pw-days { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .pw-days { grid-template-columns: minmax(0, 1fr); } }
+.pd {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--bg); padding: 9px 10px 11px;
+}
+.pd-top { display: flex; align-items: baseline; gap: 6px; }
+.pd-day { font-size: 12px; font-weight: 660; color: var(--text); }
+.pd-date { font-size: 11px; color: var(--text-3); margin-left: auto; }
+.pd-role {
+  font-size: 10px; font-weight: 660; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.pd.role-quality { background: color-mix(in srgb, var(--series-1) 8%, var(--surface)); }
+.pd.role-quality .pd-role { color: var(--series-1); }
+.pd.role-off { background: var(--surface-2); }
+.pd.is-race { background: color-mix(in srgb, var(--series-2) 10%, var(--surface));
+              border-color: var(--series-2); }
+.pd.is-today { box-shadow: 0 0 0 2px var(--series-2); }
+.pd-sess {
+  appearance: none; cursor: pointer; font: inherit; text-align: left;
+  background: none; border: 0; padding: 0; margin-top: 2px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.pd-slot {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--text-3);
+}
+.pd-name {
+  font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3;
+  text-decoration: underline; text-decoration-color: transparent;
+  text-underline-offset: 2px; transition: text-decoration-color .12s;
+}
+.pd-sess:hover .pd-name { text-decoration-color: var(--border-strong); }
+.pd-nums { font-size: 11.5px; color: var(--text-2); }
+.pd-off { font-size: 13px; color: var(--text-3); }
+.pd-blurb { font-size: 11.5px; color: var(--text-3); line-height: 1.45; margin-top: 2px; }
+
 /* ------------------------------------------------ fitness chart key */
 .pmc-key {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -162,10 +162,45 @@ Python and the JavaScript suites together.
   not the same thing as a cheap one. Below the easiest session the answer is a
   rest day, not a session; above the hardest it is the same session, longer.
   The tests pin the ordering across short, long and easy-only histories.
-  Plans draw from `PHASE_POOLS` crossed with `GOALS`, rotating by week index so
-  consecutive weeks differ — a plan that prescribes the same Tuesday twelve
-  times is a spreadsheet. Base phase deliberately ignores the goal overlay;
-  base is base whatever you are training for.
+
+### `buildPlan` — the block
+
+`buildPlan({weeks, ftp, rider, weeklyHours, goal, events, days, doubles, ctl,
+startDate})` returns **every day of every week**, ridden or not. A plan that
+lists three sessions and leaves four days blank is not a week: the rider cannot
+tell whether Friday is a rest day or an oversight. Each day carries a `role`
+(quality / long / easy / recovery / openers / off / race) and an array of
+`sessions`, which is how doubles are expressed — an AM and a PM entry.
+
+- **The calendar drives the phases, not the week number.** `events` is a list
+  of `{date, name, priority}`. An A race gets the week before it as a taper, its
+  own week as `event`, and the week after as recovery; a B race gets easy days
+  in front of it; a C race is trained through. With no dates the block falls
+  back to proportions — 30% base, 40% build, 20% peak, the rest taper — which
+  scales to any length, unlike the fixed "last five weeks are the peak" rule it
+  replaced.
+- **The rider's week is a preference, not a constraint.** `days` maps each
+  weekday to hard / endurance / recovery / off / any. Two hard days back to back
+  is one hard day and one bad one, so `chooseHardDays` spaces them and pushes a
+  note onto the week saying what it moved and why. Never rearrange a rider's
+  week silently; every deviation appends to `week.notes`.
+- **Session length scales with the hours the rider has.** Floors used to hand a
+  three-hour-a-week rider a 4.6-hour week; hard sessions are now capped at 35%
+  of the week's budget and recovery spins are dropped to rest days rather than
+  inflating it. Where the rider's own longest ride is known, no single ride is
+  stretched past it and the week says so instead of silently prescribing a ride
+  they will not do.
+- Pools rotate by week index so consecutive weeks differ — a plan that
+  prescribes the same Tuesday twelve times is a spreadsheet. The first quality
+  day of a week comes from `quality`, the second from `second`; base
+  deliberately ignores the goal overlay, because base is base whatever you are
+  training for. `GOALS` is deliberately short: road, climbing, general fitness.
+
+A plan saved from the browser lives at `DATA.savedPlan`, stripped of its built
+workouts (`slimPlan`) and rebuilt on demand from the session key and its length.
+Anything that rebuilds the payload — an upload, a delete, a unit switch — must
+carry `savedPlan` across, or the rider's plan vanishes the next time they add a
+ride.
 
 Two input paths with different fidelity, and the difference matters:
 

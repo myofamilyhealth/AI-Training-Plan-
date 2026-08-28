@@ -318,6 +318,16 @@ Three things follow from that:
 
 ### Recommendations and plans
 
+**The training plan** lays out every day of every week — the intervals, the
+endurance rides, the recovery spins and the days off, each with what it is for
+and what it will cost you. You give it the dates you are pointing at (as many as
+you have, each an A, B or C), the days you can actually ride, and how many hours
+a week you have now; it works back from the calendar, ramps about 6% a week,
+backs off every fourth week, and tapers into each A race. Where your days
+collide — two hard days in a row — it spreads them out and tells you what it
+moved. Save it to the dashboard and the week you are in shows up there, with
+today marked; click any session to open the full workout.
+
 **Ride today** gives you three sessions, not one. The recommendation comes from
 your current form, how long since your last hard ride, and where your intensity
 distribution is thin — and states the rule it applied, so you can disagree with

@@ -613,6 +613,10 @@ input[type=file].hidden-input { display: none; }
 .pd-nums { font-size: 11.5px; color: var(--text-2); }
 .pd-off { font-size: 13px; color: var(--text-3); }
 .pd-blurb { font-size: 11.5px; color: var(--text-3); line-height: 1.45; margin-top: 2px; }
+.pd-fuel {
+  font-size: 11.5px; line-height: 1.45; margin-top: 6px; color: var(--text-2);
+  border-left: 2px solid var(--ramp-3); padding-left: 8px;
+}
 
 /* ------------------------------------------------ fitness chart key */
 .pmc-key {

@@ -2675,7 +2675,8 @@ function planWeek(w, plan, opts) {
   head.appendChild(el('span', { class: 'pw-when', text: 'from ' + fmtDate(w.weekOf) }));
   const stats = el('span', { class: 'pw-stats num' });
   stats.appendChild(el('b', { text: w.hours + 'h' }));
-  stats.appendChild(document.createTextNode('  ·  ' + w.tss + ' TSS'));
+  const far = DATA.unit === 'km' ? `${w.km} km` : `${w.miles} mi`;
+  stats.appendChild(document.createTextNode(`  ·  ${far}  ·  ${w.tss} TSS`));
   head.appendChild(stats);
   box.appendChild(head);
 
@@ -2709,7 +2710,10 @@ function planWeek(w, plan, opts) {
         ]);
         b.addEventListener('click', () => openPlanSession(s, plan));
         cell.appendChild(b);
-        if (!opts.compact) cell.appendChild(el('span', { class: 'pd-blurb', text: s.blurb }));
+        if (!opts.compact) {
+          cell.appendChild(el('span', { class: 'pd-blurb', text: s.blurb }));
+          if (s.fuel) cell.appendChild(el('span', { class: 'pd-fuel', text: s.fuel }));
+        }
       });
     }
     if (d.note && !opts.compact) cell.appendChild(el('span', { class: 'pd-blurb', text: d.note }));
@@ -2732,10 +2736,16 @@ function planBody(plan, opts) {
   const bits = [
     `${plan.weeks.length} week${plan.weeks.length === 1 ? '' : 's'}`,
     `${plan.totalHours} hours`,
+    DATA.unit === 'km' ? `${plan.totalKm.toLocaleString()} km`
+                       : `${plan.totalMiles.toLocaleString()} miles`,
     `${plan.totalTss.toLocaleString()} TSS`,
     `starts ${fmtDate(plan.startDate)}`,
   ];
   head.appendChild(el('p', { class: 'hint', text: bits.join('  ·  ') }));
+  head.appendChild(el('p', { class: 'hint', style: 'margin-top:-8px',
+    text: `Weekly distance is the riding time at ${plan.speedFrom}. Hills, wind and ` +
+          'traffic move it — the hours and the stress score are what the plan is ' +
+          'actually built on.' }));
   if (plan.goalNote) head.appendChild(el('p', { class: 'rec-note', text: plan.goalNote }));
 
   if (plan.events.length) {
@@ -2783,7 +2793,7 @@ function planView() {
       goal: PLAN_FORM.goal, rider: RIDER, name: PLAN_FORM.name || null,
       events: PLAN_FORM.events.filter(e => e.date),
       days: PLAN_FORM.days, doubles: PLAN_FORM.doubles,
-      ctl: currentCtl(),
+      ctl: currentCtl(), speedMps: averageSpeed(),
     });
     draw();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2829,6 +2839,17 @@ function planView() {
   wrap.appendChild(result);
   draw();
   return wrap;
+}
+
+/** The speed this rider actually averages, in metres per second, from every
+ *  ride they have loaded. Null when there is nothing to read it from. */
+function averageSpeed() {
+  const rides = (RAW_ACTIVITIES || []).filter(a =>
+    a.type === 'cycling' && a.moving_s > 0 && a.distance_m > 0);
+  if (!rides.length) return null;
+  const secs = rides.reduce((t, a) => t + a.moving_s, 0);
+  const metres = rides.reduce((t, a) => t + a.distance_m, 0);
+  return secs ? metres / secs : null;
 }
 
 /** Today's fitness, where there are rides to read it from. */

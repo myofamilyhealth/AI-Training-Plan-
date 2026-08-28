@@ -101,7 +101,7 @@
   },
   {
     key: 'durability', name: 'Durability ride', focus: 'fatigue resistance', zone: 2,
-    defaultMinutes: 210, terrain: ['flat', 'rolling', 'hilly'],
+    defaultMinutes: 210, minMinutes: 150, terrain: ['flat', 'rolling', 'hilly'],
     keywords: ['durability', 'fatigue resistance', 'deep', 'long endurance', 'century', 'gran fondo', 'back end'],
     course: 'A long loop that brings you home past the three-hour mark, with the terrain for the sweet spot blocks in the last third. Carry more food than you think.',
     blurb: 'A long ride with the hard work deliberately placed at the end, when you are already tired.',
@@ -119,15 +119,20 @@
     },
   },
   {
-    key: 'fasted', name: 'Fasted endurance', focus: 'metabolic', zone: 2,
-    defaultMinutes: 90, terrain: ['flat', 'rolling', 'indoor'],
-    keywords: ['fasted', 'fat burning', 'metabolic', 'low carb', 'train low', 'empty stomach'],
-    course: 'Flat and close to home. Judgement fades when glycogen does, so keep the route simple and be ready to cut it short.',
-    blurb: 'Steady endurance before breakfast. Keep it genuinely easy — this is not a hard session.',
-    why: 'Riding with low glycogen amplifies the signalling that builds fat oxidation. ' +
-         'The cost is that quality drops, so it belongs on easy days only, and never ' +
-         'before a session that matters.',
-    build: mins => [step('work', Math.round(mins * 60), 0.55, 0.68, 'Easy, fasted', SPIN)],
+    key: 'fuelled', name: 'Fuelled endurance', focus: 'endurance', zone: 2,
+    defaultMinutes: 150, minMinutes: 90, terrain: ['flat', 'rolling', 'hilly'],
+    keywords: ['fuelled', 'fueled', 'fuelling', 'fueling practice', 'gut training',
+               'carbohydrate practice', 'eating on the bike', 'fasted'],
+    course: 'Anywhere you can eat and drink without thinking about it. A route with somewhere to refill is worth more than a scenic one.',
+    blurb: 'A long steady ride where the point is the eating: 60 to 90 grams of carbohydrate an hour, from the first hour, not the third.',
+    why: 'The gut is trainable and the limit is real: absorption tops out near 60 g/h on ' +
+         'glucose alone, and rises to 90-120 g/h only with a glucose-fructose mix and ' +
+         'weeks of deliberate practice — which is why the professional peloton now eats ' +
+         'at rates that would have caused stomach trouble a decade ago. Practising it in ' +
+         'training is what makes it possible in a race. Riding fasted does the opposite: ' +
+         'it teaches the gut nothing, blunts the quality of the session and leaves you ' +
+         'training your body to work at a lower power. Eat before you go and keep eating.',
+    build: mins => [step('work', Math.round(mins * 60), 0.56, 0.70, 'Steady, eating every 20 minutes', SPIN)],
   },
   {
     key: 'surges', name: 'Endurance with surges', focus: 'endurance', zone: 2,
@@ -218,7 +223,7 @@
   },
   {
     key: 'ssextended', name: 'Extended sweet spot', focus: 'sweet spot', zone: 3,
-    defaultMinutes: 100, terrain: ['flat', 'rolling'],
+    defaultMinutes: 100, minMinutes: 60, terrain: ['flat', 'rolling'],
     keywords: ['extended sweet spot', 'long sweet spot', 'big sweet spot', '2x30', '3x20'],
     course: 'Twenty to thirty minutes uninterrupted, twice. A long valley road, a shallow climb, or the trainer if your roads are busy.',
     blurb: 'Long blocks at sweet spot. A serious session that still will not wreck the week.',
@@ -612,7 +617,7 @@
   },
   {
     key: 'summitfinish', name: 'Summit finish', focus: 'climbing', zone: 4,
-    defaultMinutes: 150, terrain: ['hilly', 'mountainous'],
+    defaultMinutes: 150, minMinutes: 100, terrain: ['hilly', 'mountainous'],
     keywords: ['summit finish', 'climb at the end', 'tired climb', 'final climb', 'queen stage'],
     course: 'A long route that ends on a climb of 15-25 minutes. Plan it so turning back early is not an option.',
     blurb: 'A long endurance ride, then the climb — on the legs you actually arrive with.',
@@ -756,7 +761,7 @@
   },
   {
     key: 'groupride', name: 'Group ride simulation', focus: 'race', zone: 4,
-    defaultMinutes: 105, terrain: ['flat', 'rolling'],
+    defaultMinutes: 105, minMinutes: 90, terrain: ['flat', 'rolling'],
     keywords: ['group ride', 'chaingang', 'chain gang', 'bunch', 'turns on the front', 'through and off'],
     course: 'An actual chaingang if you can find one. Solo, use a flat loop and hold the turns strictly to time.',
     blurb: 'Turns on the front at threshold, sheltered between. Nothing else feels like it.',

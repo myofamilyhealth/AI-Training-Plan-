@@ -325,22 +325,28 @@
     base: {
       quality: ['sweetspot', 'ssextended', 'tempo', 'torque', 'ssladder'],
       second: ['tempocadence', 'sweetspot', 'spinups', 'surges'],
-      long: ['endurance', 'durability', 'surges'],
-      easy: ['endurance', 'fasted'],
+      long: ['endurance', 'durability', 'rollinghills', 'fuelled'],
+      easy: ['endurance', 'surges', 'fuelled'],
+      // Every plan gets hills, not just the ones built for climbing. Gradient
+      // is where force and aerobic demand meet, and a rider who only ever
+      // trains on the flat finds that out on the first climb of a real ride.
+      hills: ['rollinghills', 'climbtorque', 'sustainedclimb'],
       recovery: ['recovery'],
     },
     build: {
       quality: ['threshold', 'overunder', 'ssextended', 'thresholdladder'],
       second: ['vo2max', 'ronnestad', 'vo2long', 'fortytwenty'],
-      long: ['durability', 'endurance', 'surges'],
-      easy: ['endurance', 'fasted'],
+      long: ['durability', 'rollinghills', 'endurance', 'surges'],
+      easy: ['endurance', 'surges', 'fuelled'],
+      hills: ['climbrepeats', 'sustainedclimb', 'steeppitches'],
       recovery: ['recovery'],
     },
     peak: {
       quality: ['vo2max', 'ronnestad', 'microbursts', 'fortytwenty', 'billat'],
       second: ['overunder', 'threshold', 'anaerobic', 'lactatetolerance'],
-      long: ['groupride', 'durability', 'endurance'],
-      easy: ['endurance', 'fasted'],
+      long: ['groupride', 'summitfinish', 'durability', 'endurance'],
+      easy: ['endurance', 'surges', 'fuelled'],
+      hills: ['climbrepeats', 'summitfinish', 'steeppitches'],
       recovery: ['recovery'],
     },
     taper: {
@@ -401,15 +407,20 @@
     pool[((weekIndex + (offset || 0)) % pool.length + pool.length) % pool.length];
 
   /** Merge the phase pool with the goal overlay, once the block is past base. */
+  // Merging a goal into a phase can name the same session twice, and a pool
+  // with duplicates rotates onto the same key on different days of one week.
+  const uniq = list => list.filter((k, i) => list.indexOf(k) === i);
+
   function poolFor(phase, goalKey) {
     const base = PHASE_POOLS[phase] || PHASE_POOLS.base;
     const goal = GOALS[goalKey];
     if (!goal || phase === 'recovery' || phase === 'base' || phase === 'event') return base;
     return {
-      quality: goal.quality.concat(base.quality),
-      second: goal.second.concat(base.second),
-      long: goal.long.concat(base.long),
+      quality: uniq(goal.quality.concat(base.quality)),
+      second: uniq(goal.second.concat(base.second)),
+      long: uniq(goal.long.concat(base.long)),
       easy: base.easy,
+      hills: base.hills || [],
       recovery: base.recovery,
     };
   }
@@ -615,6 +626,11 @@
       opts.weeks ? Math.max(opts.weeks, lastEventWeek) : (lastEventWeek || 12)));
 
     const startHours = Math.max(2, opts.weeklyHours || 6);
+    // Weekly distance comes from the rider's own average speed where there is
+    // one. Everything else about the plan is in hours and stress, because that
+    // is what training is measured in — but riders think in miles, and a target
+    // built from their own number beats one from a table.
+    const speedMps = opts.speedMps > 0 ? opts.speedMps : DEFAULT_SPEED_MPS;
     const rideDays = DAYS.filter(d => prefs[d] !== 'off').length;
     const out = [];
     let hours = startHours;
@@ -698,11 +714,31 @@
                                              Math.round(budget * 0.35)));
       const fixed = DAYS.filter(d => roles[d] === 'quality').length * hardMins +
                     DAYS.filter(d => roles[d] === 'openers').length * 40 +
-                    DAYS.filter(d => roles[d] === 'recovery').length * 40;
-      const enduranceDays = DAYS.filter(d => roles[d] === 'easy' || roles[d] === 'long');
+                    DAYS.filter(d => roles[d] === 'recovery').length * 35;
+      let spare = Math.max(0, budget - fixed);
+
+      // An endurance ride is time at low intensity; under an hour there is not
+      // enough of it to be one. So the week rides endurance on as many days as
+      // it can give a real hour to, and gives the rest back as rest — three
+      // proper rides beat six that each do nothing.
+      let enduranceDays = DAYS.filter(d => roles[d] === 'easy' || roles[d] === 'long');
+      const canHold = Math.max(1, Math.floor(spare / ENDURANCE_MIN));
+      if (enduranceDays.length > canHold) {
+        const droppable = enduranceDays.filter(d => d !== longDay).reverse();
+        const dropped = droppable.slice(0, enduranceDays.length - canHold);
+        dropped.forEach(d => { roles[d] = 'off'; });
+        enduranceDays = enduranceDays.filter(d => dropped.indexOf(d) === -1);
+        if (dropped.length) {
+          notes.push(`${dropped.join(' and ')} ${dropped.length === 1 ? 'is' : 'are'} off: ` +
+                     `${Math.round(weekHours * 10) / 10} hours does not stretch to another ` +
+                     'endurance ride worth the name. An hour is about the least that ' +
+                     'builds anything aerobically — under that it is a commute, so the ' +
+                     'time goes to the rides that are long enough to count.');
+        }
+      }
+
       const longWeight = 1.5;
       const shares = enduranceDays.reduce((t, d) => t + (d === longDay ? longWeight : 1), 0);
-      const spare = Math.max(0, weekHours * 60 - fixed);
       const perShare = shares ? spare / shares : 0;
 
       // A rider whose longest ride this month was two hours does not get a
@@ -718,7 +754,8 @@
         else if (roles[d] === 'openers') plannedMinutes[d] = 40;
         else if (roles[d] === 'recovery') plannedMinutes[d] = 35;
         else if (roles[d] === 'easy' || roles[d] === 'long') {
-          const want = Math.max(30, Math.round(
+          const floor = d === longDay ? Math.min(LONG_MIN, Math.round(spare)) : ENDURANCE_MIN;
+          const want = Math.max(floor, Math.round(
             (perShare * (d === longDay ? longWeight : 1)) / 5) * 5);
           // No single ride is longer than the rider has shown they can ride —
           // the long day included, and the ordinary endurance days especially.
@@ -740,7 +777,49 @@
         }
       });
 
+      // Sessions are chosen for the week as a whole rather than day by day: two
+      // rotations can otherwise land on the same session twice in one week,
+      // which reads as a mistake even when it is only arithmetic.
+      const taken = [];
+      // A session is only a candidate if the day can hold it. A durability ride
+      // needs two and a half hours to be a durability ride; dropping one into a
+      // four-hour week does not shorten it, it just makes the week bigger than
+      // the rider said it could be.
+      const takeFrom = (list, offset, minutes) => {
+        const from = (list && list.length) ? list : ['endurance'];
+        const room = minutes ? from.filter(k => shortestFor(k) <= minutes * 1.1) : from;
+        const usable = room.length ? room : ['endurance'];
+        for (let n = 0; n < usable.length; n++) {
+          const key = pick(usable, i + n, offset);
+          if (taken.indexOf(key) === -1) { taken.push(key); return key; }
+        }
+        return pick(usable, i, offset);
+      };
+      const weekKeys = {};
+      DAYS.forEach((day, di) => {
+        const role = roles[day];
+        if (role === 'off' || role === 'race') return;
+        const hills = pool.hills || [];
+        const hardAt = hardDays.indexOf(day);
+        if (role === 'quality') {
+          // The first quality day of the week is the phase's main session, the
+          // second is the other kind of hard — and every third week that second
+          // day goes to the hills. Gradient work is not a speciality for
+          // climbers; it is force at aerobic intensity, which every rider needs
+          // and no flat interval reproduces.
+          const mins = plannedMinutes[day];
+          if (hardAt === 1 && hills.length && i % 3 === 2) weekKeys[day] = takeFrom(hills, 0, mins);
+          else if (hardAt === 1) weekKeys[day] = takeFrom(pool.second, 0, mins);
+          else if (hardAt >= 2) weekKeys[day] = takeFrom(pool.quality, 2, mins);
+          else weekKeys[day] = takeFrom(pool.quality, 0, mins);
+        } else if (role === 'openers') weekKeys[day] = 'openers';
+        else if (role === 'recovery') weekKeys[day] = 'recovery';
+        else if (role === 'long') weekKeys[day] = takeFrom(pool.long, 0, plannedMinutes[day]);
+        else weekKeys[day] = takeFrom(pool.easy, di, plannedMinutes[day]);
+      });
+
       const days = DAYS.map((day, di) => buildDay({
+        key: weekKeys[day],
         day: day, date: isoDate(addDays(weekOf, di)), pref: prefs[day],
         role: roles[day], race: raceDays[day] || null,
         // Which hard day of the week this is, and which endurance day: the
@@ -755,6 +834,7 @@
 
       const tss = days.reduce((s, d) =>
         s + d.sessions.reduce((t, x) => t + (x.tss || 0), 0), 0);
+      const metres = weekDistance(days, speedMps);
       const minutes = days.reduce((s, d) =>
         s + d.sessions.reduce((t, x) => t + (x.minutes || 0), 0), 0);
 
@@ -790,6 +870,10 @@
         hours: Math.round((minutes / 60) * 10) / 10,
         plannedHours: Math.round(weekHours * 10) / 10,
         tss: Math.round(tss),
+        // A distance target, not a promise: it is the week's riding time at the
+        // speed this rider actually averages. Hills, wind and traffic move it.
+        miles: Math.round(metres / 1609.344),
+        km: Math.round(metres / 1000),
         events: mine,
         days: days,
         notes: notes,
@@ -811,6 +895,11 @@
       eventDate: events.length ? events[0].date : null,
       totalTss: Math.round(totalTss),
       totalHours: Math.round(out.reduce((s, w) => s + w.hours, 0)),
+      totalMiles: Math.round(out.reduce((s, w) => s + w.miles, 0)),
+      totalKm: Math.round(out.reduce((s, w) => s + w.km, 0)),
+      speedMps: speedMps,
+      speedFrom: opts.speedMps > 0 ? 'your own average speed'
+                                   : 'an assumed 26 km/h — load your rides and it uses yours',
       built: new Date().toISOString(),
     };
   }
@@ -830,21 +919,7 @@
       return out;
     }
 
-    const keyFor = {
-      // The first quality day of the week is the phase's main session; the
-      // second comes from the second pool, which is where the other kind of
-      // hard lives — threshold on Tuesday and VO2 on Thursday, not the same
-      // session twice.
-      quality: () => o.hardIndex === 1 ? pick(o.pool.second, o.weekIndex)
-                   : o.hardIndex >= 2 ? pick(o.pool.quality, o.weekIndex, 2)
-                   : pick(o.pool.quality, o.weekIndex),
-      openers: () => 'openers',
-      recovery: () => pick(o.pool.recovery, o.weekIndex, o.dayIndex),
-      long: () => pick(o.pool.long, o.weekIndex),
-      easy: () => pick(o.pool.easy, o.weekIndex, o.dayIndex),
-    };
-    const key = (keyFor[o.role] || keyFor.easy)();
-    out.sessions.push(session(key, o.minutes, o.ftp, o.rider, null));
+    out.sessions.push(session(o.key || 'endurance', o.minutes, o.ftp, o.rider, null, o.role));
 
     // A second session only where it earns its place: a big week, a day that
     // is already the hard one, the rider asked for doubles, and no more than
@@ -852,7 +927,7 @@
     // not a way to be fitter.
     if (o.doubles && o.role === 'quality' && o.weekHours >= 10 && o.hardIndex < 2) {
       out.sessions[0].slot = 'PM';
-      out.sessions.unshift(session('recovery', 45, o.ftp, o.rider, 'AM'));
+      out.sessions.unshift(session('recovery', 45, o.ftp, o.rider, 'AM', 'recovery'));
     }
     return out;
   }
@@ -862,17 +937,107 @@
   // longest each kind of session is ever worth.
   const LONGEST = { recovery: 60, openers: 50, spinups: 75 };
 
-  function session(key, minutes, ftp, rider, slot) {
+  /**
+   * The shortest a session can be and still be the session it claims to be.
+   *
+   * An endurance ride is not a duration with a label on it: the adaptations it
+   * exists for — mitochondrial density, capillary supply, fat oxidation, the
+   * whole aerobic base — come from time at low intensity, and under an hour
+   * there is not enough of it to matter. A 35-minute "endurance ride" is a
+   * commute. Where the week cannot fit one, the plan says so and gives the day
+   * to a recovery spin or to rest, which are honest at that length.
+   */
+  const ENDURANCE_MIN = 60;
+  const LONG_MIN = 90;
+  function shortestFor(key) {
+    const entry = Wk.byKey(key);
+    if (!entry) return 30;
+    if (entry.minMinutes) return entry.minMinutes;
+    if (entry.focus === 'endurance') return ENDURANCE_MIN;
+    if (key === 'recovery') return 25;
+    return 40;
+  }
+
+  /* ------------------------------------------------------ weekly distance */
+
+  // How fast each kind of ride goes, relative to the rider's own average across
+  // everything they have ridden. An easy spin is slower than a tempo day and a
+  // five-hour ride is slower than a two-hour one; these are the modest, honest
+  // adjustments rather than a pretence of precision.
+  const SPEED_BY_ROLE = {
+    recovery: 0.82, openers: 0.90, easy: 1.00, long: 0.96, quality: 1.02,
+  };
+
+  // With no rides to read, 26 km/h — a trained recreational road rider's
+  // average over mixed terrain, and stated as an assumption rather than
+  // presented as the rider's own number.
+  const DEFAULT_SPEED_MPS = 26 / 3.6;
+
+  /** Distance a week of the plan comes to, in metres. */
+  function weekDistance(days, speedMps) {
+    return days.reduce((total, d) => total + d.sessions.reduce((t, sn) => {
+      const factor = SPEED_BY_ROLE[d.role] == null ? 1 : SPEED_BY_ROLE[d.role];
+      return t + (sn.minutes * 60) * speedMps * factor;
+    }, 0), 0);
+  }
+
+  /**
+   * What to eat, and when.
+   *
+   * Absorption tops out around 60 g/h on glucose alone and reaches 90 g/h and
+   * beyond only with a glucose-fructose mix and practice, which is why the
+   * long rides here say it explicitly. Nothing in this plan is ever prescribed
+   * fasted: riding a session underfuelled lowers the power you can hold, so
+   * you train at a lower intensity for the same fatigue.
+   */
+  function fuelNote(minutes, role) {
+    if (minutes >= 150) {
+      return '60-90 g of carbohydrate an hour, starting in the first hour, and drink to ' +
+             'thirst. On a ride this long the eating is part of the session.';
+    }
+    if (minutes >= 90) {
+      return 'Eat from the first hour — 40-60 g of carbohydrate an hour is plenty at ' +
+             'this length, and it protects the end of the ride.';
+    }
+    if (role === 'quality') {
+      return 'Go into this one fed: a proper meal two to three hours before, or a ' +
+             'carbohydrate snack an hour out. Intervals ridden empty are just slower ' +
+             'intervals.';
+    }
+    return null;
+  }
+
+  function session(key, minutes, ftp, rider, slot, role) {
     const entry = Wk.byKey(key);
     const cap = LONGEST[key] || 6 * 60;
-    const mins = Math.min(cap, Math.max(20, Math.round(minutes || 60)));
-    const w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp, rider: rider });
+    const floor = shortestFor(key);
+    const mins = Math.min(cap, Math.max(floor, Math.round(minutes || 60)));
+    let w = Wk.fromText(`${entry.name} ${mins} min`, { ftp: ftp, rider: rider });
+    let name = entry.name;
+    // Sessions built from repeats land near the length they were asked for
+    // rather than exactly on it, and rounding down through the floor is how a
+    // 54-minute endurance ride gets prescribed. Ask again for the difference,
+    // and if the session simply cannot be built that long, ride the plain
+    // endurance ride instead — it honours the minutes exactly.
+    for (let n = 0; n < 3 && Math.round(w.seconds / 60) < floor; n++) {
+      const ask = Math.min(cap, mins + (floor - Math.round(w.seconds / 60)) + n * 5);
+      const retry = Wk.fromText(`${entry.name} ${ask} min`, { ftp: ftp, rider: rider });
+      if (Math.round(retry.seconds / 60) <= Math.round(w.seconds / 60)) break;
+      w = retry;
+    }
+    if (Math.round(w.seconds / 60) < floor && key !== 'endurance') {
+      key = 'endurance';
+      name = Wk.byKey('endurance').name;
+      w = Wk.fromText(`${name} ${mins} min`, { ftp: ftp, rider: rider });
+    }
+    const built = Wk.byKey(key);
     return {
       slot: slot || null,
-      key: key, name: entry.name, focus: entry.focus, zone: entry.zone,
-      blurb: entry.blurb, why: entry.why, course: entry.course,
+      key: key, name: built.name, focus: built.focus, zone: built.zone,
+      blurb: built.blurb, why: built.why, course: built.course,
       minutes: Math.round(w.seconds / 60), tss: w.tss || null,
       intensity: w.if || null, workout: w,
+      fuel: fuelNote(Math.round(w.seconds / 60), role),
     };
   }
 

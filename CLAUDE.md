@@ -191,10 +191,30 @@ tell whether Friday is a rest day or an oversight. Each day carries a `role`
   stretched past it and the week says so instead of silently prescribing a ride
   they will not do.
 - Pools rotate by week index so consecutive weeks differ — a plan that
-  prescribes the same Tuesday twelve times is a spreadsheet. The first quality
-  day of a week comes from `quality`, the second from `second`; base
-  deliberately ignores the goal overlay, because base is base whatever you are
-  training for. `GOALS` is deliberately short: road, climbing, general fitness.
+  prescribes the same Tuesday twelve times is a spreadsheet. Keys are chosen
+  for the week as a whole (`takeFrom`), never day by day, or two rotations land
+  on the same session in one week. The first quality day comes from `quality`,
+  the second from `second`, and every third week that second day goes to
+  `hills`: gradient work is not a speciality for climbers, and every plan gets
+  some. Base deliberately ignores the goal overlay, because base is base
+  whatever you are training for. `GOALS` is deliberately short: road, climbing,
+  general fitness.
+- **An endurance ride is never under an hour.** `shortestFor()` holds the floor
+  per session and `ENDURANCE_MIN` is 60: under that there is not enough time at
+  low intensity for the adaptations the ride exists for, so it is a commute with
+  a label on it. Where the week cannot fund another one, the day becomes rest
+  and the week says why — three real rides beat six that do nothing. Sessions
+  whose `build()` cannot reach the floor fall back to the plain endurance ride,
+  which honours minutes exactly.
+- **Nothing is ever prescribed fasted.** The old `fasted` session is gone,
+  replaced by `fuelled` — a long ride whose point is practising 60–90 g of
+  carbohydrate an hour. Long rides and quality days carry a `fuel` line saying
+  what to eat and when. Never add a session that trains low; if a rider searches
+  for one, `fuelled` answers them and explains why.
+- **Weekly distance** (`week.miles`, `week.km`) is the week's riding time at the
+  rider's own average speed, adjusted per role, and `plan.speedFrom` says where
+  that speed came from. With no rides it assumes 26 km/h and says so. It is a
+  target, not a promise — the plan is built on hours and TSS.
 
 A plan saved from the browser lives at `DATA.savedPlan`, stripped of its built
 workouts (`slimPlan`) and rebuilt on demand from the session key and its length.

@@ -318,7 +318,8 @@ Three things follow from that:
 
 ### Recommendations and plans
 
-**The training plan** lays out every day of every week — the intervals, the
+**The training plan** lays out every day of every week, with a weekly distance
+target alongside the hours — the intervals, the
 endurance rides, the recovery spins and the days off, each with what it is for
 and what it will cost you. You give it the dates you are pointing at (as many as
 you have, each an A, B or C), the days you can actually ride, and how many hours
@@ -327,6 +328,12 @@ backs off every fourth week, and tapers into each A race. Where your days
 collide — two hard days in a row — it spreads them out and tells you what it
 moved. Save it to the dashboard and the week you are in shows up there, with
 today marked; click any session to open the full workout.
+
+Two things it will not do. It never prescribes an endurance ride shorter than
+an hour — under that there is not enough time at low intensity to build
+anything, so the day becomes rest and the week tells you why. And it never asks
+you to ride fasted: long rides carry a fuelling line (60–90 g of carbohydrate an
+hour, from the first hour), and interval days say to arrive fed.
 
 **Ride today** gives you three sessions, not one. The recommendation comes from
 your current form, how long since your last hard ride, and where your intensity

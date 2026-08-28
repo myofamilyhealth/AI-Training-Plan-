@@ -529,6 +529,57 @@ check('a rider who marks every day off gets no rest-day lecture',
                              Fri: 'endurance', Sat: 'endurance', Sun: 'endurance' } })
         .weeks[0].notes.some(n => /rest day/.test(n)), false);
 
+// An endurance ride is time at low intensity. Under an hour there is not enough
+// of it to be one, whatever the week's arithmetic says.
+[3, 4, 5, 6, 8, 12, 16].forEach(h => {
+  const w = Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: h, startDate: '2026-08-31' }).weeks[0];
+  const endurance = w.days.filter(d => d.role === 'easy' || d.role === 'long')
+    .reduce((a, d) => a.concat(d.sessions), []);
+  check(`${h}h: no endurance ride is shorter than an hour`,
+        endurance.every(s => s.minutes >= 60), true);
+  check(`${h}h: the week still lands near the hours asked for`,
+        w.hours <= h * 1.15, true);
+});
+
+// Nothing is ever prescribed fasted, and the long rides say what to eat.
+const fuelPlan = Co.buildPlan({ weeks: 8, ftp: 250, weeklyHours: 12, startDate: '2026-08-31',
+                                rider: { ftp: 250, longestMinutes: 240 } });
+const everySession = p2 => p2.weeks.reduce((a, w) =>
+  a.concat(w.days.reduce((b, d) => b.concat(d.sessions), [])), []);
+check('no session is ridden fasted',
+      everySession(fuelPlan).some(s => s.key === 'fasted' || /fasted|before breakfast/i.test(s.blurb || '')),
+      false);
+check('long rides say what to eat',
+      everySession(fuelPlan).filter(s => s.minutes >= 150).every(s => /carbohydrate/.test(s.fuel || '')), true);
+check('and interval days say to arrive fed',
+      everySession(fuelPlan).filter(s => s.minutes < 90 && /interval|sweet|threshold|VO2/i.test(s.name))
+        .every(s => s.fuel == null || /fed|carbohydrate/.test(s.fuel)), true);
+
+// Hills belong in every plan, not only the ones built for climbing.
+['fitness', 'road', 'climbing'].forEach(g => {
+  const keys = new Set();
+  Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 9, goal: g, startDate: '2026-08-31' })
+    .weeks.forEach(w => w.days.forEach(d => d.sessions.forEach(x => keys.add(x.key))));
+  check(`${g}: the block includes hill work`,
+        [...keys].some(k => /climb|hill|summit|steep/.test(k)), true);
+});
+
+// Weekly distance: the week's riding time at the rider's own average speed.
+const milesPlan = Co.buildPlan({ weeks: 4, ftp: 250, weeklyHours: 9, startDate: '2026-08-31',
+                                 speedMps: 8.05 });
+check('every week carries a distance target',
+      milesPlan.weeks.every(w => w.miles > 0 && w.km > 0), true);
+check('and it is the hours at that speed, near enough',
+      Math.abs(milesPlan.weeks[0].miles - milesPlan.weeks[0].hours * 8.05 * 3.6 / 1.609344) < 12, true);
+check('the block totals its distance',
+      milesPlan.totalMiles, milesPlan.weeks.reduce((s, w) => s + w.miles, 0));
+check('and says where the speed came from', milesPlan.speedFrom, 'your own average speed');
+check('with no rides it says the number is assumed',
+      /assumed/.test(Co.buildPlan({ weeks: 1, ftp: 250 }).speedFrom), true);
+check('a faster rider covers more ground in the same hours',
+      Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: 9, startDate: '2026-08-31', speedMps: 10 }).weeks[0].miles >
+      Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: 9, startDate: '2026-08-31', speedMps: 7 }).weeks[0].miles, true);
+
 // Doubles: only when asked for, only on the big weeks, never more than twice.
 const dbl = Co.buildPlan({ weeks: 6, ftp: 250, weeklyHours: 13, doubles: true,
                            ctl: 60, startDate: '2026-08-31' });
@@ -849,6 +900,11 @@ Object.keys(Co.GOALS).forEach(g => {
 });
 
 const climb = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: 'climbing', startDate: '2026-08-31' });
+check('the library has no fasted session at all',
+      Lib.SESSIONS.some(s => /fasted/i.test(s.name)), false);
+check('but a rider looking for one is answered',
+      Wk.fromText('fasted ride', { ftp: 250 }).name, 'Fuelled endurance');
+
 check('a climbing plan prescribes climbing',
       [...sessionKeys(climb)].some(k => (Lib.SESSIONS.find(s => s.key === k) || {}).focus === 'climbing'), true);
 const road = Co.buildPlan({ weeks: 12, ftp: 250, weeklyHours: 8, goal: 'road', startDate: '2026-08-31' });

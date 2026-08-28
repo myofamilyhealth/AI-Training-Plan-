@@ -514,6 +514,8 @@ input[type=file].hidden-input { display: none; }
 .plan-sub {
   margin: 26px 0 4px; font-size: 14px; font-weight: 620; letter-spacing: -.01em;
 }
+.sub-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.sub-head .ghost { margin-top: 22px; padding: 5px 11px; font-size: 12.5px; }
 .ev-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .ev-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .ev-row input[type=date] { width: 170px; }
@@ -4779,10 +4781,14 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
    * out and says that it did. Everything it moves is reported rather than
    * quietly rearranged.
    */
+  // Where the rider leaves it open, the plan uses the week most coaches would
+  // write: quality midweek with a day between, the long ride at the weekend.
+  const OPEN_ORDER = ['Tue', 'Thu', 'Sat', 'Wed', 'Fri', 'Sun', 'Mon'];
+
   function chooseHardDays(prefs, count, notes) {
     const rideable = DAYS.filter(d => prefs[d] !== 'off');
     const wanted = rideable.filter(d => prefs[d] === 'hard');
-    const open = rideable.filter(d => prefs[d] === 'any');
+    const open = OPEN_ORDER.filter(d => rideable.indexOf(d) !== -1 && prefs[d] === 'any');
     const spaced = [];
 
     const farEnough = day => spaced.every(d => Math.abs(DAYS.indexOf(d) - DAYS.indexOf(day)) >= 2);
@@ -4916,6 +4922,10 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
 
       const plannedMinutes = {};
       const roles = {};
+      // Nobody marked a rest day and every day is the plan's to choose: it
+      // takes one. Seven days of riding a week is a way to accumulate fatigue,
+      // not fitness, and the rider asked the plan to decide.
+      const allOpen = DAYS.every(d => prefs[d] === 'any');
       DAYS.forEach((day, di) => {
         if (raceDays[day]) { roles[day] = 'race'; return; }
         const pref = prefs[day];
@@ -4928,6 +4938,15 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
         if (day === longDay) { roles[day] = 'long'; return; }
         roles[day] = 'easy';
       });
+
+      if (allOpen && !mine.length) {
+        const rest = ['Mon', 'Fri'].find(d => roles[d] === 'easy');
+        if (rest) {
+          roles[rest] = 'off';
+          notes.push(`${rest} is a rest day. You left the week open, so the plan took ` +
+                     'one — riding seven days a week accumulates fatigue, not fitness.');
+        }
+      }
 
       // Quality days take a set length for the phase; whatever is left of the
       // week's hours goes to the endurance days, with the long ride taking
@@ -7697,28 +7716,44 @@ function planForm(onBuild) {
   drawEvents();
 
   /* ---- the shape of a week */
-  card.appendChild(el('h3', { class: 'plan-sub', text: 'Your week' }));
+  const weekHead = el('div', { class: 'sub-head' });
+  weekHead.appendChild(el('h3', { class: 'plan-sub', text: 'Your week' }));
+  const openAll = el('button', { class: 'ghost', type: 'button', text: 'Set all to Open' });
+  weekHead.appendChild(openAll);
+  card.appendChild(weekHead);
   card.appendChild(el('p', { class: 'hint',
     text: 'Say what each day is for. The plan follows this where it can, but two hard ' +
           'days back to back is one hard day and one bad one — where your days collide ' +
           'it spreads them out and tells you it did.' }));
+  card.appendChild(el('p', { class: 'hint', style: 'margin-top:-6px' },
+    [el('b', { style: 'color:var(--text-2)', text: 'Setting them all to Open is the one to pick ' +
+                      'if you are not sure. ' }),
+     document.createTextNode('The plan then chooses the days itself and spaces the hard ones ' +
+       'properly. Mark a day only where your week is genuinely fixed — the evening you ' +
+       'can never ride, the morning the group goes out.')]));
 
   const grid = el('div', { class: 'day-grid' });
+  const setDay = [];
   Coach.DAYS.forEach(day => {
     const cell = el('div', { class: 'day-pick' });
     cell.appendChild(el('span', { class: 'dp-day', text: day }));
     const cycle = el('button', { class: 'dp-btn pref-' + PLAN_FORM.days[day], type: 'button',
                                  text: Coach.PREFS.find(p => p.key === PLAN_FORM.days[day]).name });
+    const show = pref => {
+      cycle.textContent = Coach.PREFS.find(p => p.key === pref).name;
+      cycle.className = 'dp-btn pref-' + pref;
+    };
     cycle.addEventListener('click', () => {
       const keys = Coach.PREFS.map(p => p.key);
       const next = keys[(keys.indexOf(PLAN_FORM.days[day]) + 1) % keys.length];
       PLAN_FORM.days[day] = next;
-      cycle.textContent = Coach.PREFS.find(p => p.key === next).name;
-      cycle.className = 'dp-btn pref-' + next;
+      show(next);
     });
+    setDay.push(pref => { PLAN_FORM.days[day] = pref; show(pref); });
     cell.appendChild(cycle);
     grid.appendChild(cell);
   });
+  openAll.addEventListener('click', () => setDay.forEach(set => set('any')));
   card.appendChild(grid);
 
   const key = el('div', { class: 'legend', style: 'margin-top:12px' });

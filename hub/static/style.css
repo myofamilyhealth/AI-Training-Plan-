@@ -503,6 +503,8 @@ input[type=file].hidden-input { display: none; }
 .plan-sub {
   margin: 26px 0 4px; font-size: 14px; font-weight: 620; letter-spacing: -.01em;
 }
+.sub-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.sub-head .ghost { margin-top: 22px; padding: 5px 11px; font-size: 12.5px; }
 .ev-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .ev-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .ev-row input[type=date] { width: 170px; }

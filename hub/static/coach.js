@@ -520,10 +520,14 @@
    * out and says that it did. Everything it moves is reported rather than
    * quietly rearranged.
    */
+  // Where the rider leaves it open, the plan uses the week most coaches would
+  // write: quality midweek with a day between, the long ride at the weekend.
+  const OPEN_ORDER = ['Tue', 'Thu', 'Sat', 'Wed', 'Fri', 'Sun', 'Mon'];
+
   function chooseHardDays(prefs, count, notes) {
     const rideable = DAYS.filter(d => prefs[d] !== 'off');
     const wanted = rideable.filter(d => prefs[d] === 'hard');
-    const open = rideable.filter(d => prefs[d] === 'any');
+    const open = OPEN_ORDER.filter(d => rideable.indexOf(d) !== -1 && prefs[d] === 'any');
     const spaced = [];
 
     const farEnough = day => spaced.every(d => Math.abs(DAYS.indexOf(d) - DAYS.indexOf(day)) >= 2);
@@ -657,6 +661,10 @@
 
       const plannedMinutes = {};
       const roles = {};
+      // Nobody marked a rest day and every day is the plan's to choose: it
+      // takes one. Seven days of riding a week is a way to accumulate fatigue,
+      // not fitness, and the rider asked the plan to decide.
+      const allOpen = DAYS.every(d => prefs[d] === 'any');
       DAYS.forEach((day, di) => {
         if (raceDays[day]) { roles[day] = 'race'; return; }
         const pref = prefs[day];
@@ -669,6 +677,15 @@
         if (day === longDay) { roles[day] = 'long'; return; }
         roles[day] = 'easy';
       });
+
+      if (allOpen && !mine.length) {
+        const rest = ['Mon', 'Fri'].find(d => roles[d] === 'easy');
+        if (rest) {
+          roles[rest] = 'off';
+          notes.push(`${rest} is a rest day. You left the week open, so the plan took ` +
+                     'one — riding seven days a week accumulates fatigue, not fitness.');
+        }
+      }
 
       // Quality days take a set length for the phase; whatever is left of the
       // week's hours goes to the endurance days, with the long ride taking

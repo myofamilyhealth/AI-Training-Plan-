@@ -509,6 +509,26 @@ check('a day marked off is never ridden',
       crowded.weeks.every(w => w.days.filter(d => d.day === 'Mon' || d.day === 'Fri')
         .every(d => !d.sessions.length)), true);
 
+// Left open, the plan writes the week a coach would: quality midweek with a
+// day between them, the long ride at the weekend, and a rest day taken.
+const open = { Mon: 'any', Tue: 'any', Wed: 'any', Thu: 'any', Fri: 'any', Sat: 'any', Sun: 'any' };
+const openPlan = Co.buildPlan({ weeks: 3, ftp: 250, weeklyHours: 8, days: open,
+                                startDate: '2026-08-31' });
+const w1 = openPlan.weeks[0];
+check('an open week puts the quality days midweek',
+      w1.days.filter(d => d.role === 'quality').map(d => d.day).join(','), 'Tue,Thu');
+check('and takes a rest day rather than riding seven',
+      w1.days.some(d => d.role === 'off'), true);
+check('and says that it did',
+      w1.notes.some(n => /rest day/.test(n)), true);
+check('the long ride lands at the weekend',
+      ['Sat', 'Sun'].indexOf((w1.days.find(d => d.role === 'long') || {}).day) !== -1, true);
+check('a rider who marks every day off gets no rest-day lecture',
+      Co.buildPlan({ weeks: 1, ftp: 250, weeklyHours: 8, startDate: '2026-08-31',
+                     days: { Mon: 'endurance', Tue: 'hard', Wed: 'endurance', Thu: 'hard',
+                             Fri: 'endurance', Sat: 'endurance', Sun: 'endurance' } })
+        .weeks[0].notes.some(n => /rest day/.test(n)), false);
+
 // Doubles: only when asked for, only on the big weeks, never more than twice.
 const dbl = Co.buildPlan({ weeks: 6, ftp: 250, weeklyHours: 13, doubles: true,
                            ctl: 60, startDate: '2026-08-31' });

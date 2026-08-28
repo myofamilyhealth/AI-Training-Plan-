@@ -2570,28 +2570,44 @@ function planForm(onBuild) {
   drawEvents();
 
   /* ---- the shape of a week */
-  card.appendChild(el('h3', { class: 'plan-sub', text: 'Your week' }));
+  const weekHead = el('div', { class: 'sub-head' });
+  weekHead.appendChild(el('h3', { class: 'plan-sub', text: 'Your week' }));
+  const openAll = el('button', { class: 'ghost', type: 'button', text: 'Set all to Open' });
+  weekHead.appendChild(openAll);
+  card.appendChild(weekHead);
   card.appendChild(el('p', { class: 'hint',
     text: 'Say what each day is for. The plan follows this where it can, but two hard ' +
           'days back to back is one hard day and one bad one — where your days collide ' +
           'it spreads them out and tells you it did.' }));
+  card.appendChild(el('p', { class: 'hint', style: 'margin-top:-6px' },
+    [el('b', { style: 'color:var(--text-2)', text: 'Setting them all to Open is the one to pick ' +
+                      'if you are not sure. ' }),
+     document.createTextNode('The plan then chooses the days itself and spaces the hard ones ' +
+       'properly. Mark a day only where your week is genuinely fixed — the evening you ' +
+       'can never ride, the morning the group goes out.')]));
 
   const grid = el('div', { class: 'day-grid' });
+  const setDay = [];
   Coach.DAYS.forEach(day => {
     const cell = el('div', { class: 'day-pick' });
     cell.appendChild(el('span', { class: 'dp-day', text: day }));
     const cycle = el('button', { class: 'dp-btn pref-' + PLAN_FORM.days[day], type: 'button',
                                  text: Coach.PREFS.find(p => p.key === PLAN_FORM.days[day]).name });
+    const show = pref => {
+      cycle.textContent = Coach.PREFS.find(p => p.key === pref).name;
+      cycle.className = 'dp-btn pref-' + pref;
+    };
     cycle.addEventListener('click', () => {
       const keys = Coach.PREFS.map(p => p.key);
       const next = keys[(keys.indexOf(PLAN_FORM.days[day]) + 1) % keys.length];
       PLAN_FORM.days[day] = next;
-      cycle.textContent = Coach.PREFS.find(p => p.key === next).name;
-      cycle.className = 'dp-btn pref-' + next;
+      show(next);
     });
+    setDay.push(pref => { PLAN_FORM.days[day] = pref; show(pref); });
     cell.appendChild(cycle);
     grid.appendChild(cell);
   });
+  openAll.addEventListener('click', () => setDay.forEach(set => set('any')));
   card.appendChild(grid);
 
   const key = el('div', { class: 'legend', style: 'margin-top:12px' });

@@ -978,7 +978,7 @@ function manualEntryCard(startUnit) {
     if (!secs || !metres) { note.textContent = ''; return; }
     const speed = metres / secs * (unit === 'km' ? 3.6 : 2.236936);
     const watts = Cycling.estimatePower({ seconds: secs, distance_m: metres,
-                                          weightKg: PROFILE.weight });
+                                          weightKg: PROFILE.weightKg });
     note.classList.remove('bad');
     note.textContent = `${fmt(speed, 1)} ${unit === 'km' ? 'km/h' : 'mph'}` +
                        (watts ? `  ·  about ${fmt(watts)} W` : '');
@@ -1003,7 +1003,7 @@ function manualEntryCard(startUnit) {
       date: dateIn.value || today,
       seconds: secs,
       distance_m: metres,
-      weightKg: PROFILE.weight,
+      weightKg: PROFILE.weightKg,
     });
     const prior = (DATA && DATA.imported && DATA.raw && DATA.raw.length) ? DATA : null;
     const payload = addToHistory([ride], prior, {
@@ -1444,22 +1444,48 @@ function bikeKpiRow() {
   row.appendChild(tile('Freshness', form == null ? '—' : (form > 0 ? '+' : '') + Math.round(form), '',
     pill(v.label, v.kind)));
 
-  row.appendChild(tile('Fitness', today ? String(Math.round(today.ctl)) : '—', '',
-    el('span', { text: 'how much riding you have banked' })));
+  // Distance over the last seven days, counted from today rather than from the
+  // day the file was imported — the same staleness that had the calendar stuck
+  // on the fortnight somebody loaded their history in.
+  const week = lastSevenDays();
+  const unit = DATA.unit === 'km' ? 'km' : 'mi';
+  row.appendChild(tile('Last 7 days', fmt(week.now, week.now < 100 ? 1 : 0), unit,
+    week.rides
+      ? deltaNode(week.now, week.before)
+      : el('span', { text: 'nothing in the last week' })));
 
-  const sp = Cycling.speedStats(RAW_ACTIVITIES, imperial());
-  if (sp) {
-    row.appendChild(tile('Avg speed', String(sp.average), sp.unit,
-      el('span', { text: `best ride ${sp.best} ${sp.unit} on ${fmtDate(sp.bestDate)}` })));
-  } else if (PROFILE.ftp && PROFILE.weightKg) {
-    const vo2 = Cycling.vo2maxEstimate(PROFILE.ftp, PROFILE.weightKg);
-    row.appendChild(tile('VO2 max', String(vo2), '',
-      el('span', { text: 'estimated, ml/kg/min' })));
+  const vo2 = Cycling.vo2maxEstimate(PROFILE.ftp, PROFILE.weightKg);
+  if (vo2) {
+    const rating = Cycling.vo2Rating(vo2, null, PROFILE.sex);
+    const foot = el('span');
+    foot.appendChild(document.createTextNode('ml/kg/min, estimated from FTP and weight'));
+    if (rating) {
+      foot.appendChild(document.createTextNode('  ·  '));
+      foot.appendChild(el('b', { style: 'color:var(--text-2)', text: rating }));
+    }
+    row.appendChild(tile('VO2 max', String(vo2), '', foot));
   } else {
-    row.appendChild(tile('Rides', String(rides().length), '',
-      el('span', { text: 'in this file' })));
+    row.appendChild(tile('VO2 max', '—', '',
+      el('span', { text: PROFILE.ftp ? 'add your weight below to estimate it'
+                                     : 'set your FTP and weight below to estimate it' })));
   }
   return row;
+}
+
+/**
+ * Distance ridden in the last seven days, and in the seven before that.
+ *
+ * Counted from today at render time. `DATA.totals.last7` is computed when a
+ * file is imported and then frozen, so a rider who loaded their history a
+ * fortnight ago would be shown that fortnight-old week as if it were this one.
+ */
+function lastSevenDays() {
+  const opts = { unit: DATA.unit, today: todayKey(), days: 7 };
+  const now = Analytics.distanceIn(RAW_ACTIVITIES, opts);
+  const before = Analytics.distanceIn(RAW_ACTIVITIES,
+    Object.assign({}, opts, { endingDaysAgo: 7 }));
+  return { now: now.distance, before: before.distance, rides: now.rides,
+           seconds: now.seconds };
 }
 
 function fitnessCard() {

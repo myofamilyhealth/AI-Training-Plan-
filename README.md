@@ -339,9 +339,11 @@ carries its fuelling.
 
 It gives you, at a glance:
 
-- **Four headline numbers** — last 7 days' distance with a week-over-week delta,
-  acute:chronic ratio with a plain-language verdict, how much of your running is
-  easy, and whether efficiency is trending.
+- **Four headline numbers** — your FTP and what it is per kilo, freshness with a
+  plain-language verdict, the last 7 days' distance with a week-over-week delta,
+  and an estimated VO2 max with the band it falls in. The seven-day window is
+  counted from today every time the page is drawn, not from the day you
+  imported the file.
 - **Weekly volume** with training load beneath it, on a shared timeline. The
   current week is drawn faded and its load segment dashed, because a week that
   is only half run is not comparable to the finished weeks beside it.

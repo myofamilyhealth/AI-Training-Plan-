@@ -638,6 +638,29 @@ check('a name beats a keyword that came earlier',
 check('the earliest keyword wins a tie',
       Wk.fromText('leadout jumps', { ftp: 250 }).name, 'Leadout and sprint');
 
+/* --------------------------------------- the last seven days of riding */
+// The headline number counts from whatever day it is asked about, not from the
+// day a file happened to be imported.
+const weekRides = [
+  { type: 'cycling', date: '2026-08-27', start: '2026-08-27T09:00:00', distance_m: 32000, moving_s: 3600 },
+  { type: 'cycling', date: '2026-08-24', start: '2026-08-24T09:00:00', distance_m: 48000, moving_s: 3600 },
+  { type: 'cycling', date: '2026-08-18', start: '2026-08-18T09:00:00', distance_m: 40000, moving_s: 3600 },
+  { type: 'cycling', date: '2026-07-01', start: '2026-07-01T09:00:00', distance_m: 99000, moving_s: 3600 },
+];
+const thisWeek = A.distanceIn(weekRides, { today: '2026-08-27', unit: 'mi' });
+check('it counts the rides inside the window', thisWeek.rides, 2);
+check('and their distance', thisWeek.distance, 49.7);
+check('in kilometres too', A.distanceIn(weekRides, { today: '2026-08-27', unit: 'km' }).distance, 80);
+const lastWeek = A.distanceIn(weekRides, { today: '2026-08-27', unit: 'mi', endingDaysAgo: 7 });
+check('the week before is its own window', lastWeek.rides, 1);
+check('with its own distance', lastWeek.distance, 24.9);
+check('a later day sees a different week',
+      A.distanceIn(weekRides, { today: '2026-09-10', unit: 'mi' }).rides, 0);
+check('and the window moves rather than the data',
+      A.distanceIn(weekRides, { today: '2026-08-20', unit: 'mi' }).rides, 1);
+check('nothing ridden is zero, not nothing',
+      A.distanceIn([], { today: '2026-08-27', unit: 'mi' }).distance, 0);
+
 /* ---------------------------------------------- dates on the screen */
 // Dates are written month, day, year wherever they are spelled out. Formatted
 // from the digits, never through a Date, so nothing can shift a day by a zone

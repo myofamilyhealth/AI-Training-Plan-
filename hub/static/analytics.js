@@ -255,6 +255,37 @@
     return `${m}:${String(s).padStart(2, '0')}/${imperial ? 'mi' : 'km'}`;
   }
 
+  /**
+   * Distance ridden in a window of days ending today.
+   *
+   * Live, from whatever day it is asked about — unlike the totals baked into a
+   * payload, which are computed when a file is imported and then frozen. A
+   * headline number that stopped moving a fortnight ago is worse than no
+   * headline number.
+   */
+  function distanceIn(activities, opts) {
+    opts = opts || {};
+    const days = opts.days || 7;
+    const back = opts.endingDaysAgo || 0;
+    const divisor = opts.unit === 'km' ? 1000 : M_PER_MILE;
+    const today = opts.today ? new Date(String(opts.today).slice(0, 10) + 'T00:00:00Z')
+                             : startOfToday(new Date());
+    let metres = 0, rides = 0, seconds = 0;
+    (activities || []).forEach(a => {
+      const key = dayStr(a);
+      if (!key) return;
+      const age = Math.round((today - new Date(key + 'T00:00:00Z')) / DAY);
+      if (age < back || age >= back + days) return;
+      metres += a.distance_m || 0;
+      seconds += a.moving_s || 0;
+      rides += 1;
+    });
+    return {
+      distance: Math.round((metres / divisor) * 10) / 10,
+      seconds: seconds, rides: rides,
+    };
+  }
+
   /* --------------------------------------------------------------- payload */
 
   /** Build exactly the shape the page renders, so an imported file and a
@@ -334,7 +365,8 @@
   }
 
   const api = { trainingLoad, dailyLoad, acwr, weekly, easyHardSplit, bests,
-                fitnessTrend, buildPayload, fmtDuration, fmtPace, fmtSpeed, fmtDate, fmtDayMonth, mondayOf };
+                fitnessTrend, buildPayload, fmtDuration, fmtPace, fmtSpeed, fmtDate, fmtDayMonth, mondayOf,
+                distanceIn };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Analytics = api;
 })(typeof self !== 'undefined' ? self : this);

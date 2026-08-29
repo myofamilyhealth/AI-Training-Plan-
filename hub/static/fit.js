@@ -61,7 +61,26 @@
   const ACTIVITY_FIELDS = {
     253: ['timestamp', 1, 0], 5: ['local_timestamp', 1, 0],
   };
-  const SPORTS = { 0: 'other', 1: 'running', 2: 'cycling', 5: 'swimming', 11: 'walking', 17: 'hiking' };
+  // The FIT sport enum, far enough through it to name everything a person is
+  // likely to have recorded. Only the rides are kept — see handleFiles — so the
+  // point of the rest of this table is to recognise a run or a swim rather than
+  // let it fall through the default and be counted as a ride.
+  //
+  // 0 is "generic": a file whose device never set a sport. Uploaded to a
+  // cycling site it is a ride, and it is read as one, the same as an id this
+  // table has never heard of.
+  const SPORTS = {
+    0: 'cycling', 1: 'running', 2: 'cycling', 3: 'transition',
+    4: 'fitness equipment', 5: 'swimming', 6: 'basketball', 7: 'soccer',
+    8: 'tennis', 9: 'american football', 10: 'training', 11: 'walking',
+    12: 'cross country skiing', 13: 'alpine skiing', 14: 'snowboarding',
+    15: 'rowing', 16: 'mountaineering', 17: 'hiking', 18: 'multisport',
+    19: 'paddling', 20: 'flying', 21: 'cycling', 22: 'motorcycling',
+    25: 'golf', 27: 'horseback riding', 30: 'inline skating',
+    31: 'rock climbing', 32: 'sailing', 33: 'ice skating', 35: 'snowshoeing',
+    37: 'stand up paddleboarding', 38: 'surfing', 41: 'kayaking', 47: 'boxing',
+    48: 'floor climbing',
+  };
 
   function parse(buffer) {
     const view = new DataView(buffer);

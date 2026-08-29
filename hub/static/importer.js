@@ -201,6 +201,33 @@
     return TYPE_MAP[k] || TYPE_MAP[k.replace(/[\s_]+/g, '')] || k;
   }
 
+  /**
+   * Is this row a bike ride?
+   *
+   * Only rides belong on this site. A Garmin or Strava export is a whole
+   * athletic life — runs, swims, walks, gym sessions — and every number here is
+   * a cycling number: FTP, TSS, the power curve, weekly miles, the zones. A
+   * 10 km run landing in that arithmetic does not read as a run, it reads as a
+   * very slow ride, and quietly drags every one of them. So the non-rides are
+   * turned away at the door rather than filtered again at each use.
+   *
+   * Three answers, not two. `null` means the file did not say what the
+   * activity was, and a file uploaded to a cycling site with no sport on it is
+   * taken as a ride; only an activity that names itself as something else is
+   * dropped.
+   */
+  const RIDE_WORDS = /bike|biking|bicycl|cycl|ride|riding|spin|zwift|peloton|velodrome|mtb/i;
+  const NOT_RIDE_WORDS =
+    /run|walk|hik|swim|row|ski|snowboard|skat|yoga|pilates|strength|weight|elliptical|stair|paddl|surf|kayak|raft|sail|climb|tennis|soccer|golf|football|basketball|boxing|cardio|breathwork|meditat|transition|multisport|driving|flying/i;
+
+  function isCyclingType(raw) {
+    if (raw == null || String(raw).trim() === '') return null;
+    if (canonicalType(raw) === 'cycling') return true;
+    const s = String(raw).toLowerCase();
+    if (NOT_RIDE_WORDS.test(s)) return false;
+    return RIDE_WORDS.test(s) ? true : false;
+  }
+
   /* --------------------------------------------------------------- parse */
 
   function parse(text, opts) {
@@ -229,6 +256,7 @@
     const unitInfo = inferDistanceUnit(flat, opts.preferredUnit);
 
     const out = [];
+    let nonCycling = 0;
     raw.forEach((entry, i) => {
       const r = entry.row;
       const date = parseDate(values(r, map.start)[0]);
@@ -249,7 +277,10 @@
       const moving_s = movingCandidates[0] || elapsedCandidates[0] || null;
       const elapsed_s = elapsedCandidates[0] || moving_s;
 
-      const type = canonicalType(values(r, map.type)[0]);
+      // Runs, swims and everything else leave here, before they can reach a
+      // total. What the file does not name, a cycling site reads as a ride.
+      if (isCyclingType(values(r, map.type)[0]) === false) { nonCycling += 1; return; }
+      const type = 'cycling';
       const avg_hr = num(values(r, map.avg_hr)[0]);
       const max_hr = num(values(r, map.max_hr)[0]);
 
@@ -305,7 +336,8 @@
       unitCertain: unitInfo.certain,
       columns: header.filter(Boolean),
       matched: Object.keys(map),
-      skipped: rows.length - 1 - out.length,
+      nonCycling: nonCycling,
+      skipped: rows.length - 1 - out.length - nonCycling,
     };
   }
 
@@ -466,7 +498,7 @@
     return kept.concat(loose);
   }
 
-  const api = { parseCSV, parse, dedupe, sameSession, canonicalType, localISO,
+  const api = { parseCSV, parse, dedupe, sameSession, canonicalType, isCyclingType, localISO,
                 humanDuration, humanDistance, seconds, num, parseDate,
                 inferDistanceUnit, mapHeaders, detectSource, M_PER_MILE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

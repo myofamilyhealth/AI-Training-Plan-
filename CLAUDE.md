@@ -201,6 +201,39 @@ gradient decides the power on a climb; the rider only decides how hard to push
 against it. File exports (.zwo, .mrc, .erg) still carry numbers, because a file
 format cannot hold "RPE 7".
 
+### Rides only
+
+Nothing but cycling gets in. A Garmin or Strava export is a whole athletic
+life, and every number here is a bike number — FTP, TSS, the power curve,
+weekly miles, the zones — so a 10 km run does not read as a run in that
+arithmetic, it reads as a very slow ride. The runs and swims are turned away at
+the door rather than filtered again at each use:
+
+- **CSV** — `Importer.isCyclingType()` reads the sport column. Three answers:
+  a ride, not a ride, or `null` when the file did not say. A file that says
+  nothing is taken as a ride, because it was dropped on a cycling site; only an
+  activity that names itself as something else is dropped. `parse()` returns
+  `nonCycling` alongside `skipped`, and the detected bar says how many were
+  left out.
+- **.FIT** — the sport enum in `fit.js`. Sport 0 is "generic" and is read as a
+  ride, as is any id the table has never heard of; everything the table names
+  as another sport is refused by `handleFiles`.
+- **`addToHistory`** filters both what is arriving and what is already held, so
+  a history saved before this rule cannot keep a run in the totals, and
+  `ridesOnly()` rebuilds and re-saves such a payload on load.
+
+That is why the Sessions table has no sport column and no sport filter.
+
+### It is always today's answer
+
+Nothing about the recommendation, the calendar or the last-seven-days figure is
+stored. All three are worked out from the rides held against the date at the
+moment they are drawn, so yesterday's session is what today's advice answers.
+`Cycling.pmc()` ends its series on the rider's local day — read as UTC it ran a
+day too far all evening west of Greenwich, and form read fresher after dinner
+than it had at lunch. `watchTheDate()` redraws the dashboard when the date
+turns over, so a page left open overnight is not still showing yesterday.
+
 Two input paths with different fidelity, and the difference matters:
 
 - **CSV** (`importer.js`) — one row per ride. FTP is estimated from averages and

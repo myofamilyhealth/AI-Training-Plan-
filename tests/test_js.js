@@ -59,22 +59,40 @@ check('no samples falls back', I.inferDistanceUnit([]).unit, 'mi');
 const garminCsv = [
   'Activity Type,Date,Favorite,Title,Distance,Calories,Time,Avg HR,Max HR,Avg Pace,Total Ascent,Moving Time',
   'Running,2026-08-20 07:15:23,false,Morning Run,6.21,"1,024",00:50:12,148,171,8:05,203,00:49:58',
+  'Pool Swim,2026-08-19 06:30:00,false,Swim,0.62,210,00:30:00,--,--,--,0,00:30:00',
   'Cycling,2026-08-17 09:00:00,false,Spin,20.10,640,01:10:00,--,--,--,150,01:09:00',
+  'Road Cycling,2026-08-18 09:00:00,false,Loop,6.21,300,00:50:12,140,160,--,100,00:49:58',
 ].join('\n');
 const g = I.parse(garminCsv);
-check('garmin rows parsed', g.activities.length, 2);
+check('only the rides are parsed', g.activities.length, 2);
+check('the run and the swim are counted, not kept', g.nonCycling, 2);
+check('and they are not filed as unreadable rows', g.skipped, 0);
 check('source reported', g.source, 'garmin');
 near('miles converted to metres', g.activities[1].distance_m, 6.21 * 1609.344, 1);
 check('moving time preferred over elapsed', g.activities[1].moving_s, 2998);
 check('garmin dash becomes null hr', g.activities[0].avg_hr, null);
 check('type canonicalised', g.activities[0].type, 'cycling');
+check('every sort of cycling is the one type', g.activities[1].type, 'cycling');
 near('speed derived from distance and time', g.activities[1].avg_speed_mps, 3.333, 0.01);
+
+/* Sport names, the way the two exports actually write them. */
+check('a ride is a ride', I.isCyclingType('Ride'), true);
+check('so is an indoor one', I.isCyclingType('Virtual Ride'), true);
+check('and an e-bike', I.isCyclingType('E-Bike Ride'), true);
+check('and an MTB', I.isCyclingType('MTB'), true);
+check('a run is not', I.isCyclingType('Trail Running'), false);
+check('a swim is not', I.isCyclingType('Open Water Swimming'), false);
+check('nor is the gym', I.isCyclingType('Strength Training'), false);
+check('nor a walk', I.isCyclingType('Walking'), false);
+check('a file that says nothing says nothing', I.isCyclingType(''), null);
 
 const stravaCsv = [
   'Activity ID,Activity Date,Activity Name,Activity Type,Elapsed Time,Distance,Moving Time,Distance,Average Speed,Average Heart Rate',
-  '1001,"Aug 20, 2026, 1:15:23 PM",Morning Run,Run,3012,10.00,2998,9994.2,3.3336,148',
+  '1002,"Aug 21, 2026, 1:15:23 PM",Morning Run,Run,3012,10.00,2998,9994.2,3.3336,148',
+  '1001,"Aug 20, 2026, 1:15:23 PM",Morning Loop,Ride,3012,10.00,2998,9994.2,3.3336,148',
 ].join('\n');
 const s = I.parse(stravaCsv);
+check('the strava run is dropped too', s.activities.length, 1);
 check('strava unit is metres', s.unit, 'm');
 near('metres column wins over km', s.activities[0].distance_m, 9994.2, 0.1);
 near('strava speed used directly', s.activities[0].avg_speed_mps, 3.3336, 0.001);
@@ -378,12 +396,26 @@ for (let i = 0; i < 60; i++) {
   rideDays.push({ type: 'cycling', moving_s: 3600, np: 220,
                   start: new Date(Date.UTC(2026, 5, 1) + i * 86400000).toISOString() });
 }
-const chart = Cy.pmc(rideDays, { ftp: 250, today: new Date(Date.UTC(2026, 5, 1) + 59 * 86400000) });
+const chart = Cy.pmc(rideDays, { ftp: 250, today: '2026-07-30' });
 check('a point per day', chart.series.length, 60);
 check('fitness climbs', chart.series[59].ctl > chart.series[5].ctl, true);
 check('fatigue leads fitness early', chart.series[5].atl > chart.series[5].ctl, true);
 check('form is fitness minus fatigue',
       Math.abs((chart.series[30].ctl - chart.series[30].atl) - chart.series[31].form) < 0.2, true);
+// The series ends on the rider's day, not on UTC's. A Date given for "today"
+// is read where the rider is: taken as UTC, an evening in California would run
+// the model a day further than the day it actually is, and form would read
+// fresher after dinner than it had at lunch.
+check('a Date is read as the local day it falls on',
+      Cy.pmc(rideDays, { ftp: 250, today: new Date(2026, 6, 30, 21, 30) })
+        .series.length, chart.series.length);
+check('and the last point is that day',
+      Cy.pmc(rideDays, { ftp: 250, today: new Date(2026, 6, 30, 21, 30) })
+        .today.date, '2026-07-30');
+check('another day of rest keeps decaying it',
+      Cy.pmc(rideDays, { ftp: 250, today: '2026-08-03' }).today.form >
+      chart.today.form, true);
+
 check('deep fatigue is called out', Cy.formVerdict(-45).kind, 'crit');
 check('freshness is called out', Cy.formVerdict(12).kind, 'good');
 
@@ -443,6 +475,24 @@ const greyZone = [];
 for (let i = 0; i < 40; i += 2) greyZone.push(mk(i, 4800, 205));
 check('tempo overuse is flagged',
       /tempo/.test(Co.recommend(greyZone, { ftp: 250 }, now).pattern || ''), true);
+
+/* The same rides read on two consecutive days.
+ *
+ * Nothing about the recommendation is stored: it is worked out against the day
+ * it is asked for, so yesterday's hard session is what it answers today, and
+ * the day after that it has moved on. A page left open overnight redraws
+ * itself for the same reason (watchTheDate). */
+const flatOut = [];
+for (let i = 1; i < 30; i++) flatOut.push(mk(i, 3600, 170));   // easy weeks
+flatOut.push(mk(0, 3600, 245));                                // and a hard one today
+const sameDay = Co.recommend(flatOut, { ftp: 250 }, now);
+check('a hard ride today is answered with recovery', sameDay.key, 'recovery');
+check('and it says why', /rode hard today/.test(sameDay.why), true);
+const nextDay = Co.recommend(flatOut, { ftp: 250 },
+                             new Date(now.getTime() + 86400000));
+check('by tomorrow the same history reads differently', nextDay.key !== 'recovery', true);
+check('and the day is what changed, not the rides',
+      Co.daysSinceHard(flatOut, 250, new Date(now.getTime() + 86400000)), 1);
 
 /* ------------------------------------------------------------------ FIT */
 const Fit = require(path.join(__dirname, '..', 'hub', 'static', 'fit.js'));

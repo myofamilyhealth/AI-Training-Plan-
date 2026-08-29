@@ -312,6 +312,15 @@
    * over 7 days, and form is yesterday's CTL minus yesterday's ATL — the
    * standard construction. Rest days count as zero, which is the point of it.
    */
+  /** Whatever a caller offered as "today" — a date string, a Date, or nothing
+   *  at all — as the calendar day it falls on where the rider is. */
+  function dayKeyOf(today) {
+    if (typeof today === 'string') return today.slice(0, 10);
+    const d = today instanceof Date ? today : new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
   function pmc(activities, opts) {
     opts = opts || {};
     const ftp = opts.ftp, restHr = opts.restHr || 50, maxHr = opts.maxHr || 190;
@@ -326,7 +335,11 @@
     if (!days.length) return { series: [], today: null };
 
     const start = new Date(days[0] + 'T00:00:00Z');
-    const end = opts.today || new Date();
+    // The last day of the series is the rider's day, not UTC's. Left as a
+    // plain `new Date()` this ran one day too far all evening west of
+    // Greenwich — an extra day of decay, so form read fresher after dinner
+    // than it had at lunch, and the recommendation could change with it.
+    const end = new Date(dayKeyOf(opts.today) + 'T00:00:00Z');
     const series = [];
     let ctl = 0, atl = 0;
     for (let t = start.getTime(); t <= end.getTime(); t += 86400000) {

@@ -401,7 +401,7 @@ function deleteRide(id) {
   render(payload);
 }
 
-const TABLE_STATE = { sort: 'date', dir: -1, type: 'all', days: 30 };
+const TABLE_STATE = { sort: 'date', dir: -1, days: 30 };
 
 function activityTable() {
   const card = el('div', { class: 'card' });
@@ -410,10 +410,9 @@ function activityTable() {
     text: 'Click a column to sort. Remove a ride with the \u00d7 at the end of its ' +
           'row — everything it contributed goes with it.' }));
 
+  // No sport filter and no sport column: everything here is a ride, because
+  // nothing else is let in.
   const controls = el('div', { class: 'controls' });
-  const types = ['all', ...new Set(DATA.activities.map(a => a.type))];
-  controls.appendChild(seg(types, TABLE_STATE.type, v => { TABLE_STATE.type = v; draw(); },
-    t => t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)));
   controls.appendChild(seg([30, 90, 365, 0], TABLE_STATE.days,
     v => { TABLE_STATE.days = v; draw(); },
     d => d === 0 ? 'All time' : d + ' days'));
@@ -423,7 +422,7 @@ function activityTable() {
   card.appendChild(wrap);
 
   const COLS = [
-    ['date', 'Date', false], ['name', 'Session', false], ['type', 'Type', false],
+    ['date', 'Date', false], ['name', 'Session', false],
     ['distance', DATA.unit === 'mi' ? 'Miles' : 'Km', true], ['seconds', 'Time', true],
     ['speed', DATA.unit === 'mi' ? 'Avg mph' : 'Avg km/h', true],
     ['hr', 'Avg HR', true], ['load', 'Load', true],
@@ -432,8 +431,7 @@ function activityTable() {
   function draw() {
     const cutoff = TABLE_STATE.days
       ? new Date(Date.now() - TABLE_STATE.days * 864e5).toISOString().slice(0, 10) : '';
-    let rows = DATA.activities.filter(r =>
-      (TABLE_STATE.type === 'all' || r.type === TABLE_STATE.type) && r.date >= cutoff);
+    let rows = DATA.activities.filter(r => r.type === 'cycling' && r.date >= cutoff);
 
     rows.sort((a, b) => {
       const x = a[TABLE_STATE.sort], y = b[TABLE_STATE.sort];
@@ -475,7 +473,6 @@ function activityTable() {
         nameCell.appendChild(el('span', { class: 'src', text: r.source }));
       }
       row.appendChild(nameCell);
-      row.appendChild(el('td', { text: r.type }));
       row.appendChild(el('td', { class: 'r num', text: fmt(r.distance, 2) }));
       row.appendChild(el('td', { class: 'r num', text: r.duration }));
       // Speed, not pace: minutes per mile is a runner's unit and this is a
@@ -737,17 +734,24 @@ async function handleFiles(files, unitPref, prior) {
   let incoming = [];
   let csvResult = null;
   let unit = unitPref || 'mi';
+  // Runs, swims and gym sessions counted, so the bar can say what it left out.
+  let nonCycling = 0;
 
   for (const file of csvs) {
     const text = await readFile(file);
     csvResult = Importer.parse(text, { preferredUnit: unitPref || 'mi' });
     incoming = incoming.concat(csvResult.activities);
+    nonCycling += csvResult.nonCycling || 0;
     unit = csvResult.unit;
   }
 
   for (const file of fits) {
     const buf = await readArrayBuffer(file);
     const ride = Fit.parse(buf);
+    // A .FIT says what sport it recorded. If it says anything other than a
+    // ride, it is not this site's business — a run's heart rate would be
+    // scored as ride load and a swim would arrive as an hour at walking pace.
+    if (ride.type !== 'cycling') { nonCycling += 1; continue; }
     ride.name = ride.name || file.name.replace(/\.fit$/i, '');
     if (ride.streams && ride.streams.power) {
       // Kept on the ride rather than folded straight into one total, so that
@@ -761,7 +765,10 @@ async function handleFiles(files, unitPref, prior) {
   }
 
   if (!incoming.length) {
-    throw new Error('Nothing readable in those files.');
+    throw new Error(nonCycling
+      ? `No rides in there — ${nonCycling} activit${nonCycling === 1 ? 'y was' : 'ies were'} ` +
+        'something other than cycling, and this site only reads bike rides.'
+      : 'Nothing readable in those files.');
   }
 
   return addToHistory(incoming, prior, {
@@ -774,6 +781,7 @@ async function handleFiles(files, unitPref, prior) {
       fromArchive: archives,
       unitCertain: csvResult ? csvResult.unitCertain : true,
       skipped: csvResult ? csvResult.skipped : 0,
+      nonCycling: nonCycling,
     },
   });
 }
@@ -802,7 +810,13 @@ function curveFor(activities, fallback) {
  */
 function addToHistory(incoming, prior, opts) {
   opts = opts || {};
-  const before = (prior && prior.raw) ? prior.raw : [];
+  // Last line of the cycling-only rule. The importers drop what they can name,
+  // and this catches anything that got past them — including a history saved
+  // before the rule existed, which would otherwise keep a run in the totals
+  // forever.
+  const rides = list => (list || []).filter(a => a.type === 'cycling');
+  const before = rides((prior && prior.raw) ? prior.raw : []);
+  incoming = rides(incoming);
   // dedupe() decides what is genuinely new, so adding the same ride twice
   // changes nothing, and a .FIT of a ride already known from a CSV — or from a
   // row typed by hand — upgrades that ride in place.
@@ -1038,14 +1052,14 @@ function importScreen(errorMessage) {
       ? 'New files join the rides you already have — nothing is replaced. A ride ' +
         'already in your history is recognised and left alone, so loading the same ' +
         'file twice changes nothing.'
-      : 'Add your rides and get your FTP, fitness and freshness — plus workouts ' +
-        'and a training plan built around them.' }));
+      : 'Add your rides and get your FTP, fitness and freshness — plus a session ' +
+        'for today and a workout builder, both built around them.' }));
 
   // Three steps, so the whole thing is legible before reading a word of detail.
   const steps = el('div', { class: 'steps-row' });
   [['Export your rides', 'From Garmin or Strava. Takes a minute.'],
    ['Drop the file here', 'Nothing is uploaded — it opens in your browser.'],
-   ['Get your numbers', 'Fitness, workouts and a plan, straight away.']]
+   ['Get your numbers', 'Fitness, freshness and workouts, straight away.']]
     .forEach(([title, body], i) => {
       const s = el('div', { class: 'stepcard' });
       s.appendChild(el('span', { class: 'n', text: String(i + 1) }));
@@ -1063,6 +1077,11 @@ function importScreen(errorMessage) {
     text: held ? 'Drop the new ride here' : 'Drop your rides here' }));
   drop.appendChild(el('p', { class: 'small',
     text: 'the .zip straight from Garmin, a .CSV of your history, or .FIT files' }));
+  // Export a whole Garmin account and the runs come with it. Better to say so
+  // here than to leave somebody wondering where their half marathon went.
+  drop.appendChild(el('p', { class: 'small',
+    text: 'Rides only — any runs, swims or gym sessions in the same export are ' +
+          'left out, so they cannot skew your cycling numbers.' }));
   const choose = el('button', { class: 'btn', type: 'button', text: 'Choose files' });
   drop.appendChild(choose);
   hero.appendChild(drop);
@@ -1281,6 +1300,11 @@ function detectedBar(payload) {
     parts.push(`${dupes} duplicate${dupes === 1 ? '' : 's'} merged`);
   }
   if (i.skipped) parts.push(plural(i.skipped, 'row') + ' skipped');
+  // Said plainly rather than silently: somebody who exported a whole Garmin
+  // account should see where their runs went.
+  if (i.nonCycling) {
+    parts.push(`${i.nonCycling} non-cycling activit${i.nonCycling === 1 ? 'y' : 'ies'} ignored`);
+  }
   text.appendChild(el('strong', { style: 'color:var(--text)', text: i.filename }));
   text.appendChild(document.createTextNode('  ·  ' + parts.join('  ·  ')));
   bar.appendChild(text);
@@ -2090,6 +2114,20 @@ function recommendCard() {
           'to; the two either side are yours to take instead, because you know how ' +
           'the legs feel and the data does not.' }));
 
+  // Nothing here is stored: the three sessions are worked out from the rides
+  // held, against the date it is now, every time this card is drawn. Saying
+  // which day it was drawn for — and what the last one held — is how a rider
+  // can see that it moved overnight rather than having to take it on trust.
+  const yday = Analytics.distanceIn(RAW_ACTIVITIES, {
+    unit: DATA.unit, today: todayKey(), days: 1, endingDaysAgo: 1 });
+  const unit = DATA.unit === 'km' ? 'km' : 'mi';
+  card.appendChild(el('p', { class: 'rt-asof',
+    text: `For ${fmtDate(todayKey())}, worked out from your riding up to last night — ` +
+          (yday.rides
+            ? `yesterday: ${fmt(yday.distance, 1)} ${unit} in ` +
+              `${Analytics.fmtDuration(yday.seconds)}.`
+            : 'yesterday: a day off.') }));
+
   const grid = el('div', { class: 'rt-grid' });
   rec.options.forEach(opt => {
     const tile = el('div', { class: 'rt-opt ' + opt.tone });
@@ -2481,6 +2519,54 @@ function tabBar() {
   return bar;
 }
 
+/**
+ * A history from before the cycling-only rule, with its runs and swims taken
+ * back out.
+ *
+ * The totals in a saved payload were worked out when it was saved, so dropping
+ * the non-rides means rebuilding them; anything else would leave a page whose
+ * table and whose headline disagreed. Untouched — and not rewritten in storage
+ * — when there was nothing but riding in there, which is the normal case.
+ */
+function ridesOnly(payload) {
+  if (!payload || !payload.raw || !payload.raw.length) return payload;
+  const rides = payload.raw.filter(a => a.type === 'cycling');
+  if (rides.length === payload.raw.length) return payload;
+
+  const rebuilt = Analytics.buildPayload(rides, { unit: payload.unit });
+  rebuilt.curve = curveFor(rides, null);
+  rebuilt.imported = Object.assign({}, payload.imported, {
+    rows: 0, added: 0, duplicates: 0, skipped: 0,
+    unique: rides.length, held: rides.length,
+    nonCycling: payload.raw.length - rides.length,
+    fitCount: rides.filter(a => a.source === 'fit').length,
+  });
+  saveLocal(rebuilt);
+  return rebuilt;
+}
+
+/**
+ * Redraw when the day turns over.
+ *
+ * Everything on the dashboard that says "today" — the recommendation, the
+ * calendar, the last seven days, form — is worked out at the moment it is
+ * drawn. A page left open overnight would go on showing yesterday's answer, so
+ * the date is watched and the page redrawn once when it changes. A minute is
+ * often enough to notice, and costs nothing.
+ */
+function watchTheDate() {
+  let day = todayKey();
+  setInterval(() => {
+    const now = todayKey();
+    if (now === day) return;
+    day = now;
+    // Only the dashboard. Redrawing the builder would take a half-typed
+    // workout away from somebody at midnight, and switching back to the
+    // dashboard rebuilds it from the new date anyway.
+    if (DATA && TAB === 'dashboard') render(DATA);
+  }, 60000);
+}
+
 /* ------------------------------------------------------------------ start */
 (function start() {
   loadProfile();
@@ -2502,5 +2588,7 @@ function tabBar() {
   // Data can arrive three ways: baked in by `./wk web`, remembered from a file
   // this browser loaded before, or dropped on the page in a moment's time.
   const baked = DATA && DATA.totals && DATA.totals.activities ? DATA : null;
-  render(baked || loadLocal());
+  render(ridesOnly(baked || loadLocal()));
+
+  watchTheDate();
 })();

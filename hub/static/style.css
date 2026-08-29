@@ -587,14 +587,6 @@ input[type=file].hidden-input { display: none; }
   font-variant-numeric: tabular-nums;
 }
 
-/* An inline control that reads as a sentence, not a button. */
-.linky {
-  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
-  font: inherit; color: var(--series-1); text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.linky:hover { color: var(--text); }
-
 /* The date the three sessions were worked out for, under the standfirst. */
 .rt-asof {
   margin: -6px 0 0; font-size: 12.5px; color: var(--text-3);

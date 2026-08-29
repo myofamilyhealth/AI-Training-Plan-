@@ -609,10 +609,6 @@
    * then read with today's ride in the history, which is what makes it
    * respond. Ride hard today and tomorrow comes back easy, or as a day off,
    * without anybody having to ask for one.
-   *
-   * `opts.force` is the rider overriding it: 'today' plans the day again even
-   * though something is already recorded on it, for the morning commute that
-   * was not meant to be the session.
    */
   function nextUp(activities, profile, opts) {
     opts = opts || {};
@@ -621,12 +617,9 @@
     const key = dayKey(now);
     const done = ridesOn(activities, key);
 
-    if (!done.length || opts.force === 'today') {
-      return Object.assign(options(activities, profile, now, opts), {
-        forDay: 'today', date: key,
-        done: done.length ? summarise(done, profile) : null,
-        canPlanToday: false,
-      });
+    if (!done.length) {
+      return Object.assign(options(activities, profile, now, opts),
+                           { forDay: 'today', date: key, done: null });
     }
 
     // This time tomorrow, so that "a hard ride 9 hours ago" is read as
@@ -635,7 +628,6 @@
     return Object.assign(options(activities, profile, tomorrow, opts), {
       forDay: 'tomorrow', date: dayKey(tomorrow),
       done: summarise(done, profile),
-      canPlanToday: true,
     });
   }
 

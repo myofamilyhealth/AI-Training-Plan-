@@ -189,9 +189,7 @@ builder.
 has had its answer, so the question rolls forward to tomorrow — and tomorrow is
 then read with today's ride in the history, which is what makes it adapt: ride
 hard today and tomorrow comes back easy, or off, without anyone asking for it.
-`opts.force: 'today'` is the rider's override, for the commute that was not
-meant to be the session; the card offers it and `render()` clears it. Never
-make the recommendation something computed at import and stored — it is worked
+Never make the recommendation something computed at import and stored — it is worked
 out from the rides held against the date at the moment it is drawn.
 
 **A day off is a recommendation, not just the thing you drop to.** `recommend()`

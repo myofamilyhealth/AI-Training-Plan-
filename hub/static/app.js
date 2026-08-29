@@ -1354,9 +1354,6 @@ function render(payload, errorMessage) {
   const app = $('#app');
   app.innerHTML = '';
   hideTip();
-  // A fresh payload, or a new day: the override belongs to the day it was set
-  // on, not to the browser tab.
-  PLAN_TODAY_ANYWAY = false;
 
   const hasData = payload && payload.totals && payload.totals.activities;
   $('#import-btn').hidden = !hasData;
@@ -2092,11 +2089,6 @@ function profileCard() {
  * the morning the legs are unusually good. Each says plainly when you would
  * pick it, so choosing one is a decision rather than a fudge.
  */
-// Set when the rider overrides the roll-forward: something is already recorded
-// today, but they say it was not the session. Cleared on every fresh draw of
-// the dashboard, because tomorrow it is a different question.
-let PLAN_TODAY_ANYWAY = false;
-
 /** The button that takes a suggested session into the builder. */
 function openButton(workout, name, cls, label) {
   const open = el('button', { class: cls, type: 'button',
@@ -2117,10 +2109,7 @@ function recommendCard() {
 
   let rec;
   try {
-    rec = Coach.nextUp(RAW_ACTIVITIES, PROFILE, {
-      rider: RIDER, now: new Date(),
-      force: PLAN_TODAY_ANYWAY ? 'today' : null,
-    });
+    rec = Coach.nextUp(RAW_ACTIVITIES, PROFILE, { rider: RIDER, now: new Date() });
   } catch (e) {
     card.appendChild(el('h2', { text: 'Ride today' }));
     card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
@@ -2145,9 +2134,9 @@ function recommendCard() {
       ? 'Today the answer is not a session. What the numbers point to is a day ' +
         'off — and the ride beside it is there because the choice is still yours.'
       : (ahead
-          ? 'Today is ridden, so this is tomorrow, worked out with today counted. ' +
-            'The recommendation is what your numbers point to; the two either side ' +
-            'are yours to take instead, because you know how the legs feel.'
+          ? 'Today is ridden, so this is tomorrow. The recommendation is what your ' +
+            'numbers point to; the two either side are yours to take instead, ' +
+            'because you know how the legs feel and the data does not.'
           : 'Three ways to ride today. The recommendation is what your numbers point ' +
             'to; the two either side are yours to take instead, because you know how ' +
             'the legs feel and the data does not.') }));
@@ -2159,11 +2148,9 @@ function recommendCard() {
   if (rec.done) {
     const d = rec.done;
     asof.appendChild(document.createTextNode(
-      `Today: ${d.rides > 1 ? d.rides + ' rides, ' : ''}${dist(d.distance_m)} ${unit} in ` +
-      `${Analytics.fmtDuration(d.seconds)}${d.tss ? ', ' + d.tss + ' TSS' : ''}. ` +
-      (rec.forDay === 'tomorrow'
-        ? `Next up is ${fmtDate(rec.date)}, read with it counted.`
-        : `Planning ${fmtDate(rec.date)} again anyway.`)));
+      `You rode today: ${d.rides > 1 ? d.rides + ' rides, ' : ''}` +
+      `${dist(d.distance_m)} ${unit} in ${Analytics.fmtDuration(d.seconds)}` +
+      `${d.tss ? ', ' + d.tss + ' TSS' : ''}. This is ${fmtDate(rec.date)}.`));
   } else {
     const yday = Analytics.distanceIn(RAW_ACTIVITIES, {
       unit: DATA.unit, today: todayKey(), days: 1, endingDaysAgo: 1 });
@@ -2172,19 +2159,6 @@ function recommendCard() {
       (yday.rides
         ? `yesterday: ${fmt(yday.distance, 1)} ${unit} in ${Analytics.fmtDuration(yday.seconds)}.`
         : 'yesterday: a day off.')));
-  }
-  // The rider's say over the roll-forward: a commute recorded this morning is
-  // not the day's session, and only they know that.
-  if (rec.done) {
-    const flip = el('button', { class: 'linky', type: 'button',
-      text: ahead ? 'That was not the session — plan today anyway'
-                  : 'Back to tomorrow' });
-    flip.addEventListener('click', () => {
-      PLAN_TODAY_ANYWAY = ahead;
-      drawDashboard();
-    });
-    asof.appendChild(document.createTextNode(' '));
-    asof.appendChild(flip);
   }
   card.appendChild(asof);
 

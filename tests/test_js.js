@@ -821,10 +821,6 @@ check('with what it came to', [after.done.seconds, after.done.hard], [5400, true
 // point: what you just did is what tomorrow is built from.
 check('a hard ride today is not answered with another one tomorrow',
       ['vo2max', 'threshold', 'microbursts', 'sweetspot'].indexOf(after.key), -1);
-check('the rider can still override it',
-      Co.nextUp(ridden, { ftp: 250 }, { now: now, force: 'today' }).forDay, 'today');
-check('and is told they can',
-      Co.nextUp(ridden, { ftp: 250 }, { now: now }).canPlanToday, true);
 
 // The week the rest rules are reading, reported so the card can show it.
 check('the week so far counts this week only',

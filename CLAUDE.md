@@ -184,6 +184,35 @@ three for every rider, not only the ones who asked for climbing. There is no
 block planner: it was removed, and what it knew lives here and in the workout
 builder.
 
+**The card asks about the next day that needs an answer, not always today.**
+`Coach.nextUp()` is what the dashboard calls. A day with a ride recorded on it
+has had its answer, so the question rolls forward to tomorrow — and tomorrow is
+then read with today's ride in the history, which is what makes it adapt: ride
+hard today and tomorrow comes back easy, or off, without anyone asking for it.
+`opts.force: 'today'` is the rider's override, for the commute that was not
+meant to be the session; the card offers it and `render()` clears it. Never
+make the recommendation something computed at import and stored — it is worked
+out from the rides held against the date at the moment it is drawn.
+
+**A day off is a recommendation, not just the thing you drop to.** `recommend()`
+returns `key: 'rest'` with no workout when the streak reaches six days, when
+form is past -40, or when deep fatigue meets three days back to back and three
+hard days in ten. `options()` then shows two tiles — the day off, and the easy
+ride for a rider who is going to ride anyway — rather than pretending a rest
+day has a harder version. `ridingStreak`, `lastDayOff`, `hardDays` and
+`weekSoFar` are the week-shape helpers those rules read, and the card prints
+the same figures underneath so the rule is visible rather than asserted.
+
+**Doubles are a volume tool and are offered sparingly.** `doubleFor()` attaches
+a second ride to the recommendation only above `DOUBLE_CTL` (60) and
+`DOUBLE_HOURS` (8), with form above `DOUBLE_FORM` (-30) and fewer than five
+days back to back — and never after a recovery or rest recommendation. The
+second ride is always the easy one: a spin after a quality session, more
+endurance after an endurance day. Two quality sessions in a day is a different
+sport and is not offered. It is a full session with its own targets and its own
+button, not a note telling somebody to ride longer, so a climbing second ride
+still comes out in RPE like any other.
+
 **An endurance ride is never under an hour.** `shortestFor()` holds the floor
 per session and `ENDURANCE_MIN` is 60: under that there is not enough time at
 low intensity for the adaptations the ride exists for.

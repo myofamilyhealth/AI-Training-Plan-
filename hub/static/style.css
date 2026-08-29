@@ -542,8 +542,11 @@ input[type=file].hidden-input { display: none; }
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px; align-items: stretch;
 }
+/* A rest day has two tiles, not three: the day off, and the ride you would do
+   instead if you are going to ride anyway. */
+.rt-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 900px) {
-  .rt-grid { grid-template-columns: minmax(0, 1fr); }
+  .rt-grid, .rt-grid.two { grid-template-columns: minmax(0, 1fr); }
   /* Stacked, the recommendation goes first — the middle of a row reads as the
      default, the middle of a column does not. */
   .rt-opt.recommended { order: -1; }
@@ -568,6 +571,30 @@ input[type=file].hidden-input { display: none; }
 .rt-meta { display: flex; gap: 8px; flex-wrap: wrap; }
 .rt-blurb { margin: 2px 0 0; font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
 .rt-when { margin: 0; font-size: 12.5px; color: var(--text-3); line-height: 1.55; }
+/* The second ride of a double day, inside the tile that recommends it. */
+.rt-second {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.rt-second .rt-meta { align-items: center; }
+.rt-second strong { font-size: 15px; font-weight: 620; letter-spacing: -.01em; }
+.rt-second .ghost { margin-top: 2px; align-self: flex-start; }
+
+/* The week as it stands, which is what the rest-day rules are reading. */
+.rt-week {
+  margin: -2px 0 0; font-size: 12.5px; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An inline control that reads as a sentence, not a button. */
+.linky {
+  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--series-1); text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linky:hover { color: var(--text); }
+
 /* The date the three sessions were worked out for, under the standfirst. */
 .rt-asof {
   margin: -6px 0 0; font-size: 12.5px; color: var(--text-3);

@@ -553,8 +553,11 @@ input[type=file].hidden-input { display: none; }
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px; align-items: stretch;
 }
+/* A rest day has two tiles, not three: the day off, and the ride you would do
+   instead if you are going to ride anyway. */
+.rt-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 900px) {
-  .rt-grid { grid-template-columns: minmax(0, 1fr); }
+  .rt-grid, .rt-grid.two { grid-template-columns: minmax(0, 1fr); }
   /* Stacked, the recommendation goes first — the middle of a row reads as the
      default, the middle of a column does not. */
   .rt-opt.recommended { order: -1; }
@@ -579,6 +582,30 @@ input[type=file].hidden-input { display: none; }
 .rt-meta { display: flex; gap: 8px; flex-wrap: wrap; }
 .rt-blurb { margin: 2px 0 0; font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
 .rt-when { margin: 0; font-size: 12.5px; color: var(--text-3); line-height: 1.55; }
+/* The second ride of a double day, inside the tile that recommends it. */
+.rt-second {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.rt-second .rt-meta { align-items: center; }
+.rt-second strong { font-size: 15px; font-weight: 620; letter-spacing: -.01em; }
+.rt-second .ghost { margin-top: 2px; align-self: flex-start; }
+
+/* The week as it stands, which is what the rest-day rules are reading. */
+.rt-week {
+  margin: -2px 0 0; font-size: 12.5px; color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An inline control that reads as a sentence, not a button. */
+.linky {
+  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; color: var(--series-1); text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linky:hover { color: var(--text); }
+
 /* The date the three sessions were worked out for, under the standfirst. */
 .rt-asof {
   margin: -6px 0 0; font-size: 12.5px; color: var(--text-3);
@@ -4353,6 +4380,102 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     return Math.round((rides.reduce((s, a) => s + (a.moving_s || 0), 0) / 3600 / 4) * 10) / 10;
   }
 
+  /* ------------------------------------------------------- the week's shape */
+
+  /** The calendar day a ride belongs to, as the file recorded it. */
+  const dayOf = a => a.date || (a.start || '').slice(0, 10);
+
+  /** Whatever a caller offered as "today" as the day it falls on locally. */
+  function dayKey(today) {
+    if (typeof today === 'string') return today.slice(0, 10);
+    const d = today instanceof Date ? today : new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  const shiftDay = (key, by) =>
+    new Date(new Date(key + 'T00:00:00Z').getTime() + by * DAY).toISOString().slice(0, 10);
+
+  /** Every ride recorded on one day. */
+  function ridesOn(activities, key) {
+    return (activities || []).filter(a => a.type === 'cycling' && dayOf(a) === key);
+  }
+
+  /**
+   * Days ridden back to back, ending on the last day that was ridden.
+   *
+   * The number a coach actually asks for. Consecutive days are what run a
+   * rider down — not the total, which a week with two days off absorbs — and
+   * they are why a plan puts rest in before the fatigue makes the decision for
+   * it. A day still to happen does not break a streak: with no ride yet today,
+   * the count is of the days up to yesterday.
+   */
+  function ridingStreak(activities, today) {
+    const ridden = new Set((activities || [])
+      .filter(a => a.type === 'cycling').map(dayOf).filter(Boolean));
+    let key = dayKey(today);
+    if (!ridden.has(key)) key = shiftDay(key, -1);
+    let n = 0;
+    while (ridden.has(key) && n < 60) { n += 1; key = shiftDay(key, -1); }
+    return n;
+  }
+
+  /** The last day off, and how long ago it was. Null when every day in the
+   *  recent record has a ride on it. */
+  function lastDayOff(activities, today) {
+    const ridden = new Set((activities || [])
+      .filter(a => a.type === 'cycling').map(dayOf).filter(Boolean));
+    const start = dayKey(today);
+    for (let i = 1; i <= 21; i++) {
+      const key = shiftDay(start, -i);
+      if (!ridden.has(key)) return { date: key, daysAgo: i };
+    }
+    return null;
+  }
+
+  /** Hard days in a window — the count that decides whether the last stretch
+   *  has earned a day off rather than another session. */
+  function hardDays(activities, ftp, days, today) {
+    const cutoff = dayKey(today);
+    const seen = new Set();
+    (activities || []).filter(a => a.type === 'cycling').forEach(a => {
+      const key = dayOf(a);
+      if (!key || key > cutoff || key <= shiftDay(cutoff, -days)) return;
+      const p = Cy.ridePower(a);
+      const hard = (ftp && p && p >= ftp * 0.88) ||
+                   (!p && a.avg_hr && (a.moving_s || 0) > 1800 && a.avg_hr >= 155);
+      if (hard) seen.add(key);
+    });
+    return seen.size;
+  }
+
+  /**
+   * The week so far, Monday to today: what has been ridden, and when the last
+   * day off was. Shown under the recommendation so the rule that produced it
+   * is visible rather than asserted.
+   */
+  function weekSoFar(activities, profile, today) {
+    const key = dayKey(today);
+    const d = new Date(key + 'T00:00:00Z');
+    const monday = shiftDay(key, -((d.getUTCDay() + 6) % 7));
+    let rides = 0, seconds = 0, tss = 0, metres = 0;
+    (activities || []).filter(a => a.type === 'cycling').forEach(a => {
+      const day = dayOf(a);
+      if (!day || day < monday || day > key) return;
+      rides += 1;
+      seconds += a.moving_s || 0;
+      metres += a.distance_m || 0;
+      tss += Cy.rideTSS(a, profile && profile.ftp,
+                        profile && profile.restHr, profile && profile.maxHr).tss;
+    });
+    return {
+      monday: monday, rides: rides, seconds: seconds, distance_m: metres,
+      tss: Math.round(tss),
+      streak: ridingStreak(activities, today),
+      lastDayOff: lastDayOff(activities, today),
+    };
+  }
+
   /* -------------------------------------------------------- recommend */
 
   /**
@@ -4374,6 +4497,9 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     const hours = weeklyHours(activities, today);
     const dist = Cy.zoneDistribution(activities, ftp, 42, today);
     const rides28 = recentRides(activities, 28, today).length;
+    const week = weekSoFar(activities, profile, today);
+    const streak = week.streak;
+    const hard10 = hardDays(activities, ftp, 10, today);
 
     const pattern = distributionNote(dist, ctl);
     const rider = opts.rider || Cy.riderContext(activities, {
@@ -4387,12 +4513,49 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
       pattern: pattern,
       form: form, ctl: Math.round(ctl * 10) / 10,
       daysSinceHard: sinceHard, weeklyHours: hours,
+      week: week, streak: streak, hardDays10: hard10,
     });
+
+    /**
+     * A day off, offered as the session.
+     *
+     * Rest is a training decision, not the absence of one: the adaptations a
+     * block is for are made on the days off it, and a rider who never takes
+     * one is not training harder, only accumulating. Every serious plan puts
+     * at least one full day in the week, so the coach has to be able to say it
+     * outright rather than only offering it as the thing you drop to.
+     */
+    const rest = (why, note) => Object.assign(pick('recovery', why, note),
+      { key: 'rest', workout: null });
 
     if (rides28 < 3) {
       return pick('endurance',
         'There is not much recent riding here to go on.',
         'Build a couple of weeks of steady riding first — the recommendations get sharper once there is a pattern to read.');
+    }
+
+    // Rest comes before everything except having no history to read. A rider
+    // deep in fatigue with no break behind them does not need a cleverer
+    // session; they need the day.
+    if (streak >= 6) {
+      return rest(
+        `That is ${streak} days on the trot.`,
+        'Nearly every plan worth the name puts one full day off in the week, and ' +
+        'this is it. Fitness is made when the training is absorbed, which is not ' +
+        'something that happens while you keep riding.');
+    }
+    if (form != null && form < -40) {
+      return rest(
+        `Form is ${Math.round(form)} — a long way into the red.`,
+        'A hole this deep is not spun out in an hour. Take the day, and expect the ' +
+        'next few rides to feel better for it.');
+    }
+    if (form != null && form < -25 && streak >= 3 && hard10 >= 3) {
+      return rest(
+        `${hard10} hard days in the last ten, ${streak} days back to back, and form is ` +
+        `${Math.round(form)}.`,
+        'The work is done — what is missing is the day that turns it into fitness. ' +
+        'Ride tomorrow instead, and it will be a better ride.');
     }
 
     if (form != null && form < -30) {
@@ -4496,7 +4659,9 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     const base = recommend(activities, profile, today, opts);
     const ftp = profile && profile.ftp;
     const rider = base.rider;
-    const minutes = Math.round(base.workout.seconds / 60);
+    // A rest day has no session to take a length from; the fallback is only
+    // there so the one tile that does offer a ride can be built.
+    const minutes = base.workout ? Math.round(base.workout.seconds / 60) : 60;
 
     const build = (key, mins) => {
       const entry = Wk.byKey(key);
@@ -4519,6 +4684,29 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     };
 
     const cost = o => (o.workout && o.workout.tss) || 0;
+
+    // Nothing to choose between when the answer is a day off. One tile says so
+    // and one says what to ride if you are going to ride anyway, which is more
+    // honest than pretending a rest day has an easier and a harder version.
+    if (base.key === 'rest') {
+      const spin = Object.assign(build('recovery', 40), {
+        tone: 'easier', heading: 'If you are going to ride anyway',
+        when: 'Keep it genuinely easy — no efforts, no hills, home before you are ' +
+              'tired. This is a compromise with the rest day, not a replacement ' +
+              'for it, and it only works if it stays this small.',
+      });
+      return Object.assign({}, base, {
+        restDay: true,
+        options: [{
+          tone: 'recommended', heading: 'Recommended', rest: true, key: 'rest',
+          name: 'Take the day off',
+          blurb: 'No ride at all. The last few sessions land today rather than ' +
+                 'tomorrow, and everything after this is ridden on better legs.',
+          when: base.why, note: base.note,
+        }, spin],
+      });
+    }
+
     const chosen = build(base.key);
     const target = cost(chosen);
     // The hills are in the pool with everything else. A rider who only ever
@@ -4565,6 +4753,7 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
       tone: 'recommended', heading: 'Recommended',
       when: base.why,
       note: base.note,
+      second: doubleFor(base, chosen, build),
     }));
 
     // Nothing in the library costs more at this length? Then the way to make
@@ -4583,6 +4772,62 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     }));
 
     return Object.assign({}, base, { options: out });
+  }
+
+  /* ------------------------------------------------------- two in a day */
+
+  // What it takes before splitting the day is the right answer rather than an
+  // ambitious one. A rider at this chronic load is already riding most days;
+  // below it, the way to train more is to make the one ride longer.
+  const DOUBLE_CTL = 60;
+  const DOUBLE_HOURS = 8;
+  // Form inside the band a build block actually lives in. A rider training
+  // productively sits somewhere between -10 and -30, not at zero, so requiring
+  // freshness would mean never offering a double to anybody who trains. The
+  // floor is where the coach starts prescribing recovery anyway — past it the
+  // second ride would be added to fatigue rather than to fitness.
+  const DOUBLE_FORM = -30;
+
+  /**
+   * The second ride of a double day, or null — which is the usual answer.
+   *
+   * Doubles are a volume tool, not an intensity one. Past a certain chronic
+   * load a single ride stops being able to hold the aerobic time a rider
+   * needs, and the way more is added without making the hard days harder is a
+   * second easy ride: quality in the morning on fresh legs, easy time in the
+   * evening on tired ones. Two quality sessions in a day is a different sport
+   * and is never offered here.
+   *
+   * The bar is deliberately high — chronic load, weekly hours, and form that
+   * is not already negative — because for most riders on most days the answer
+   * to "should I ride twice" is no, and a coach that says yes cheaply is worse
+   * than one that never says it at all.
+   */
+  function doubleFor(base, chosen, build) {
+    if (base.key === 'rest' || base.key === 'recovery') return null;
+    if (!(base.ctl >= DOUBLE_CTL)) return null;
+    if (!(base.weeklyHours >= DOUBLE_HOURS)) return null;
+    if (base.form != null && base.form < DOUBLE_FORM) return null;
+    if (base.streak >= 5) return null;
+
+    // After a quality session the second ride is a spin and nothing more.
+    // After an endurance ride it is more endurance, because on that day
+    // volume is the point and two rides hold more of it than one.
+    const quality = (chosen.zone || 0) >= 3;
+    const second = build(quality ? 'recovery' : 'endurance', quality ? 40 : 60);
+    return Object.assign(second, {
+      why: quality
+        ? `Chronic load ${Math.round(base.ctl)} and ${base.weeklyHours} h a week: at ` +
+          'that level an easy evening spin adds blood flow and aerobic time without ' +
+          'touching tomorrow. Ride it after the session, not before, and keep it ' +
+          'under the intensity where it starts to cost something.'
+        : `Chronic load ${Math.round(base.ctl)} and ${base.weeklyHours} h a week: ` +
+          'splitting the day is how volume goes up once one ride is as long as it ' +
+          'usefully gets. Both halves stay endurance — the second is not the place ' +
+          'to make up for an easy first.',
+      when: quality ? 'Later the same day, at least four hours after the first.'
+                    : 'The other half of the day, morning and evening.',
+    });
   }
 
   /** A standing observation about the last six weeks of riding, independent of
@@ -4668,8 +4913,70 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     return null;
   }
 
-  const api = { recommend, options, daysSinceHard, weeklyHours,
-                LADDER, HILLS, shortestFor, fuelNote, ENDURANCE_MIN };
+  /* --------------------------------------------------- what happens next */
+
+  /** What one day's riding came to, for the line that says today is done. */
+  function summarise(rides, profile) {
+    const ftp = profile && profile.ftp;
+    let seconds = 0, metres = 0, tss = 0, hard = false;
+    rides.forEach(a => {
+      seconds += a.moving_s || 0;
+      metres += a.distance_m || 0;
+      tss += Cy.rideTSS(a, ftp, profile && profile.restHr, profile && profile.maxHr).tss;
+      const p = Cy.ridePower(a);
+      if ((ftp && p && p >= ftp * 0.88) ||
+          (!p && a.avg_hr && (a.moving_s || 0) > 1800 && a.avg_hr >= 155)) hard = true;
+    });
+    return {
+      rides: rides.length, seconds: seconds, distance_m: metres,
+      tss: Math.round(tss), hard: hard,
+      name: rides.length === 1 ? (rides[0].name || '') : '',
+    };
+  }
+
+  /**
+   * The next session, which is not always today's.
+   *
+   * The point a rider notices: once the ride is uploaded, being told to go and
+   * do another one is nonsense. A day with a ride on it is a day that has had
+   * its answer, so the question rolls forward to tomorrow — and tomorrow is
+   * then read with today's ride in the history, which is what makes it
+   * respond. Ride hard today and tomorrow comes back easy, or as a day off,
+   * without anybody having to ask for one.
+   *
+   * `opts.force` is the rider overriding it: 'today' plans the day again even
+   * though something is already recorded on it, for the morning commute that
+   * was not meant to be the session.
+   */
+  function nextUp(activities, profile, opts) {
+    opts = opts || {};
+    const now = opts.now instanceof Date ? opts.now
+              : (opts.now ? new Date(String(opts.now).slice(0, 10) + 'T12:00:00') : new Date());
+    const key = dayKey(now);
+    const done = ridesOn(activities, key);
+
+    if (!done.length || opts.force === 'today') {
+      return Object.assign(options(activities, profile, now, opts), {
+        forDay: 'today', date: key,
+        done: done.length ? summarise(done, profile) : null,
+        canPlanToday: false,
+      });
+    }
+
+    // This time tomorrow, so that "a hard ride 9 hours ago" is read as
+    // yesterday's rather than as one that has not happened yet.
+    const tomorrow = new Date(now.getTime() + DAY);
+    return Object.assign(options(activities, profile, tomorrow, opts), {
+      forDay: 'tomorrow', date: dayKey(tomorrow),
+      done: summarise(done, profile),
+      canPlanToday: true,
+    });
+  }
+
+  const api = { recommend, options, nextUp, daysSinceHard, weeklyHours,
+                ridingStreak, lastDayOff, hardDays, weekSoFar, ridesOn, dayKey,
+                LADDER, HILLS, shortestFor, fuelNote, ENDURANCE_MIN,
+                DOUBLE_CTL, DOUBLE_HOURS, DOUBLE_FORM };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Coach = api;
 })(typeof self !== 'undefined' ? self : this);
@@ -6030,6 +6337,9 @@ function render(payload, errorMessage) {
   const app = $('#app');
   app.innerHTML = '';
   hideTip();
+  // A fresh payload, or a new day: the override belongs to the day it was set
+  // on, not to the browser tab.
+  PLAN_TODAY_ANYWAY = false;
 
   const hasData = payload && payload.totals && payload.totals.activities;
   $('#import-btn').hidden = !hasData;
@@ -6765,46 +7075,118 @@ function profileCard() {
  * the morning the legs are unusually good. Each says plainly when you would
  * pick it, so choosing one is a decision rather than a fudge.
  */
+// Set when the rider overrides the roll-forward: something is already recorded
+// today, but they say it was not the session. Cleared on every fresh draw of
+// the dashboard, because tomorrow it is a different question.
+let PLAN_TODAY_ANYWAY = false;
+
+/** The button that takes a suggested session into the builder. */
+function openButton(workout, name, cls, label) {
+  const open = el('button', { class: cls, type: 'button',
+                              text: label || 'Open this workout' });
+  open.addEventListener('click', () => {
+    PENDING_WORKOUT = workout;
+    PENDING_TEXT = name;
+    // Opened from here, the workout is the thing you came to see, so the
+    // builder gets out of its way.
+    WORKOUT_FIRST = true;
+    switchTab('workout');
+  });
+  return open;
+}
+
 function recommendCard() {
   const card = el('div', { class: 'card ride-today' });
 
   let rec;
   try {
-    rec = Coach.options(RAW_ACTIVITIES, PROFILE, null, { rider: RIDER });
+    rec = Coach.nextUp(RAW_ACTIVITIES, PROFILE, {
+      rider: RIDER, now: new Date(),
+      force: PLAN_TODAY_ANYWAY ? 'today' : null,
+    });
   } catch (e) {
     card.appendChild(el('h2', { text: 'Ride today' }));
     card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
     return card;
   }
 
+  const ahead = rec.forDay === 'tomorrow';
+  const unit = DATA.unit === 'km' ? 'km' : 'mi';
+  const dist = m => fmt(m / (unit === 'km' ? 1000 : 1609.344), 1);
+
   const verdict = Cycling.formVerdict(rec.form);
   const head = el('div', { class: 'rt-head' });
-  head.appendChild(el('h2', { text: 'Ride today' }));
+  head.appendChild(el('h2', { text: ahead ? 'Ride tomorrow' : 'Ride today' }));
+  if (rec.done) head.appendChild(el('span', { class: 'pill good', text: 'today: ridden' }));
   head.appendChild(el('span', { class: 'pill ' + verdict.kind, text: verdict.label }));
   if (rec.form != null) {
     head.appendChild(el('span', { class: 'pill mute', text: `Form ${Math.round(rec.form)}` }));
   }
   card.appendChild(head);
   card.appendChild(el('p', { class: 'hint',
-    text: 'Three ways to ride today. The recommendation is what your numbers point ' +
-          'to; the two either side are yours to take instead, because you know how ' +
-          'the legs feel and the data does not.' }));
+    text: rec.restDay
+      ? 'Today the answer is not a session. What the numbers point to is a day ' +
+        'off — and the ride beside it is there because the choice is still yours.'
+      : (ahead
+          ? 'Today is ridden, so this is tomorrow, worked out with today counted. ' +
+            'The recommendation is what your numbers point to; the two either side ' +
+            'are yours to take instead, because you know how the legs feel.'
+          : 'Three ways to ride today. The recommendation is what your numbers point ' +
+            'to; the two either side are yours to take instead, because you know how ' +
+            'the legs feel and the data does not.') }));
 
-  // Nothing here is stored: the three sessions are worked out from the rides
-  // held, against the date it is now, every time this card is drawn. Saying
-  // which day it was drawn for — and what the last one held — is how a rider
-  // can see that it moved overnight rather than having to take it on trust.
-  const yday = Analytics.distanceIn(RAW_ACTIVITIES, {
-    unit: DATA.unit, today: todayKey(), days: 1, endingDaysAgo: 1 });
-  const unit = DATA.unit === 'km' ? 'km' : 'mi';
-  card.appendChild(el('p', { class: 'rt-asof',
-    text: `For ${fmtDate(todayKey())}, worked out from your riding up to last night — ` +
-          (yday.rides
-            ? `yesterday: ${fmt(yday.distance, 1)} ${unit} in ` +
-              `${Analytics.fmtDuration(yday.seconds)}.`
-            : 'yesterday: a day off.') }));
+  // Nothing here is stored: it is worked out from the rides held, against the
+  // date it is now, every time this card is drawn — so a ride uploaded this
+  // afternoon moves it before the page has even been reloaded.
+  const asof = el('p', { class: 'rt-asof' });
+  if (rec.done) {
+    const d = rec.done;
+    asof.appendChild(document.createTextNode(
+      `Today: ${d.rides > 1 ? d.rides + ' rides, ' : ''}${dist(d.distance_m)} ${unit} in ` +
+      `${Analytics.fmtDuration(d.seconds)}${d.tss ? ', ' + d.tss + ' TSS' : ''}. ` +
+      (rec.forDay === 'tomorrow'
+        ? `Next up is ${fmtDate(rec.date)}, read with it counted.`
+        : `Planning ${fmtDate(rec.date)} again anyway.`)));
+  } else {
+    const yday = Analytics.distanceIn(RAW_ACTIVITIES, {
+      unit: DATA.unit, today: todayKey(), days: 1, endingDaysAgo: 1 });
+    asof.appendChild(document.createTextNode(
+      `For ${fmtDate(rec.date)}, worked out from your riding up to last night — ` +
+      (yday.rides
+        ? `yesterday: ${fmt(yday.distance, 1)} ${unit} in ${Analytics.fmtDuration(yday.seconds)}.`
+        : 'yesterday: a day off.')));
+  }
+  // The rider's say over the roll-forward: a commute recorded this morning is
+  // not the day's session, and only they know that.
+  if (rec.done) {
+    const flip = el('button', { class: 'linky', type: 'button',
+      text: ahead ? 'That was not the session — plan today anyway'
+                  : 'Back to tomorrow' });
+    flip.addEventListener('click', () => {
+      PLAN_TODAY_ANYWAY = ahead;
+      drawDashboard();
+    });
+    asof.appendChild(document.createTextNode(' '));
+    asof.appendChild(flip);
+  }
+  card.appendChild(asof);
 
-  const grid = el('div', { class: 'rt-grid' });
+  // The week as it stands, which is the thing the rest-day rules are reading.
+  if (rec.week) {
+    const w = rec.week;
+    const bits = [
+      `${w.rides} ride${w.rides === 1 ? '' : 's'} this week`,
+      Analytics.fmtDuration(w.seconds),
+      `${w.tss} TSS`,
+    ];
+    if (w.streak >= 2) bits.push(`${w.streak} days back to back`);
+    bits.push(w.lastDayOff
+      ? `last day off ${w.lastDayOff.daysAgo === 1 ? 'yesterday' : fmtDate(w.lastDayOff.date)}`
+      : 'no day off in three weeks');
+    card.appendChild(el('p', { class: 'rt-week', text: bits.join('  ·  ') }));
+  }
+
+  const grid = el('div', { class: 'rt-grid' + (rec.options.length < 3 ? ' two' : '') });
   rec.options.forEach(opt => {
     const tile = el('div', { class: 'rt-opt ' + opt.tone });
     tile.appendChild(el('span', { class: 'rt-tag', text: opt.heading }));
@@ -6824,19 +7206,26 @@ function recommendCard() {
     tile.appendChild(el('p', { class: 'rt-when', text: opt.when }));
     if (opt.note) tile.appendChild(el('p', { class: 'rt-when', text: opt.note }));
 
-    if (opt.workout) {
-      const open = el('button', {
-        class: opt.tone === 'recommended' ? 'btn' : 'ghost',
-        type: 'button', text: 'Open this workout' });
-      open.addEventListener('click', () => {
-        PENDING_WORKOUT = opt.workout;
-        PENDING_TEXT = opt.name;
-        // Opened from here, the workout is the thing you came to see, so the
-        // builder gets out of its way.
-        WORKOUT_FIRST = true;
-        switchTab('workout');
-      });
-      tile.appendChild(open);
+    if (opt.workout) tile.appendChild(openButton(opt.workout, opt.name,
+      opt.tone === 'recommended' ? 'btn' : 'ghost'));
+
+    // A double day. Two rides, said as two rides — the second is a separate
+    // session with its own targets, not a note telling somebody to ride longer.
+    if (opt.second) {
+      const dbl = el('div', { class: 'rt-second' });
+      dbl.appendChild(el('span', { class: 'rt-tag', text: 'And a second ride' }));
+      const mins = Math.round(opt.second.workout.seconds / 60);
+      const line = el('div', { class: 'rt-meta' });
+      line.appendChild(el('strong', { text: opt.second.name }));
+      line.appendChild(el('span', { class: 'pill mute',
+        text: opt.second.workout.tss ? `${mins} min · ${opt.second.workout.tss} TSS`
+                                     : `${mins} min` }));
+      dbl.appendChild(line);
+      dbl.appendChild(el('p', { class: 'rt-when', text: opt.second.when }));
+      dbl.appendChild(el('p', { class: 'rt-when', text: opt.second.why }));
+      dbl.appendChild(openButton(opt.second.workout, opt.second.name, 'ghost',
+                                 'Open the second ride'));
+      tile.appendChild(dbl);
     }
     grid.appendChild(tile);
   });

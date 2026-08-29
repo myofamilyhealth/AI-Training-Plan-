@@ -465,7 +465,21 @@ const mk = (d, secs, np) => ({ type: 'cycling', moving_s: secs, np: np,
 
 const buried = [];
 for (let i = 0; i < 30; i++) buried.push(mk(i, 5400, 235));
-check('deep fatigue gets recovery', Co.recommend(buried, { ftp: 250 }, now).key, 'recovery');
+check('a month of hard days with no break gets a day off',
+      Co.recommend(buried, { ftp: 250 }, now).key, 'rest');
+
+// Deep fatigue on its own is still a spin: it is the fatigue plus the unbroken
+// run of days that makes rest the answer rather than an easy hour.
+const tiredButRested = [];
+for (let i = 2; i < 30; i += 2) tiredButRested.push(mk(i, 7200, 240));
+const tiredRec = Co.recommend(tiredButRested, { ftp: 250 }, now);
+check('deep fatigue with days off behind it gets recovery', tiredRec.key, 'recovery');
+check('and the streak is what told them apart',
+      [Co.ridingStreak(buried, now), Co.ridingStreak(tiredButRested, now)], [30, 0]);
+check('a day off is found where there is one',
+      Co.lastDayOff(tiredButRested, now).daysAgo, 1);
+check('and reported as missing where there is not',
+      Co.lastDayOff(buried, now), null);
 
 const sparse = [mk(3, 3600, 200)];
 check('too little history says so',
@@ -483,8 +497,8 @@ check('tempo overuse is flagged',
  * the day after that it has moved on. A page left open overnight redraws
  * itself for the same reason (watchTheDate). */
 const flatOut = [];
-for (let i = 1; i < 30; i++) flatOut.push(mk(i, 3600, 170));   // easy weeks
-flatOut.push(mk(0, 3600, 245));                                // and a hard one today
+for (let i = 1; i < 30; i += 2) flatOut.push(mk(i, 3600, 170));  // easy weeks
+flatOut.push(mk(0, 3600, 245));                                  // and a hard one today
 const sameDay = Co.recommend(flatOut, { ftp: 250 }, now);
 check('a hard ride today is answered with recovery', sameDay.key, 'recovery');
 check('and it says why', /rode hard today/.test(sameDay.why), true);
@@ -762,9 +776,13 @@ for (let i = 0; i < 30; i++) {
                  start: new Date(now.getTime() - i * 86400000).toISOString() });
 }
 const beat = Co.options(flogged, { ftp: 250 }, now);
-check('nothing easier than recovery is a rest day', beat.options[0].rest, true);
-check('and a rest day has no workout to open', !!beat.options[0].workout, false);
-check('which still says when to take it', /bad sleep|ill|nothing/i.test(beat.options[0].when), true);
+check('a month of this is answered with the day off itself', beat.restDay, true);
+check('which is the recommendation, not the fallback', beat.options[0].tone, 'recommended');
+check('a rest day has no workout to open', !!beat.options[0].workout, false);
+check('and it says which rule produced it', /days on the trot|red|hard days/i.test(beat.options[0].when), true);
+check('there is still a ride offered beside it', beat.options.length, 2);
+check('and it is an easy one', beat.options[1].key, 'recovery');
+check('which says it is a compromise', /compromise|genuinely easy/i.test(beat.options[1].when), true);
 
 // Much the same length, so what separates them is intensity rather than
 // duration — within the floors each session needs to be worth riding.
@@ -775,6 +793,74 @@ check('the options are built to comparable lengths',
 check('and none is shorter than it is worth riding',
       dayOptions.every(o => !o.workout ||
         Math.round(o.workout.seconds / 60) >= Co.shortestFor(o.key) - 1), true);
+
+/* ------------------------------------- what to do once today is ridden */
+// The complaint this answers: upload the ride you just did and the page tells
+// you to go and do another one. A day with a ride on it has had its answer.
+const week = [];
+for (let i = 1; i < 40; i += 2) {
+  const d = new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10);
+  week.push({ type: 'cycling', moving_s: 5400, np: 185, distance_m: 45000,
+              date: d, start: d + 'T08:00:00' });
+}
+const todayKey = now.toISOString().slice(0, 10);
+const before = Co.nextUp(week, { ftp: 250 }, { now: now });
+check('nothing ridden yet, so the question is today', before.forDay, 'today');
+check('and it is dated today', before.date, todayKey);
+check('with nothing to report as done', before.done, null);
+
+const ridden = week.concat([{ type: 'cycling', moving_s: 5400, np: 245,
+  distance_m: 45000, name: 'Hard one', date: todayKey, start: todayKey + 'T09:00:00' }]);
+const after = Co.nextUp(ridden, { ftp: 250 }, { now: now });
+check('once today is ridden the question rolls on', after.forDay, 'tomorrow');
+check('to the next day', after.date,
+      new Date(now.getTime() + 86400000).toISOString().slice(0, 10));
+check('and today is reported back', after.done.rides, 1);
+check('with what it came to', [after.done.seconds, after.done.hard], [5400, true]);
+// Read for tomorrow, today's hard ride is yesterday's — which is the whole
+// point: what you just did is what tomorrow is built from.
+check('a hard ride today is not answered with another one tomorrow',
+      ['vo2max', 'threshold', 'microbursts', 'sweetspot'].indexOf(after.key), -1);
+check('the rider can still override it',
+      Co.nextUp(ridden, { ftp: 250 }, { now: now, force: 'today' }).forDay, 'today');
+check('and is told they can',
+      Co.nextUp(ridden, { ftp: 250 }, { now: now }).canPlanToday, true);
+
+// The week the rest rules are reading, reported so the card can show it.
+check('the week so far counts this week only',
+      Co.weekSoFar(ridden, { ftp: 250 }, now).rides >= 1, true);
+check('and knows how many days are back to back — today and yesterday',
+      Co.ridingStreak(ridden, now), 2);
+
+/* ---------------------------------------------------- two rides in a day */
+// A double is a volume tool for a rider already carrying real chronic load,
+// never a way to make a hard day harder. Most riders, most days, get nothing.
+function block(onDays, secs, np) {
+  const out = [];
+  for (let i = 1; i < 70; i++) {
+    if (i % (onDays + 1) === 0) continue;
+    const d = new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10);
+    out.push({ type: 'cycling', moving_s: secs, np: np, distance_m: secs * 8,
+               date: d, start: d + 'T08:00:00' });
+  }
+  return out;
+}
+const recOf = o => o.options.find(x => x.tone === 'recommended');
+const big = Co.nextUp(block(3, 9000, 175), { ftp: 250 }, { now: now });
+const bigRec = recOf(big);
+check('a big engine gets offered the second ride', !!bigRec.second, true);
+check('which is a session in its own right, with targets',
+      bigRec.second.workout.steps.length > 0, true);
+check('and is easy — never two hard rides in a day',
+      bigRec.second.workout.tss < bigRec.workout.tss, true);
+check('it says what earned it', /chronic load/i.test(bigRec.second.why), true);
+check('and when to ride it', /later|other half/i.test(bigRec.second.when), true);
+check('the ordinary rider is offered nothing of the kind',
+      !!recOf(Co.nextUp(block(2, 3600, 180), { ftp: 250 }, { now: now })).second, false);
+check('nor is anyone the coach has just told to rest',
+      !!(beat.options[0].second), false);
+check('the bar is stated rather than hidden',
+      [Co.DOUBLE_CTL >= 50, Co.DOUBLE_HOURS >= 6], [true, true]);
 
 // The hills are among the day's choices, not filed under "for climbers".
 const seenHills = new Set();

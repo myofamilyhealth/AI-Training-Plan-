@@ -1354,6 +1354,9 @@ function render(payload, errorMessage) {
   const app = $('#app');
   app.innerHTML = '';
   hideTip();
+  // A fresh payload, or a new day: the override belongs to the day it was set
+  // on, not to the browser tab.
+  PLAN_TODAY_ANYWAY = false;
 
   const hasData = payload && payload.totals && payload.totals.activities;
   $('#import-btn').hidden = !hasData;
@@ -2089,46 +2092,118 @@ function profileCard() {
  * the morning the legs are unusually good. Each says plainly when you would
  * pick it, so choosing one is a decision rather than a fudge.
  */
+// Set when the rider overrides the roll-forward: something is already recorded
+// today, but they say it was not the session. Cleared on every fresh draw of
+// the dashboard, because tomorrow it is a different question.
+let PLAN_TODAY_ANYWAY = false;
+
+/** The button that takes a suggested session into the builder. */
+function openButton(workout, name, cls, label) {
+  const open = el('button', { class: cls, type: 'button',
+                              text: label || 'Open this workout' });
+  open.addEventListener('click', () => {
+    PENDING_WORKOUT = workout;
+    PENDING_TEXT = name;
+    // Opened from here, the workout is the thing you came to see, so the
+    // builder gets out of its way.
+    WORKOUT_FIRST = true;
+    switchTab('workout');
+  });
+  return open;
+}
+
 function recommendCard() {
   const card = el('div', { class: 'card ride-today' });
 
   let rec;
   try {
-    rec = Coach.options(RAW_ACTIVITIES, PROFILE, null, { rider: RIDER });
+    rec = Coach.nextUp(RAW_ACTIVITIES, PROFILE, {
+      rider: RIDER, now: new Date(),
+      force: PLAN_TODAY_ANYWAY ? 'today' : null,
+    });
   } catch (e) {
     card.appendChild(el('h2', { text: 'Ride today' }));
     card.appendChild(el('p', { class: 'hint', text: 'Not enough data to suggest a session yet.' }));
     return card;
   }
 
+  const ahead = rec.forDay === 'tomorrow';
+  const unit = DATA.unit === 'km' ? 'km' : 'mi';
+  const dist = m => fmt(m / (unit === 'km' ? 1000 : 1609.344), 1);
+
   const verdict = Cycling.formVerdict(rec.form);
   const head = el('div', { class: 'rt-head' });
-  head.appendChild(el('h2', { text: 'Ride today' }));
+  head.appendChild(el('h2', { text: ahead ? 'Ride tomorrow' : 'Ride today' }));
+  if (rec.done) head.appendChild(el('span', { class: 'pill good', text: 'today: ridden' }));
   head.appendChild(el('span', { class: 'pill ' + verdict.kind, text: verdict.label }));
   if (rec.form != null) {
     head.appendChild(el('span', { class: 'pill mute', text: `Form ${Math.round(rec.form)}` }));
   }
   card.appendChild(head);
   card.appendChild(el('p', { class: 'hint',
-    text: 'Three ways to ride today. The recommendation is what your numbers point ' +
-          'to; the two either side are yours to take instead, because you know how ' +
-          'the legs feel and the data does not.' }));
+    text: rec.restDay
+      ? 'Today the answer is not a session. What the numbers point to is a day ' +
+        'off — and the ride beside it is there because the choice is still yours.'
+      : (ahead
+          ? 'Today is ridden, so this is tomorrow, worked out with today counted. ' +
+            'The recommendation is what your numbers point to; the two either side ' +
+            'are yours to take instead, because you know how the legs feel.'
+          : 'Three ways to ride today. The recommendation is what your numbers point ' +
+            'to; the two either side are yours to take instead, because you know how ' +
+            'the legs feel and the data does not.') }));
 
-  // Nothing here is stored: the three sessions are worked out from the rides
-  // held, against the date it is now, every time this card is drawn. Saying
-  // which day it was drawn for — and what the last one held — is how a rider
-  // can see that it moved overnight rather than having to take it on trust.
-  const yday = Analytics.distanceIn(RAW_ACTIVITIES, {
-    unit: DATA.unit, today: todayKey(), days: 1, endingDaysAgo: 1 });
-  const unit = DATA.unit === 'km' ? 'km' : 'mi';
-  card.appendChild(el('p', { class: 'rt-asof',
-    text: `For ${fmtDate(todayKey())}, worked out from your riding up to last night — ` +
-          (yday.rides
-            ? `yesterday: ${fmt(yday.distance, 1)} ${unit} in ` +
-              `${Analytics.fmtDuration(yday.seconds)}.`
-            : 'yesterday: a day off.') }));
+  // Nothing here is stored: it is worked out from the rides held, against the
+  // date it is now, every time this card is drawn — so a ride uploaded this
+  // afternoon moves it before the page has even been reloaded.
+  const asof = el('p', { class: 'rt-asof' });
+  if (rec.done) {
+    const d = rec.done;
+    asof.appendChild(document.createTextNode(
+      `Today: ${d.rides > 1 ? d.rides + ' rides, ' : ''}${dist(d.distance_m)} ${unit} in ` +
+      `${Analytics.fmtDuration(d.seconds)}${d.tss ? ', ' + d.tss + ' TSS' : ''}. ` +
+      (rec.forDay === 'tomorrow'
+        ? `Next up is ${fmtDate(rec.date)}, read with it counted.`
+        : `Planning ${fmtDate(rec.date)} again anyway.`)));
+  } else {
+    const yday = Analytics.distanceIn(RAW_ACTIVITIES, {
+      unit: DATA.unit, today: todayKey(), days: 1, endingDaysAgo: 1 });
+    asof.appendChild(document.createTextNode(
+      `For ${fmtDate(rec.date)}, worked out from your riding up to last night — ` +
+      (yday.rides
+        ? `yesterday: ${fmt(yday.distance, 1)} ${unit} in ${Analytics.fmtDuration(yday.seconds)}.`
+        : 'yesterday: a day off.')));
+  }
+  // The rider's say over the roll-forward: a commute recorded this morning is
+  // not the day's session, and only they know that.
+  if (rec.done) {
+    const flip = el('button', { class: 'linky', type: 'button',
+      text: ahead ? 'That was not the session — plan today anyway'
+                  : 'Back to tomorrow' });
+    flip.addEventListener('click', () => {
+      PLAN_TODAY_ANYWAY = ahead;
+      drawDashboard();
+    });
+    asof.appendChild(document.createTextNode(' '));
+    asof.appendChild(flip);
+  }
+  card.appendChild(asof);
 
-  const grid = el('div', { class: 'rt-grid' });
+  // The week as it stands, which is the thing the rest-day rules are reading.
+  if (rec.week) {
+    const w = rec.week;
+    const bits = [
+      `${w.rides} ride${w.rides === 1 ? '' : 's'} this week`,
+      Analytics.fmtDuration(w.seconds),
+      `${w.tss} TSS`,
+    ];
+    if (w.streak >= 2) bits.push(`${w.streak} days back to back`);
+    bits.push(w.lastDayOff
+      ? `last day off ${w.lastDayOff.daysAgo === 1 ? 'yesterday' : fmtDate(w.lastDayOff.date)}`
+      : 'no day off in three weeks');
+    card.appendChild(el('p', { class: 'rt-week', text: bits.join('  ·  ') }));
+  }
+
+  const grid = el('div', { class: 'rt-grid' + (rec.options.length < 3 ? ' two' : '') });
   rec.options.forEach(opt => {
     const tile = el('div', { class: 'rt-opt ' + opt.tone });
     tile.appendChild(el('span', { class: 'rt-tag', text: opt.heading }));
@@ -2148,19 +2223,26 @@ function recommendCard() {
     tile.appendChild(el('p', { class: 'rt-when', text: opt.when }));
     if (opt.note) tile.appendChild(el('p', { class: 'rt-when', text: opt.note }));
 
-    if (opt.workout) {
-      const open = el('button', {
-        class: opt.tone === 'recommended' ? 'btn' : 'ghost',
-        type: 'button', text: 'Open this workout' });
-      open.addEventListener('click', () => {
-        PENDING_WORKOUT = opt.workout;
-        PENDING_TEXT = opt.name;
-        // Opened from here, the workout is the thing you came to see, so the
-        // builder gets out of its way.
-        WORKOUT_FIRST = true;
-        switchTab('workout');
-      });
-      tile.appendChild(open);
+    if (opt.workout) tile.appendChild(openButton(opt.workout, opt.name,
+      opt.tone === 'recommended' ? 'btn' : 'ghost'));
+
+    // A double day. Two rides, said as two rides — the second is a separate
+    // session with its own targets, not a note telling somebody to ride longer.
+    if (opt.second) {
+      const dbl = el('div', { class: 'rt-second' });
+      dbl.appendChild(el('span', { class: 'rt-tag', text: 'And a second ride' }));
+      const mins = Math.round(opt.second.workout.seconds / 60);
+      const line = el('div', { class: 'rt-meta' });
+      line.appendChild(el('strong', { text: opt.second.name }));
+      line.appendChild(el('span', { class: 'pill mute',
+        text: opt.second.workout.tss ? `${mins} min · ${opt.second.workout.tss} TSS`
+                                     : `${mins} min` }));
+      dbl.appendChild(line);
+      dbl.appendChild(el('p', { class: 'rt-when', text: opt.second.when }));
+      dbl.appendChild(el('p', { class: 'rt-when', text: opt.second.why }));
+      dbl.appendChild(openButton(opt.second.workout, opt.second.name, 'ghost',
+                                 'Open the second ride'));
+      tile.appendChild(dbl);
     }
     grid.appendChild(tile);
   });

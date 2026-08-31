@@ -25,35 +25,14 @@
   --ramp-5:  #256abf;
   --ramp-6:  #184f95;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg:            #0b0f13;
-    --surface:       #141a20;
-    --surface-2:     #1c242b;
-    --border:        #232c34;
-    --border-strong: #35414b;
-    --text:          #f0f5f8;
-    --text-2:        #aeb9c3;
-    --text-3:        #78848e;
-    --series-1:      #3987e5;
-    --series-2:      #d95926;
-    --series-3:      #199e70;
-    --good:          #35b06e;
-    --warn:          #d99a2b;
-    --crit:          #e66767;
-    --grid:          #292928;
-    --shadow:        0 1px 1px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.24), 0 8px 24px rgba(0,0,0,.22);
-    --shadow-lift:   0 2px 4px rgba(0,0,0,.35), 0 14px 36px rgba(0,0,0,.40);
-    --ramp-0:  #262625;
-    --ramp-1:  #16324f;
-    --ramp-2:  #184f95;
-    --ramp-3:  #256abf;
-    --ramp-4:  #3987e5;
-    --ramp-5:  #6da7ec;
-    --ramp-6:  #9ec5f4;
-  }
-}
+/* The page is light unless somebody asks for dark.
+ *
+ * It used to follow the system setting, which meant a rider whose phone
+ * switches to dark at sunset opened a different-looking site than the one they
+ * set up that afternoon. The dark theme is still here and one tap away — it is
+ * a choice now rather than the weather, so `data-theme="dark"` below is the
+ * only thing that turns it on, and app.js sets that attribute on every load.
+ */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg:      #0b0f13;
@@ -501,6 +480,11 @@ input[type=file].hidden-input { display: none; }
 
 /* ------------------------------------------------------- accounts, team */
 .card.account { max-width: 460px; margin: 0 auto; }
+/* The two ways in, side by side, so neither can be the one nobody finds. */
+.acct-modes { margin-bottom: 16px; }
+.acct-modes .seg { width: 100%; }
+.acct-modes .seg button { flex: 1; padding: 9px 12px; font-size: 13.5px; }
+
 .acct-form { display: flex; flex-direction: column; gap: 14px; margin: 16px 0 4px; }
 .acct-form .field > span:first-child {
   font-size: 12px; font-weight: 560; color: var(--text-3); letter-spacing: .02em;

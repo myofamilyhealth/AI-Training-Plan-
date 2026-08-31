@@ -188,8 +188,12 @@ check("renders a full document", html.startswith("<!doctype html>"), True)
 check("payload is embedded", '"weekly"' in html, True)
 check("no unreplaced marker", "__PAYLOAD__" in html, False)
 check("closing script tag is escaped out of the data", "</script>" in html.split("<script>")[1][:-20], False)
-check("both theme scopes defined",
-      ('prefers-color-scheme: dark' in html) and ('[data-theme="dark"]' in html), True)
+# The page is light unless a rider asks for dark. Following the system setting
+# meant a phone that goes dark at sunset showed a different site than the one
+# set up that afternoon, so the only thing that turns dark on is the attribute
+# the theme button writes.
+check("a dark theme exists", '[data-theme="dark"]' in html, True)
+check("but the system does not choose it", "prefers-color-scheme" in html, False)
 
 fragment = web.render(payload, standalone=False)
 check("fragment has no document skeleton", "<!doctype" in fragment.lower(), False)

@@ -1782,13 +1782,13 @@ function powerProfileCard() {
 /* ------------------------------------------------------------------ theme */
 (function themeToggle() {
   const KEY = 'training-hub-theme';
+  // Light is the default, whatever the device is set to. Dark is a choice the
+  // rider makes and this browser then remembers.
   let stored = null;
   try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
-  if (stored) document.documentElement.setAttribute('data-theme', stored);
+  document.documentElement.setAttribute('data-theme', stored === 'dark' ? 'dark' : 'light');
   $('#theme-btn').addEventListener('click', () => {
-    const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-    const now = document.documentElement.getAttribute('data-theme')
-      || (dark ? 'dark' : 'light');
+    const now = document.documentElement.getAttribute('data-theme');
     const next = now === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     try { localStorage.setItem(KEY, next); } catch (e) { /* ignore */ }
@@ -2302,6 +2302,14 @@ function accountScreen() {
 
   const draw = () => {
     card.innerHTML = '';
+    // Both ways in, visible at once. Offered as a button at the bottom that
+    // changed its own label, a device with no accounts on it showed only "Make
+    // an account" and the way to sign in could not be found at all.
+    const modes = el('div', { class: 'acct-modes' });
+    modes.appendChild(seg(['in', 'up'], mode, v => { mode = v; draw(); },
+                          v => v === 'in' ? 'Sign in' : 'Make an account'));
+    card.appendChild(modes);
+
     card.appendChild(el('h2', { text: mode === 'in' ? 'Sign in' : 'Make an account' }));
     card.appendChild(el('p', { class: 'hint',
       text: mode === 'in'
@@ -2309,6 +2317,17 @@ function accountScreen() {
           'else who uses this device.'
         : 'One name for your riding on this device. There is no email and nothing ' +
           'to confirm — the account lives in this browser.' }));
+
+    // An account is made on a device, so there is nothing to sign into on a
+    // device that has never had one. Said here rather than left to come out as
+    // a failed password.
+    if (mode === 'in' && !known.length) {
+      card.appendChild(el('p', { class: 'acct-carry',
+        text: 'No accounts have been made in this browser yet. Accounts live on the ' +
+              'device they are made on, so if you have one on a laptop, make one ' +
+              'here with the same name and bring your rides over with the file the ' +
+              'account screen saves.' }));
+    }
 
     const form = el('div', { class: 'acct-form' });
     const field = (label, attrs, note) => {
@@ -2358,14 +2377,6 @@ function accountScreen() {
 
     const row = el('div', { class: 'acct-actions' });
     row.appendChild(go);
-    const swap = el('button', { class: 'ghost', type: 'button',
-      text: mode === 'in' ? 'Make an account' : (known.length ? 'I have one already' : 'Cancel') });
-    swap.addEventListener('click', () => {
-      if (mode === 'up' && !known.length) { useAccount(null); return; }
-      mode = mode === 'in' ? 'up' : 'in';
-      draw();
-    });
-    row.appendChild(swap);
     card.appendChild(row);
 
     // Nobody is forced into an account. The site works exactly as it always

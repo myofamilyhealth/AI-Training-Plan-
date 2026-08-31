@@ -328,6 +328,20 @@ always was: one history, this browser, the old storage keys. The first account
 made adopts a history loaded before accounts existed, so nobody loses a season
 to signing up.
 
+**Both ways in are always on screen.** The account card opens on a two-way
+segmented control — Sign in, Make an account — and it defaults to whichever
+suits the device. Offered instead as a button at the bottom that renamed
+itself, a device with no accounts on it showed only "Make an account" and the
+sign-in form could not be reached at all. On a device with no accounts, the
+sign-in side says so plainly rather than letting it surface as a failed
+password.
+
+**The page is light unless a rider asks for dark.** There is no
+`prefers-color-scheme` rule left in the stylesheet and the tests assert its
+absence: a phone that goes dark at sunset was showing a different-looking site
+than the one set up that afternoon. `app.js` writes `data-theme` on every load,
+and only the theme button changes it.
+
 ### The team tab
 
 Only visible to an account that has joined a team, so a solo rider never sees

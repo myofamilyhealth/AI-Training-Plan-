@@ -1398,7 +1398,7 @@ function render(payload, errorMessage) {
     $('#range-sub').textContent = held
       ? `${held} session${held === 1 ? '' : 's'} loaded  ·  add more below`
       : 'nothing loaded yet';
-    if (ACCOUNT && ACCOUNT.team) {
+    if (ACCOUNT) {
       app.appendChild(tabBar());
       if (TAB === 'team') { app.appendChild(teamView()); return; }
     }
@@ -2519,10 +2519,11 @@ function teamView() {
   // Not on the team yet: one field, one code.
   if (!ACCOUNT || ACCOUNT.team !== Riders.TEAM_NAME) {
     const card = el('div', { class: 'card' });
-    card.appendChild(el('h2', { text: 'Join the team' }));
+    card.appendChild(el('h2', { text: 'Join your team' }));
     card.appendChild(el('p', { class: 'hint',
-      text: 'Ask a teammate for the join code. It puts you on the team board on ' +
-            'this device, and lets you share a card with the rest of the squad.' }));
+      text: 'Your coach or a teammate has the code. It puts you on the team board ' +
+            'on this device and lets you share a card with the rest of the squad — ' +
+            'and it is the only thing this tab needs from you.' }));
     const form = el('div', { class: 'acct-form' });
     const f = el('label', { class: 'field' });
     f.appendChild(el('span', { text: 'Join code' }));
@@ -2537,7 +2538,7 @@ function teamView() {
     const submit = () => {
       try {
         ACCOUNT = Riders.joinTeam(ACCOUNT.id, input.value);
-        drawDashboard();
+        redraw();
       } catch (e) { err.textContent = e.message; err.hidden = false; }
     };
     input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
@@ -2568,7 +2569,7 @@ function teamView() {
     const card = myCard();
     download(`${card.rider.username}-card.json`, JSON.stringify(card), 'application/json');
     TEAM_NOTE = 'Card saved to your downloads. Send it to whoever keeps the team board.';
-    drawDashboard();
+    redraw();
   });
   actions.appendChild(share);
 
@@ -2582,10 +2583,10 @@ function teamView() {
       const card = JSON.parse(await readFile(file));
       addCard(card);
       TEAM_NOTE = `${card.rider.display || card.rider.username} is on the board.`;
-      drawDashboard();
+      redraw();
     } catch (e) {
       TEAM_NOTE = e.message || 'That file could not be read.';
-      drawDashboard();
+      redraw();
     }
   });
   add.addEventListener('click', () => picker.click());
@@ -2662,7 +2663,7 @@ function teamView() {
                 (row.here ? ' Their account and rides stay on this device.' : ''))) return;
             if (row.here) Riders.leaveTeam(row.id);
             else saveCards(loadCards().filter(c => c.rider.username !== row.username));
-            drawDashboard();
+            redraw();
           });
           cell.appendChild(del);
         }
@@ -3007,21 +3008,34 @@ function workoutView() {
 
 /* ------------------------------------------------------------------ tabs */
 
-function switchTab(name) {
-  TAB = name;
-  // With no rides loaded there is no dashboard to draw — the import screen
-  // carries the tabs instead, so a rider on the team can reach the board
-  // before they have uploaded anything.
+/**
+ * Draw the page again, whichever page it is.
+ *
+ * With no rides loaded there is no dashboard to draw: the import screen
+ * carries the tabs instead, so a rider can join their team and look at the
+ * board before they have uploaded anything. Everything that changes state and
+ * wants the page back goes through here rather than calling drawDashboard,
+ * which assumes a history exists.
+ */
+function redraw() {
   if (DATA && DATA.totals && DATA.totals.activities) drawDashboard();
   else render(DATA);
+}
+
+function switchTab(name) {
+  TAB = name;
+  redraw();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function tabBar() {
   const bar = el('div', { class: 'tabs', role: 'tablist' });
   const tabs = [['dashboard', 'Dashboard'], ['workout', 'Build a workout']];
-  // Only for riders who are on a team. Solo, the site is what it always was.
-  if (ACCOUNT && ACCOUNT.team) tabs.push(['team', ACCOUNT.team]);
+  // Anyone signed in gets the tab, whether or not they have joined anything —
+  // the join code is asked for inside it, and a tab that only appears once you
+  // are on a team is a door that opens from the far side. Solo and signed out,
+  // the site is what it always was.
+  if (ACCOUNT) tabs.push(['team', ACCOUNT.team || 'Team']);
   tabs.forEach(([key, label]) => {
       const b = el('button', { type: 'button', role: 'tab',
                                'aria-selected': String(TAB === key), text: label });

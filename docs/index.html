@@ -527,6 +527,17 @@ input[type=file].hidden-input { display: none; }
 }
 .card.account .skip { margin-top: 16px; align-self: flex-start; }
 
+.acct-exit { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.acct-block {
+  margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border);
+}
+.acct-block h3 {
+  margin: 0 0 6px; font-size: 13.5px; font-weight: 620; letter-spacing: -.008em;
+}
+.acct-carry {
+  margin: 14px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--text-2);
+  border-left: 3px solid var(--series-1); padding-left: 10px;
+}
 .team-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
 .sub-note { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
 
@@ -819,6 +830,139 @@ footer.foot a:hover { color: var(--text); }
   font-size: 12.5px; letter-spacing: .01em;
 }
 .course-note .pin { flex: none; margin-top: 2px; }
+
+/* =======================================================================
+   Phones
+   =======================================================================
+   Everything the site does, on a screen 390 points wide. Nothing is dropped
+   and nothing is hidden behind a menu — the numbers a rider looks at on the
+   way to a trailhead are the same ones they look at on a laptop.
+
+   Three things do the work. The header folds onto two rows so its buttons
+   stop running off the edge. The big display numbers come down to a size
+   that fits two across instead of one per screen. And the tables stop being
+   tables: an eight-column session list scrolled sideways on a phone is a
+   table nobody reads, so each row becomes a small card with its own labels.
+   ------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* The notch, and the home indicator. */
+  header.top { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .wrap { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+
+  header.top { margin-bottom: 16px; }
+  .top-inner { flex-wrap: wrap; gap: 9px; padding: 11px 14px; }
+  .brand { flex: 1 1 100%; gap: 9px; min-width: 0; }
+  .brand h1 { font-size: 17px; white-space: nowrap; }
+  .brand .sub {
+    font-size: 11.5px; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .spacer { display: none; }
+  /* Four controls, one row, thumb-sized and none of them off the screen. */
+  header.top .ghost {
+    flex: 1 1 0; min-width: 0; min-height: 40px;
+    padding: 9px 6px; font-size: 12.5px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .wrap { padding-left: 14px; padding-right: 14px; }
+  .card { padding: 16px 15px; border-radius: 14px; }
+  .card h2 { font-size: 13px; }
+  .grid, .stack { gap: 14px; }
+
+  /* Two across, at a size that leaves room for what is under them. */
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { padding: 14px 14px 13px; }
+  .tile .label { font-size: 10px; letter-spacing: .09em; }
+  .tile .value { margin-top: 7px; font-size: 30px; letter-spacing: -.03em; }
+  .tile .value .unit { font-size: 13px; margin-left: 3px; }
+  .tile .foot { margin-top: 9px; font-size: 11.5px; line-height: 1.45; }
+
+  /* Tabs are the whole navigation, so they stay put and stay reachable. */
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { padding: 11px 12px; font-size: 14px; white-space: nowrap; }
+
+  /* ---------------------------------------------------- tables as cards */
+  .tbl-wrap { overflow: visible; }
+  table, thead, tbody, tr, td { display: block; width: 100%; }
+  thead { display: none; }
+  tbody tr {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 4px 12px; margin-bottom: 10px; background: var(--surface);
+  }
+  tbody tr:last-child { margin-bottom: 0; }
+  tbody td {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+    padding: 7px 0; border: 0; text-align: right;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td:last-child { border-bottom: 0; }
+  /* The column heading, carried on the cell, so a row still says what its
+     numbers are once the header is gone. */
+  tbody td::before {
+    content: attr(data-label);
+    font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--text-3);
+    text-align: left; flex: none;
+  }
+  tbody td:empty, tbody td[data-label=""]:empty { display: none; }
+  /* The name is the row's heading, wherever it sits in the column order. The
+     180px floor it carries as a table column is what a card cannot afford:
+     left in place it widened the row, the card and the whole page past the
+     screen. */
+  tbody td.name {
+    order: -1; min-width: 0;
+    font-size: 15px; font-weight: 600; text-align: left;
+    justify-content: flex-start; flex-wrap: wrap; gap: 8px;
+  }
+  /* Nothing inside a card may set the page's width. A cell is a flex row, so
+     its children need the same release or a long line pushes it open. */
+  .card, .stack > *, .grid > *, .tbl-wrap, table, tbody, tr,
+  tbody td, tbody td > * { min-width: 0; max-width: 100%; }
+  tbody td > * { overflow-wrap: anywhere; }
+  /* The remove column is 34px wide in a table; as a row in a card it is a
+     full-width line like any other, or its label spills out of the card. */
+  tbody td.act { width: auto; justify-content: space-between; padding: 6px 0; }
+  tbody td.act::before { content: "Remove"; }
+  .controls { gap: 6px; }
+  .seg { flex-wrap: wrap; }
+  .seg button { padding: 8px 11px; font-size: 13px; }
+
+  /* --------------------------------------------------- forms and buttons */
+  /* 16px or iOS zooms the whole page when a field takes focus. */
+  .field input, .field select, .prompt, .acct-form input {
+    font-size: 16px; padding: 11px 12px;
+  }
+  .btn, .ghost, .del { min-height: 42px; }
+  .btn { padding: 12px 18px; font-size: 14.5px; }
+  .fields { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px; }
+  .card.account { max-width: none; }
+  .acct-actions { flex-wrap: wrap; }
+  .acct-actions .btn, .acct-actions .ghost { flex: 1 1 auto; }
+
+  /* ------------------------------------------------------------ the rest */
+  .rt-head { flex-wrap: wrap; gap: 8px; }
+  .rt-opt { padding: 15px 15px 17px; }
+  .rt-opt h3 { font-size: 17px; }
+  .team-actions .btn, .team-actions .ghost { flex: 1 1 auto; }
+  /* The import summary reads as a sentence; its controls go under it rather
+     than fighting for the same line. */
+  .detected { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+  .detected .grow { flex: 1 1 100%; }
+  .foot { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .steps { font-size: 13px; }
+  .st .bar { max-width: 90px; }
+  .hero h2 { font-size: 24px; }
+  .drop { padding: 26px 16px; }
+  .walkthrough video { width: 100%; }
+}
+
+/* Very narrow: one tile across rather than two cramped ones. */
+@media (max-width: 360px) {
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -5169,8 +5313,9 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
    * Make an account and sign into it.
    *
    * A history loaded before anybody made an account belongs to whoever was
-   * standing there, so the first account made adopts it rather than leaving a
-   * season of riding orphaned in the old slot.
+   * standing there, so a new account adopts it rather than leaving a season of
+   * riding orphaned in the old slot. Only the first account to be made finds
+   * anything there, since claiming it empties it.
    */
   async function signUp(name, password, displayName) {
     const problem = usernameProblem(name);
@@ -5190,12 +5335,15 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
       team: null, role: 'rider', created: new Date().toISOString(),
     };
     const box = read();
-    const first = box.riders.length === 0;
     box.riders.push(rider);
     box.current = rider.id;
     write(box);
 
-    if (first) adoptLegacyData(rider.id);
+    // Whoever makes an account inherits the rides that were loaded before
+    // there were accounts — they are nobody's until somebody claims them, and
+    // leaving a season stranded in the old slot to teach a lesson about
+    // signing up first would be a poor trade.
+    adoptLegacyData(rider.id);
     return rider;
   }
 
@@ -5284,13 +5432,30 @@ ${rows.map(r => r[0] + '\t' + r[1]).join('\n')}
     try { localStorage.removeItem(dataKey(id)); } catch (e) { /* already gone */ }
   }
 
-  /** Rides loaded before there were accounts become the first account's. */
+  /**
+   * Rides loaded before there were accounts become the first account's.
+   *
+   * The profile goes with them. An FTP and a weight typed in before signing up
+   * are the same rider's as the rides they were typed against, and leaving
+   * them behind meant a rider watched their zones vanish at the moment they
+   * made an account — which reads as the account having eaten them.
+   */
+  const LEGACY_PROFILE = 'training-hub-profile';
+  const LEGACY_SETUP = 'training-hub-setup-done';
+
   function adoptLegacyData(id) {
     try {
       const raw = localStorage.getItem(LEGACY_DATA);
       if (!raw) return false;
       localStorage.setItem(dataKey(id), raw);
       localStorage.removeItem(LEGACY_DATA);
+      [[LEGACY_PROFILE, LEGACY_PROFILE + ':' + id],
+       [LEGACY_SETUP, LEGACY_SETUP + ':' + id]].forEach(([from, to]) => {
+        const value = localStorage.getItem(from);
+        if (value == null) return;
+        localStorage.setItem(to, value);
+        localStorage.removeItem(from);
+      });
       return true;
     } catch (e) { return false; }
   }
@@ -5769,24 +5934,28 @@ function activityTable() {
     thead.appendChild(tr);
 
     const tbody = el('tbody');
+    // On a phone the table becomes one card per ride, and the column headings
+    // travel on the cells — see the phone block in style.css.
+    const label = (i) => (COLS[i] || [])[1] || '';
     rows.slice(0, 400).forEach(r => {
       const row = el('tr');
-      row.appendChild(el('td', { class: 'num', text: fmtDate(r.date) }));
-      const nameCell = el('td', { class: 'name' });
+      const nameCell = el('td', { class: 'name', 'data-label': '' });
       nameCell.appendChild(document.createTextNode(r.name || '—'));
       if (r.source) {
         nameCell.appendChild(document.createTextNode(' '));
         nameCell.appendChild(el('span', { class: 'src', text: r.source }));
       }
+      row.appendChild(el('td', { class: 'num', 'data-label': label(0), text: fmtDate(r.date) }));
       row.appendChild(nameCell);
-      row.appendChild(el('td', { class: 'r num', text: fmt(r.distance, 2) }));
-      row.appendChild(el('td', { class: 'r num', text: r.duration }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(2), text: fmt(r.distance, 2) }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(3), text: r.duration }));
       // Speed, not pace: minutes per mile is a runner's unit and this is a
       // bike site. The column sorts on the number behind the text.
-      row.appendChild(el('td', { class: 'r num',
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(4),
         text: r.speed_text ? r.speed_text.replace(/ (mph|km\/h)$/, '') : '—' }));
-      row.appendChild(el('td', { class: 'r num', text: r.hr == null ? '—' : r.hr }));
-      row.appendChild(el('td', { class: 'r num', text: fmt(r.load) }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(5),
+                                 text: r.hr == null ? '—' : r.hr }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(6), text: fmt(r.load) }));
 
       const cell = el('td', { class: 'r act' });
       const del = el('button', { class: 'del', type: 'button', text: '\u00d7',
@@ -6597,9 +6766,11 @@ function detectedBar(payload) {
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const origin = i.source === 'manual'
     ? 'estimated from time and distance'
-    : (i.source === 'fit'
-        ? plural(i.fitCount || i.unique, '.FIT ride')
-        : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`);
+    : (i.source === 'restore'
+        ? 'carried over from another device'
+        : (i.source === 'fit'
+            ? plural(i.fitCount || i.unique, '.FIT ride')
+            : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`));
   if (i.removed) {
     const bar = el('div', { class: 'detected' });
     const t = el('span', { class: 'grow' });
@@ -7586,9 +7757,19 @@ function recommendCard() {
  */
 function accountScreen() {
   const wrap = el('div', { class: 'landing' });
+  if (ACCOUNT) { wrap.appendChild(signedInCard()); return wrap; }
+
   const card = el('div', { class: 'card account' });
   const known = Riders.all();
   let mode = known.length ? 'in' : 'up';
+  // Rides loaded before anybody signed in are nobody's yet. They come with you
+  // into a new account rather than being left behind in the old slot.
+  let waiting = 0;
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    const held = raw ? JSON.parse(raw) : null;
+    waiting = (held && held.raw) ? held.raw.length : 0;
+  } catch (e) { waiting = 0; }
 
   const draw = () => {
     card.innerHTML = '';
@@ -7665,11 +7846,20 @@ function accountScreen() {
     skip.addEventListener('click', () => useAccount(null));
     card.appendChild(skip);
 
+    if (waiting && mode === 'up') {
+      card.appendChild(el('p', { class: 'acct-carry',
+        text: `The ${waiting} ride${waiting === 1 ? '' : 's'} already loaded on this ` +
+              'device will come with you into this account.' }));
+    }
+
     card.appendChild(el('p', { class: 'acct-small',
       text: 'This is not a cloud login. Your rides are in this browser and nowhere ' +
-            'else, so an account here will not show up on your phone, and clearing ' +
-            'the browser clears it. The password keeps a teammate out of your ' +
-            'numbers on a shared device — it is a name tag, not a vault.' }));
+            'else, so an account here will not show up on your phone by itself, and ' +
+            'clearing the browser clears it. The password keeps a teammate out of ' +
+            'your numbers on a shared device — it is a name tag, not a vault.' }));
+    card.appendChild(el('p', { class: 'acct-small',
+      text: 'To ride on more than one device, sign in on each and move your rides ' +
+            'across with the file the account screen gives you.' }));
 
     if (known.length) {
       const list = el('p', { class: 'acct-small',
@@ -7682,6 +7872,122 @@ function accountScreen() {
   draw();
   wrap.appendChild(card);
   return wrap;
+}
+
+/**
+ * The account, once you are in it.
+ *
+ * Who you are, and the two things a rider actually wants from an account on a
+ * site with no server: a way to take their riding to another device, and a way
+ * out. The file it hands over is the same rider card the team board reads, so
+ * one file does both jobs — send it to a coach, or send it to yourself.
+ */
+function signedInCard() {
+  const card = el('div', { class: 'card account' });
+  card.appendChild(el('h2', { text: ACCOUNT.display }));
+  card.appendChild(el('p', { class: 'hint',
+    text: `Signed in as ${ACCOUNT.username}` +
+          (ACCOUNT.team ? ` · ${ACCOUNT.team}${Riders.isCoach(ACCOUNT) ? ' · coach' : ''}` : '') }));
+
+  const held = (DATA && DATA.raw) ? DATA.raw.length : 0;
+  card.appendChild(el('p', { class: 'acct-small',
+    text: held
+      ? `${held} ride${held === 1 ? '' : 's'} in this account, on this device.`
+      : 'No rides in this account yet.' }));
+
+  /* ------------------------------------------------ to another device */
+  const move = el('div', { class: 'acct-block' });
+  move.appendChild(el('h3', { text: 'Your rides on another device' }));
+  move.appendChild(el('p', { class: 'acct-small',
+    text: 'Nothing syncs by itself, so this is how a history gets to your phone: ' +
+          'save the file here, open the site there, sign in, and bring it in. New ' +
+          'rides merge with what is already in the account — nothing is replaced ' +
+          'and nothing is duplicated.' }));
+
+  const row = el('div', { class: 'acct-actions' });
+  const out = el('button', { class: 'btn', type: 'button', text: 'Save my rides to a file' });
+  out.addEventListener('click', () => {
+    const file = myCard();
+    download(`${ACCOUNT.username}-rides.json`, JSON.stringify(file), 'application/json');
+  });
+  row.appendChild(out);
+
+  const inBtn = el('button', { class: 'ghost', type: 'button', text: 'Bring rides in from a file' });
+  const picker = el('input', { type: 'file', class: 'hidden-input',
+                               accept: '.json,application/json' });
+  const note = el('p', { class: 'acct-small' });
+  picker.addEventListener('change', async () => {
+    const file = picker.files && picker.files[0];
+    picker.value = '';
+    if (!file) return;
+    try {
+      note.textContent = bringInRides(JSON.parse(await readFile(file)));
+    } catch (e) {
+      note.textContent = e.message || 'That file could not be read.';
+    }
+  });
+  inBtn.addEventListener('click', () => picker.click());
+  row.appendChild(inBtn);
+  row.appendChild(picker);
+  move.appendChild(row);
+  move.appendChild(note);
+  card.appendChild(move);
+
+  /* ------------------------------------------------------------- out */
+  const outRow = el('div', { class: 'acct-actions acct-exit' });
+  const back = el('button', { class: 'ghost', type: 'button', text: 'Back to my dashboard' });
+  back.addEventListener('click', () => useAccount(ACCOUNT));
+  outRow.appendChild(back);
+
+  const bye = el('button', { class: 'ghost', type: 'button', text: 'Sign out' });
+  bye.addEventListener('click', () => {
+    Riders.signOut();
+    useAccount(null);
+  });
+  outRow.appendChild(bye);
+  card.appendChild(outRow);
+
+  card.appendChild(el('p', { class: 'acct-small',
+    text: 'Signing out leaves your rides on this device; they come back when you ' +
+          'sign in again. Clearing the browser removes them, which is what the ' +
+          'file above is for.' }));
+  return card;
+}
+
+/**
+ * Fold a saved file back into the account that is signed in.
+ *
+ * The same merge an upload goes through, so a file carried from a laptop meets
+ * the rides already on the phone and the two become one history rather than
+ * one overwriting the other. The profile only fills gaps: an FTP set here is
+ * not replaced by an older one out of a file.
+ */
+function bringInRides(file) {
+  const problem = cardProblem(file);
+  if (problem) throw new Error(problem);
+  const incoming = (file.rides || []).filter(a => a && a.type === 'cycling');
+  if (!incoming.length) throw new Error('There are no rides in that file.');
+
+  const payload = addToHistory(incoming, DATA, {
+    unit: (DATA && DATA.unit) || file.unit || 'mi',
+    imported: { source: 'restore', filename: 'your saved rides' },
+  });
+  payload.imported.remembered = saveLocal(payload);
+
+  let took = false;
+  ['ftp', 'weightKg', 'restHr', 'maxHr'].forEach(k => {
+    const from = file.profile || {};
+    const value = k === 'weightKg' ? (from.weightKg || from.weight_kg) : from[k];
+    if (value && !PROFILE[k]) { PROFILE[k] = value; took = true; }
+  });
+  if (took) saveProfile();
+
+  const added = payload.imported.added;
+  render(payload);
+  return added
+    ? `${added} ride${added === 1 ? '' : 's'} brought in. ` +
+      `${payload.imported.unique} in this account now.`
+    : 'Every ride in that file was already here.';
 }
 
 /* ----------------------------------------------------------------- team */
@@ -7920,7 +8226,7 @@ function teamView() {
     .sort((a, b) => b.sum.week.distance - a.sum.week.distance)
     .forEach(({ row, sum }) => {
       const line = el('tr');
-      const who = el('td', { class: 'name' });
+      const who = el('td', { class: 'name', 'data-label': '' });
       who.appendChild(document.createTextNode(row.display));
       if (row.isYou) who.appendChild(el('span', { class: 'src', text: 'you' }));
       if (row.role === 'coach') who.appendChild(el('span', { class: 'src', text: 'coach' }));
@@ -7930,16 +8236,21 @@ function teamView() {
       }
       line.appendChild(who);
 
+      // The labels ride on the cells, so the board reads as one card per
+      // rider on a phone rather than a table scrolled sideways.
       const unit = row.unit === 'km' ? 'km' : 'mi';
-      line.appendChild(el('td', { class: 'r num',
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Last 7 days',
         text: sum.rides ? `${fmt(sum.week.distance, 1)} ${unit}` : '—' }));
-      line.appendChild(el('td', { class: 'r num', text: String(sum.week.rides) }));
-      line.appendChild(el('td', { class: 'r num', text: sum.ftp ? sum.ftp + ' W' : '—' }));
-      line.appendChild(el('td', { class: 'r num',
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Rides',
+                                  text: String(sum.week.rides) }));
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'FTP',
+                                  text: sum.ftp ? sum.ftp + ' W' : '—' }));
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Form',
         text: sum.form == null ? '—' : (sum.form > 0 ? '+' : '') + Math.round(sum.form) }));
-      line.appendChild(el('td', { class: 'r num', text: sum.last ? fmtDate(sum.last) : '—' }));
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Last ride',
+                                  text: sum.last ? fmtDate(sum.last) : '—' }));
 
-      const next = el('td');
+      const next = el('td', { 'data-label': 'Next session' });
       if (sum.rec) {
         const chosen = sum.rec.options.find(o => o.tone === 'recommended') || sum.rec.options[0];
         next.appendChild(el('strong', { text: chosen.name }));
@@ -8423,24 +8734,16 @@ function paintAccountButton() {
   loadProfile();
   paintAccountButton();
 
+  // One screen, signed in or out: the way in, or who you are and how to take
+  // your riding somewhere else.
   $('#account-btn').addEventListener('click', () => {
-    if (!ACCOUNT) {
-      SIGNING_IN = true;
-      const app = $('#app');
-      app.innerHTML = '';
-      $('#import-btn').hidden = true;
-      $('#clear-btn').hidden = true;
-      app.appendChild(accountScreen());
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-    // Signed in already: the button is a way out, or a way to be somebody else.
-    const stay = window.confirm(
-      `Signed in as ${ACCOUNT.display}.\n\nOK signs you out — your rides stay on ` +
-      'this device and come back when you sign in again. Cancel to stay.');
-    if (!stay) return;
-    Riders.signOut();
-    useAccount(null);
+    SIGNING_IN = true;
+    const app = $('#app');
+    app.innerHTML = '';
+    $('#import-btn').hidden = true;
+    $('#clear-btn').hidden = true;
+    app.appendChild(accountScreen());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   $('#import-btn').addEventListener('click', () => render(null));

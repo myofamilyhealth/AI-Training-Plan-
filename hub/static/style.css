@@ -516,6 +516,17 @@ input[type=file].hidden-input { display: none; }
 }
 .card.account .skip { margin-top: 16px; align-self: flex-start; }
 
+.acct-exit { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.acct-block {
+  margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border);
+}
+.acct-block h3 {
+  margin: 0 0 6px; font-size: 13.5px; font-weight: 620; letter-spacing: -.008em;
+}
+.acct-carry {
+  margin: 14px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--text-2);
+  border-left: 3px solid var(--series-1); padding-left: 10px;
+}
 .team-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
 .sub-note { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
 
@@ -808,3 +819,136 @@ footer.foot a:hover { color: var(--text); }
   font-size: 12.5px; letter-spacing: .01em;
 }
 .course-note .pin { flex: none; margin-top: 2px; }
+
+/* =======================================================================
+   Phones
+   =======================================================================
+   Everything the site does, on a screen 390 points wide. Nothing is dropped
+   and nothing is hidden behind a menu — the numbers a rider looks at on the
+   way to a trailhead are the same ones they look at on a laptop.
+
+   Three things do the work. The header folds onto two rows so its buttons
+   stop running off the edge. The big display numbers come down to a size
+   that fits two across instead of one per screen. And the tables stop being
+   tables: an eight-column session list scrolled sideways on a phone is a
+   table nobody reads, so each row becomes a small card with its own labels.
+   ------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* The notch, and the home indicator. */
+  header.top { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .wrap { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+
+  header.top { margin-bottom: 16px; }
+  .top-inner { flex-wrap: wrap; gap: 9px; padding: 11px 14px; }
+  .brand { flex: 1 1 100%; gap: 9px; min-width: 0; }
+  .brand h1 { font-size: 17px; white-space: nowrap; }
+  .brand .sub {
+    font-size: 11.5px; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .spacer { display: none; }
+  /* Four controls, one row, thumb-sized and none of them off the screen. */
+  header.top .ghost {
+    flex: 1 1 0; min-width: 0; min-height: 40px;
+    padding: 9px 6px; font-size: 12.5px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .wrap { padding-left: 14px; padding-right: 14px; }
+  .card { padding: 16px 15px; border-radius: 14px; }
+  .card h2 { font-size: 13px; }
+  .grid, .stack { gap: 14px; }
+
+  /* Two across, at a size that leaves room for what is under them. */
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { padding: 14px 14px 13px; }
+  .tile .label { font-size: 10px; letter-spacing: .09em; }
+  .tile .value { margin-top: 7px; font-size: 30px; letter-spacing: -.03em; }
+  .tile .value .unit { font-size: 13px; margin-left: 3px; }
+  .tile .foot { margin-top: 9px; font-size: 11.5px; line-height: 1.45; }
+
+  /* Tabs are the whole navigation, so they stay put and stay reachable. */
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { padding: 11px 12px; font-size: 14px; white-space: nowrap; }
+
+  /* ---------------------------------------------------- tables as cards */
+  .tbl-wrap { overflow: visible; }
+  table, thead, tbody, tr, td { display: block; width: 100%; }
+  thead { display: none; }
+  tbody tr {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 4px 12px; margin-bottom: 10px; background: var(--surface);
+  }
+  tbody tr:last-child { margin-bottom: 0; }
+  tbody td {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+    padding: 7px 0; border: 0; text-align: right;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td:last-child { border-bottom: 0; }
+  /* The column heading, carried on the cell, so a row still says what its
+     numbers are once the header is gone. */
+  tbody td::before {
+    content: attr(data-label);
+    font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--text-3);
+    text-align: left; flex: none;
+  }
+  tbody td:empty, tbody td[data-label=""]:empty { display: none; }
+  /* The name is the row's heading, wherever it sits in the column order. The
+     180px floor it carries as a table column is what a card cannot afford:
+     left in place it widened the row, the card and the whole page past the
+     screen. */
+  tbody td.name {
+    order: -1; min-width: 0;
+    font-size: 15px; font-weight: 600; text-align: left;
+    justify-content: flex-start; flex-wrap: wrap; gap: 8px;
+  }
+  /* Nothing inside a card may set the page's width. A cell is a flex row, so
+     its children need the same release or a long line pushes it open. */
+  .card, .stack > *, .grid > *, .tbl-wrap, table, tbody, tr,
+  tbody td, tbody td > * { min-width: 0; max-width: 100%; }
+  tbody td > * { overflow-wrap: anywhere; }
+  /* The remove column is 34px wide in a table; as a row in a card it is a
+     full-width line like any other, or its label spills out of the card. */
+  tbody td.act { width: auto; justify-content: space-between; padding: 6px 0; }
+  tbody td.act::before { content: "Remove"; }
+  .controls { gap: 6px; }
+  .seg { flex-wrap: wrap; }
+  .seg button { padding: 8px 11px; font-size: 13px; }
+
+  /* --------------------------------------------------- forms and buttons */
+  /* 16px or iOS zooms the whole page when a field takes focus. */
+  .field input, .field select, .prompt, .acct-form input {
+    font-size: 16px; padding: 11px 12px;
+  }
+  .btn, .ghost, .del { min-height: 42px; }
+  .btn { padding: 12px 18px; font-size: 14.5px; }
+  .fields { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px; }
+  .card.account { max-width: none; }
+  .acct-actions { flex-wrap: wrap; }
+  .acct-actions .btn, .acct-actions .ghost { flex: 1 1 auto; }
+
+  /* ------------------------------------------------------------ the rest */
+  .rt-head { flex-wrap: wrap; gap: 8px; }
+  .rt-opt { padding: 15px 15px 17px; }
+  .rt-opt h3 { font-size: 17px; }
+  .team-actions .btn, .team-actions .ghost { flex: 1 1 auto; }
+  /* The import summary reads as a sentence; its controls go under it rather
+     than fighting for the same line. */
+  .detected { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+  .detected .grow { flex: 1 1 100%; }
+  .foot { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .steps { font-size: 13px; }
+  .st .bar { max-width: 90px; }
+  .hero h2 { font-size: 24px; }
+  .drop { padding: 26px 16px; }
+  .walkthrough video { width: 100%; }
+}
+
+/* Very narrow: one tile across rather than two cramped ones. */
+@media (max-width: 360px) {
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+}

@@ -463,24 +463,28 @@ function activityTable() {
     thead.appendChild(tr);
 
     const tbody = el('tbody');
+    // On a phone the table becomes one card per ride, and the column headings
+    // travel on the cells — see the phone block in style.css.
+    const label = (i) => (COLS[i] || [])[1] || '';
     rows.slice(0, 400).forEach(r => {
       const row = el('tr');
-      row.appendChild(el('td', { class: 'num', text: fmtDate(r.date) }));
-      const nameCell = el('td', { class: 'name' });
+      const nameCell = el('td', { class: 'name', 'data-label': '' });
       nameCell.appendChild(document.createTextNode(r.name || '—'));
       if (r.source) {
         nameCell.appendChild(document.createTextNode(' '));
         nameCell.appendChild(el('span', { class: 'src', text: r.source }));
       }
+      row.appendChild(el('td', { class: 'num', 'data-label': label(0), text: fmtDate(r.date) }));
       row.appendChild(nameCell);
-      row.appendChild(el('td', { class: 'r num', text: fmt(r.distance, 2) }));
-      row.appendChild(el('td', { class: 'r num', text: r.duration }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(2), text: fmt(r.distance, 2) }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(3), text: r.duration }));
       // Speed, not pace: minutes per mile is a runner's unit and this is a
       // bike site. The column sorts on the number behind the text.
-      row.appendChild(el('td', { class: 'r num',
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(4),
         text: r.speed_text ? r.speed_text.replace(/ (mph|km\/h)$/, '') : '—' }));
-      row.appendChild(el('td', { class: 'r num', text: r.hr == null ? '—' : r.hr }));
-      row.appendChild(el('td', { class: 'r num', text: fmt(r.load) }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(5),
+                                 text: r.hr == null ? '—' : r.hr }));
+      row.appendChild(el('td', { class: 'r num', 'data-label': label(6), text: fmt(r.load) }));
 
       const cell = el('td', { class: 'r act' });
       const del = el('button', { class: 'del', type: 'button', text: '\u00d7',
@@ -1291,9 +1295,11 @@ function detectedBar(payload) {
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const origin = i.source === 'manual'
     ? 'estimated from time and distance'
-    : (i.source === 'fit'
-        ? plural(i.fitCount || i.unique, '.FIT ride')
-        : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`);
+    : (i.source === 'restore'
+        ? 'carried over from another device'
+        : (i.source === 'fit'
+            ? plural(i.fitCount || i.unique, '.FIT ride')
+            : `${i.source === 'garmin' ? 'Garmin' : 'Strava'} export`));
   if (i.removed) {
     const bar = el('div', { class: 'detected' });
     const t = el('span', { class: 'grow' });
@@ -2280,9 +2286,19 @@ function recommendCard() {
  */
 function accountScreen() {
   const wrap = el('div', { class: 'landing' });
+  if (ACCOUNT) { wrap.appendChild(signedInCard()); return wrap; }
+
   const card = el('div', { class: 'card account' });
   const known = Riders.all();
   let mode = known.length ? 'in' : 'up';
+  // Rides loaded before anybody signed in are nobody's yet. They come with you
+  // into a new account rather than being left behind in the old slot.
+  let waiting = 0;
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    const held = raw ? JSON.parse(raw) : null;
+    waiting = (held && held.raw) ? held.raw.length : 0;
+  } catch (e) { waiting = 0; }
 
   const draw = () => {
     card.innerHTML = '';
@@ -2359,11 +2375,20 @@ function accountScreen() {
     skip.addEventListener('click', () => useAccount(null));
     card.appendChild(skip);
 
+    if (waiting && mode === 'up') {
+      card.appendChild(el('p', { class: 'acct-carry',
+        text: `The ${waiting} ride${waiting === 1 ? '' : 's'} already loaded on this ` +
+              'device will come with you into this account.' }));
+    }
+
     card.appendChild(el('p', { class: 'acct-small',
       text: 'This is not a cloud login. Your rides are in this browser and nowhere ' +
-            'else, so an account here will not show up on your phone, and clearing ' +
-            'the browser clears it. The password keeps a teammate out of your ' +
-            'numbers on a shared device — it is a name tag, not a vault.' }));
+            'else, so an account here will not show up on your phone by itself, and ' +
+            'clearing the browser clears it. The password keeps a teammate out of ' +
+            'your numbers on a shared device — it is a name tag, not a vault.' }));
+    card.appendChild(el('p', { class: 'acct-small',
+      text: 'To ride on more than one device, sign in on each and move your rides ' +
+            'across with the file the account screen gives you.' }));
 
     if (known.length) {
       const list = el('p', { class: 'acct-small',
@@ -2376,6 +2401,122 @@ function accountScreen() {
   draw();
   wrap.appendChild(card);
   return wrap;
+}
+
+/**
+ * The account, once you are in it.
+ *
+ * Who you are, and the two things a rider actually wants from an account on a
+ * site with no server: a way to take their riding to another device, and a way
+ * out. The file it hands over is the same rider card the team board reads, so
+ * one file does both jobs — send it to a coach, or send it to yourself.
+ */
+function signedInCard() {
+  const card = el('div', { class: 'card account' });
+  card.appendChild(el('h2', { text: ACCOUNT.display }));
+  card.appendChild(el('p', { class: 'hint',
+    text: `Signed in as ${ACCOUNT.username}` +
+          (ACCOUNT.team ? ` · ${ACCOUNT.team}${Riders.isCoach(ACCOUNT) ? ' · coach' : ''}` : '') }));
+
+  const held = (DATA && DATA.raw) ? DATA.raw.length : 0;
+  card.appendChild(el('p', { class: 'acct-small',
+    text: held
+      ? `${held} ride${held === 1 ? '' : 's'} in this account, on this device.`
+      : 'No rides in this account yet.' }));
+
+  /* ------------------------------------------------ to another device */
+  const move = el('div', { class: 'acct-block' });
+  move.appendChild(el('h3', { text: 'Your rides on another device' }));
+  move.appendChild(el('p', { class: 'acct-small',
+    text: 'Nothing syncs by itself, so this is how a history gets to your phone: ' +
+          'save the file here, open the site there, sign in, and bring it in. New ' +
+          'rides merge with what is already in the account — nothing is replaced ' +
+          'and nothing is duplicated.' }));
+
+  const row = el('div', { class: 'acct-actions' });
+  const out = el('button', { class: 'btn', type: 'button', text: 'Save my rides to a file' });
+  out.addEventListener('click', () => {
+    const file = myCard();
+    download(`${ACCOUNT.username}-rides.json`, JSON.stringify(file), 'application/json');
+  });
+  row.appendChild(out);
+
+  const inBtn = el('button', { class: 'ghost', type: 'button', text: 'Bring rides in from a file' });
+  const picker = el('input', { type: 'file', class: 'hidden-input',
+                               accept: '.json,application/json' });
+  const note = el('p', { class: 'acct-small' });
+  picker.addEventListener('change', async () => {
+    const file = picker.files && picker.files[0];
+    picker.value = '';
+    if (!file) return;
+    try {
+      note.textContent = bringInRides(JSON.parse(await readFile(file)));
+    } catch (e) {
+      note.textContent = e.message || 'That file could not be read.';
+    }
+  });
+  inBtn.addEventListener('click', () => picker.click());
+  row.appendChild(inBtn);
+  row.appendChild(picker);
+  move.appendChild(row);
+  move.appendChild(note);
+  card.appendChild(move);
+
+  /* ------------------------------------------------------------- out */
+  const outRow = el('div', { class: 'acct-actions acct-exit' });
+  const back = el('button', { class: 'ghost', type: 'button', text: 'Back to my dashboard' });
+  back.addEventListener('click', () => useAccount(ACCOUNT));
+  outRow.appendChild(back);
+
+  const bye = el('button', { class: 'ghost', type: 'button', text: 'Sign out' });
+  bye.addEventListener('click', () => {
+    Riders.signOut();
+    useAccount(null);
+  });
+  outRow.appendChild(bye);
+  card.appendChild(outRow);
+
+  card.appendChild(el('p', { class: 'acct-small',
+    text: 'Signing out leaves your rides on this device; they come back when you ' +
+          'sign in again. Clearing the browser removes them, which is what the ' +
+          'file above is for.' }));
+  return card;
+}
+
+/**
+ * Fold a saved file back into the account that is signed in.
+ *
+ * The same merge an upload goes through, so a file carried from a laptop meets
+ * the rides already on the phone and the two become one history rather than
+ * one overwriting the other. The profile only fills gaps: an FTP set here is
+ * not replaced by an older one out of a file.
+ */
+function bringInRides(file) {
+  const problem = cardProblem(file);
+  if (problem) throw new Error(problem);
+  const incoming = (file.rides || []).filter(a => a && a.type === 'cycling');
+  if (!incoming.length) throw new Error('There are no rides in that file.');
+
+  const payload = addToHistory(incoming, DATA, {
+    unit: (DATA && DATA.unit) || file.unit || 'mi',
+    imported: { source: 'restore', filename: 'your saved rides' },
+  });
+  payload.imported.remembered = saveLocal(payload);
+
+  let took = false;
+  ['ftp', 'weightKg', 'restHr', 'maxHr'].forEach(k => {
+    const from = file.profile || {};
+    const value = k === 'weightKg' ? (from.weightKg || from.weight_kg) : from[k];
+    if (value && !PROFILE[k]) { PROFILE[k] = value; took = true; }
+  });
+  if (took) saveProfile();
+
+  const added = payload.imported.added;
+  render(payload);
+  return added
+    ? `${added} ride${added === 1 ? '' : 's'} brought in. ` +
+      `${payload.imported.unique} in this account now.`
+    : 'Every ride in that file was already here.';
 }
 
 /* ----------------------------------------------------------------- team */
@@ -2614,7 +2755,7 @@ function teamView() {
     .sort((a, b) => b.sum.week.distance - a.sum.week.distance)
     .forEach(({ row, sum }) => {
       const line = el('tr');
-      const who = el('td', { class: 'name' });
+      const who = el('td', { class: 'name', 'data-label': '' });
       who.appendChild(document.createTextNode(row.display));
       if (row.isYou) who.appendChild(el('span', { class: 'src', text: 'you' }));
       if (row.role === 'coach') who.appendChild(el('span', { class: 'src', text: 'coach' }));
@@ -2624,16 +2765,21 @@ function teamView() {
       }
       line.appendChild(who);
 
+      // The labels ride on the cells, so the board reads as one card per
+      // rider on a phone rather than a table scrolled sideways.
       const unit = row.unit === 'km' ? 'km' : 'mi';
-      line.appendChild(el('td', { class: 'r num',
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Last 7 days',
         text: sum.rides ? `${fmt(sum.week.distance, 1)} ${unit}` : '—' }));
-      line.appendChild(el('td', { class: 'r num', text: String(sum.week.rides) }));
-      line.appendChild(el('td', { class: 'r num', text: sum.ftp ? sum.ftp + ' W' : '—' }));
-      line.appendChild(el('td', { class: 'r num',
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Rides',
+                                  text: String(sum.week.rides) }));
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'FTP',
+                                  text: sum.ftp ? sum.ftp + ' W' : '—' }));
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Form',
         text: sum.form == null ? '—' : (sum.form > 0 ? '+' : '') + Math.round(sum.form) }));
-      line.appendChild(el('td', { class: 'r num', text: sum.last ? fmtDate(sum.last) : '—' }));
+      line.appendChild(el('td', { class: 'r num', 'data-label': 'Last ride',
+                                  text: sum.last ? fmtDate(sum.last) : '—' }));
 
-      const next = el('td');
+      const next = el('td', { 'data-label': 'Next session' });
       if (sum.rec) {
         const chosen = sum.rec.options.find(o => o.tone === 'recommended') || sum.rec.options[0];
         next.appendChild(el('strong', { text: chosen.name }));
@@ -3117,24 +3263,16 @@ function paintAccountButton() {
   loadProfile();
   paintAccountButton();
 
+  // One screen, signed in or out: the way in, or who you are and how to take
+  // your riding somewhere else.
   $('#account-btn').addEventListener('click', () => {
-    if (!ACCOUNT) {
-      SIGNING_IN = true;
-      const app = $('#app');
-      app.innerHTML = '';
-      $('#import-btn').hidden = true;
-      $('#clear-btn').hidden = true;
-      app.appendChild(accountScreen());
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-    // Signed in already: the button is a way out, or a way to be somebody else.
-    const stay = window.confirm(
-      `Signed in as ${ACCOUNT.display}.\n\nOK signs you out — your rides stay on ` +
-      'this device and come back when you sign in again. Cancel to stay.');
-    if (!stay) return;
-    Riders.signOut();
-    useAccount(null);
+    SIGNING_IN = true;
+    const app = $('#app');
+    app.innerHTML = '';
+    $('#import-btn').hidden = true;
+    $('#clear-btn').hidden = true;
+    app.appendChild(accountScreen());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   $('#import-btn').addEventListener('click', () => render(null));

@@ -181,8 +181,9 @@
    * Make an account and sign into it.
    *
    * A history loaded before anybody made an account belongs to whoever was
-   * standing there, so the first account made adopts it rather than leaving a
-   * season of riding orphaned in the old slot.
+   * standing there, so a new account adopts it rather than leaving a season of
+   * riding orphaned in the old slot. Only the first account to be made finds
+   * anything there, since claiming it empties it.
    */
   async function signUp(name, password, displayName) {
     const problem = usernameProblem(name);
@@ -202,12 +203,15 @@
       team: null, role: 'rider', created: new Date().toISOString(),
     };
     const box = read();
-    const first = box.riders.length === 0;
     box.riders.push(rider);
     box.current = rider.id;
     write(box);
 
-    if (first) adoptLegacyData(rider.id);
+    // Whoever makes an account inherits the rides that were loaded before
+    // there were accounts — they are nobody's until somebody claims them, and
+    // leaving a season stranded in the old slot to teach a lesson about
+    // signing up first would be a poor trade.
+    adoptLegacyData(rider.id);
     return rider;
   }
 
@@ -296,13 +300,30 @@
     try { localStorage.removeItem(dataKey(id)); } catch (e) { /* already gone */ }
   }
 
-  /** Rides loaded before there were accounts become the first account's. */
+  /**
+   * Rides loaded before there were accounts become the first account's.
+   *
+   * The profile goes with them. An FTP and a weight typed in before signing up
+   * are the same rider's as the rides they were typed against, and leaving
+   * them behind meant a rider watched their zones vanish at the moment they
+   * made an account — which reads as the account having eaten them.
+   */
+  const LEGACY_PROFILE = 'training-hub-profile';
+  const LEGACY_SETUP = 'training-hub-setup-done';
+
   function adoptLegacyData(id) {
     try {
       const raw = localStorage.getItem(LEGACY_DATA);
       if (!raw) return false;
       localStorage.setItem(dataKey(id), raw);
       localStorage.removeItem(LEGACY_DATA);
+      [[LEGACY_PROFILE, LEGACY_PROFILE + ':' + id],
+       [LEGACY_SETUP, LEGACY_SETUP + ':' + id]].forEach(([from, to]) => {
+        const value = localStorage.getItem(from);
+        if (value == null) return;
+        localStorage.setItem(to, value);
+        localStorage.removeItem(from);
+      });
       return true;
     } catch (e) { return false; }
   }

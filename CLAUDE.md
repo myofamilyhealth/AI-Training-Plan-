@@ -338,11 +338,44 @@ The board runs the same `Coach.nextUp()` and the same `Cycling.pmc()` over each
 rider's rides that the dashboard runs over yours. There is no second
 implementation of the coach for teams and there must never be one.
 
-**Rider cards are how team data crosses devices**, because nothing else can.
+**Rider cards are how data crosses devices**, because nothing else can.
 `myCard()` writes a rider's profile and ride summaries to a small JSON file —
-power curves stripped, since a teammate's bests are not what a board is for —
-and the team tab reads them back. A card is a snapshot of the day it was
-exported and the page says so; it is not a sync.
+power curves stripped, since a teammate's bests are not what a board is for.
+One file does two jobs: the team tab reads it as a teammate, and the account
+screen reads it as *you*, through `bringInRides()`, which merges it into the
+signed-in account with the same `addToHistory` dedupe an upload goes through.
+So the same file sent to a coach is the file that carries your history to your
+phone. A card is a snapshot of the day it was exported and the page says so; it
+is not a sync.
+
+Signing up also adopts what was already on the device — rides, profile and the
+setup card's answer together. Leaving the FTP behind made an account look like
+it had eaten the rider's zones.
+
+## Phones
+
+The site is used at trailheads. `style.css` ends with a `max-width: 640px`
+block that is a real layout, not a squeeze, and nothing is dropped or hidden
+behind a menu — the numbers on a phone are the numbers on a laptop.
+
+Three things carry it. The header folds onto two rows so its buttons stop
+running off the edge. The display numbers come down to a size that fits two
+tiles across instead of one per screen. And **tables stop being tables**: an
+eight-column session list scrolled sideways is a table nobody reads, so
+`tr` becomes a card and each `td` carries its column heading in `data-label`,
+which the CSS prints through `::before`. Add a column to the Sessions table or
+the team board and it needs a `data-label` or the phone layout loses its name.
+
+Two traps, both already sprung: a table column's `min-width` (`td.name` has
+180px) widens the whole page once the cells are blocks, and a 34px action
+column spills its label outside the card. The phone block clears both, and
+`min-width: 0` is set down the whole chain, so nothing inside a card can set
+the page's width. Inputs are 16px there because anything smaller makes iOS zoom
+the page when a field takes focus.
+
+Check it with a real phone viewport, not a narrow window: the test in
+`scratchpad` walks every screen at iPhone width and asserts
+`documentElement.scrollWidth` never exceeds `clientWidth`.
 
 ## A hard constraint on Strava
 

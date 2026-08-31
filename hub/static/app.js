@@ -648,8 +648,13 @@ function emptyState() {
 
 const STORE_KEY = 'training-hub-data';
 
+// The account whose history is on screen, or null for a rider using the site
+// the way it has always worked: no account, one history, this browser.
+let ACCOUNT = null;
+
 function saveLocal(payload) {
   try {
+    if (ACCOUNT) return Riders.saveData(ACCOUNT.id, payload);
     localStorage.setItem(STORE_KEY, JSON.stringify(payload));
     return true;
   } catch (e) {
@@ -660,12 +665,33 @@ function saveLocal(payload) {
 }
 function loadLocal() {
   try {
+    if (ACCOUNT) return Riders.loadData(ACCOUNT.id);
     const raw = localStorage.getItem(STORE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 function clearLocal() {
-  try { localStorage.removeItem(STORE_KEY); } catch (e) { /* nothing to do */ }
+  try {
+    if (ACCOUNT) Riders.clearData(ACCOUNT.id);
+    else localStorage.removeItem(STORE_KEY);
+  } catch (e) { /* nothing to do */ }
+}
+
+/**
+ * Switch to an account, or to nobody, and redraw from that rider's history.
+ *
+ * Everything on the page is built from DATA, so changing which slot DATA comes
+ * from is the whole of signing in. The profile travels with the account: FTP
+ * and weight are the rider's, not the browser's, and two riders sharing a
+ * laptop should never inherit each other's zones.
+ */
+function useAccount(rider) {
+  ACCOUNT = rider || null;
+  SIGNING_IN = false;
+  loadProfile();
+  TAB = 'dashboard';
+  paintAccountButton();
+  render(ridesOnly(loadLocal()));
 }
 
 function readFile(file) {
@@ -1372,6 +1398,10 @@ function render(payload, errorMessage) {
     $('#range-sub').textContent = held
       ? `${held} session${held === 1 ? '' : 's'} loaded  ·  add more below`
       : 'nothing loaded yet';
+    if (ACCOUNT && ACCOUNT.team) {
+      app.appendChild(tabBar());
+      if (TAB === 'team') { app.appendChild(teamView()); return; }
+    }
     app.appendChild(importScreen(errorMessage));
     return;
   }
@@ -1409,6 +1439,7 @@ function drawDashboard() {
 
   app.appendChild(tabBar());
   if (TAB === 'workout') { app.appendChild(workoutView()); return; }
+  if (TAB === 'team') { app.appendChild(teamView()); return; }
 
   const setup = setupCard();
   if (setup) app.appendChild(setup);
@@ -1767,14 +1798,23 @@ const DEFAULT_PROFILE = { ftp: null, weightKg: null, restHr: 50, maxHr: 190, sex
 let PROFILE = Object.assign({}, DEFAULT_PROFILE);
 let TAB = 'dashboard';
 
+// The profile belongs to the rider, not to the browser: two riders on one
+// laptop must not inherit each other's FTP, weight or zones.
+const profileKey = () => ACCOUNT ? PROFILE_KEY + ':' + ACCOUNT.id : PROFILE_KEY;
+// And so does having been asked for it: the second rider on a shared laptop
+// was never offered the setup card, because the first had dismissed it.
+const setupKey = () =>
+  ACCOUNT ? 'training-hub-setup-done:' + ACCOUNT.id : 'training-hub-setup-done';
+
 function loadProfile() {
+  PROFILE = Object.assign({}, DEFAULT_PROFILE);
   try {
-    const raw = localStorage.getItem(PROFILE_KEY);
+    const raw = localStorage.getItem(profileKey());
     if (raw) PROFILE = Object.assign({}, DEFAULT_PROFILE, JSON.parse(raw));
   } catch (e) { /* private mode; defaults stand */ }
 }
 function saveProfile() {
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(PROFILE)); } catch (e) { /* ignore */ }
+  try { localStorage.setItem(profileKey(), JSON.stringify(PROFILE)); } catch (e) { /* ignore */ }
 }
 
 const rides = () => (RAW_ACTIVITIES || []).filter(a => a.type === 'cycling');
@@ -1947,7 +1987,7 @@ function zoneBar(dist, ftp) {
 function setupCard() {
   if (PROFILE.ftp && PROFILE.weightKg) return null;
   let dismissed = false;
-  try { dismissed = localStorage.getItem('training-hub-setup-done') === '1'; } catch (e) {}
+  try { dismissed = localStorage.getItem(setupKey()) === '1'; } catch (e) {}
   if (dismissed) return null;
 
   const measured = DATA.curve ? Fit.ftpFromCurve(DATA.curve) : null;
@@ -1987,14 +2027,14 @@ function setupCard() {
     if (Number.isFinite(f) && f > 0) PROFILE.ftp = Math.round(f);
     if (Number.isFinite(w) && w > 0) PROFILE.weightKg = w;
     saveProfile();
-    try { localStorage.setItem('training-hub-setup-done', '1'); } catch (e) {}
+    try { localStorage.setItem(setupKey(), '1'); } catch (e) {}
     drawDashboard();
   });
   row.appendChild(save);
 
   const skip = el('button', { class: 'skip', type: 'button', text: 'Not now' });
   skip.addEventListener('click', () => {
-    try { localStorage.setItem('training-hub-setup-done', '1'); } catch (e) {}
+    try { localStorage.setItem(setupKey(), '1'); } catch (e) {}
     drawDashboard();
   });
   row.appendChild(skip);
@@ -2224,6 +2264,421 @@ function recommendCard() {
 
   if (rec.pattern) card.appendChild(el('p', { class: 'rec-note', text: rec.pattern }));
   return card;
+}
+
+/* ------------------------------------------------------------- accounts */
+
+/**
+ * Signing in, on a site with no server.
+ *
+ * An account is a slot in this browser: the rides, the profile and the FTP
+ * behind one name. It exists so a laptop at the trailhead, or an iPad at home,
+ * can hold more than one rider without their numbers running together.
+ *
+ * It is not a login that follows you to another device, and the screen says so
+ * rather than letting somebody find out on their phone.
+ */
+function accountScreen() {
+  const wrap = el('div', { class: 'landing' });
+  const card = el('div', { class: 'card account' });
+  const known = Riders.all();
+  let mode = known.length ? 'in' : 'up';
+
+  const draw = () => {
+    card.innerHTML = '';
+    card.appendChild(el('h2', { text: mode === 'in' ? 'Sign in' : 'Make an account' }));
+    card.appendChild(el('p', { class: 'hint',
+      text: mode === 'in'
+        ? 'Your rides, your FTP and your recommendation, kept apart from anybody ' +
+          'else who uses this device.'
+        : 'One name for your riding on this device. There is no email and nothing ' +
+          'to confirm — the account lives in this browser.' }));
+
+    const form = el('div', { class: 'acct-form' });
+    const field = (label, attrs, note) => {
+      const f = el('label', { class: 'field' });
+      f.appendChild(el('span', { text: label }));
+      const input = el('input', attrs);
+      f.appendChild(input);
+      if (note) f.appendChild(el('span', { class: 'note', text: note }));
+      form.appendChild(f);
+      return input;
+    };
+
+    const user = field('Username', { type: 'text', autocomplete: 'username',
+                                     autocapitalize: 'none', spellcheck: 'false' });
+    const name = mode === 'up'
+      ? field('Name on the team board', { type: 'text', autocomplete: 'name' },
+              'Optional. Your username is used if you leave it blank.')
+      : null;
+    const pass = field('Password', { type: 'password',
+      autocomplete: mode === 'in' ? 'current-password' : 'new-password' },
+      mode === 'up' ? 'Six characters or more.' : '');
+
+    card.appendChild(form);
+
+    const err = el('p', { class: 'acct-err', hidden: 'hidden' });
+    card.appendChild(err);
+    const fail = message => { err.textContent = message; err.hidden = false; };
+
+    const go = el('button', { class: 'btn', type: 'button',
+                              text: mode === 'in' ? 'Sign in' : 'Create it' });
+    const submit = async () => {
+      err.hidden = true;
+      go.disabled = true;
+      try {
+        const rider = mode === 'in'
+          ? await Riders.signIn(user.value, pass.value)
+          : await Riders.signUp(user.value, pass.value, name ? name.value : '');
+        useAccount(rider);
+      } catch (e) {
+        fail(e.message);
+        go.disabled = false;
+      }
+    };
+    [user, pass].concat(name ? [name] : []).forEach(input =>
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+    go.addEventListener('click', submit);
+
+    const row = el('div', { class: 'acct-actions' });
+    row.appendChild(go);
+    const swap = el('button', { class: 'ghost', type: 'button',
+      text: mode === 'in' ? 'Make an account' : (known.length ? 'I have one already' : 'Cancel') });
+    swap.addEventListener('click', () => {
+      if (mode === 'up' && !known.length) { useAccount(null); return; }
+      mode = mode === 'in' ? 'up' : 'in';
+      draw();
+    });
+    row.appendChild(swap);
+    card.appendChild(row);
+
+    // Nobody is forced into an account. The site works exactly as it always
+    // has without one, and saying so here is more honest than a wall.
+    const skip = el('button', { class: 'skip', type: 'button',
+                                text: 'Carry on without an account' });
+    skip.addEventListener('click', () => useAccount(null));
+    card.appendChild(skip);
+
+    card.appendChild(el('p', { class: 'acct-small',
+      text: 'This is not a cloud login. Your rides are in this browser and nowhere ' +
+            'else, so an account here will not show up on your phone, and clearing ' +
+            'the browser clears it. The password keeps a teammate out of your ' +
+            'numbers on a shared device — it is a name tag, not a vault.' }));
+
+    if (known.length) {
+      const list = el('p', { class: 'acct-small',
+        text: `On this device: ${known.map(r => r.username).join(', ')}.` });
+      card.appendChild(list);
+    }
+    setTimeout(() => user.focus(), 0);
+  };
+
+  draw();
+  wrap.appendChild(card);
+  return wrap;
+}
+
+/* ----------------------------------------------------------------- team */
+
+// Teammates whose cards have been dropped in — riders on other devices, whose
+// numbers got here as a file rather than by magic.
+const CARDS_KEY = 'training-hub-cards';
+
+function loadCards() {
+  try {
+    const raw = localStorage.getItem(CARDS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch (e) { return []; }
+}
+
+function saveCards(list) {
+  try { localStorage.setItem(CARDS_KEY, JSON.stringify(list)); return true; }
+  catch (e) { return false; }
+}
+
+/**
+ * A rider's card: who they are, their numbers, and their rides.
+ *
+ * The only way team data crosses devices when there is no server. Small enough
+ * to text: the rides are already summaries, and the power curves are left
+ * behind because a teammate's bests are not what a team board is for.
+ */
+function myCard() {
+  const raw = (DATA && DATA.raw) ? DATA.raw : [];
+  return {
+    kind: 'vacaville-rider-card', version: 1,
+    exported: new Date().toISOString(),
+    rider: {
+      username: ACCOUNT ? ACCOUNT.username : 'rider',
+      display: ACCOUNT ? ACCOUNT.display : (PROFILE.name || 'Rider'),
+      team: Riders.TEAM_NAME,
+    },
+    profile: {
+      ftp: PROFILE.ftp || null, weightKg: PROFILE.weightKg || null,
+      restHr: PROFILE.restHr || null, maxHr: PROFILE.maxHr || null,
+    },
+    unit: DATA ? DATA.unit : 'mi',
+    rides: raw.map(a => {
+      const copy = Object.assign({}, a);
+      delete copy.curve;
+      delete copy.streams;
+      return copy;
+    }),
+  };
+}
+
+function cardProblem(card) {
+  if (!card || card.kind !== 'vacaville-rider-card') {
+    return 'That is not a rider card. Ask them to use Share my card.';
+  }
+  if (!card.rider || !card.rider.username) return 'That card has no rider on it.';
+  if (!Array.isArray(card.rides)) return 'That card has no rides on it.';
+  return null;
+}
+
+function addCard(card) {
+  const problem = cardProblem(card);
+  if (problem) throw new Error(problem);
+  const list = loadCards().filter(c => c.rider.username !== card.rider.username);
+  list.push(card);
+  saveCards(list);
+  return card;
+}
+
+/** Everyone on the board: the accounts on this device that have joined, and
+ *  every card dropped in. One shape, so the table does not care which. */
+function teamBoard() {
+  const rows = Riders.teamRiders().map(r => {
+    const data = Riders.loadData(r.id);
+    let profile = {};
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY + ':' + r.id);
+      if (raw) profile = JSON.parse(raw);
+    } catch (e) { /* defaults will do */ }
+    return {
+      key: 'acct:' + r.id, id: r.id, username: r.username, display: r.display,
+      role: r.role, here: true, isYou: !!(ACCOUNT && ACCOUNT.id === r.id),
+      rides: (data && data.raw) ? data.raw.filter(a => a.type === 'cycling') : [],
+      profile: Object.assign({}, DEFAULT_PROFILE, profile),
+      unit: data ? data.unit : 'mi',
+    };
+  });
+  loadCards().forEach(c => {
+    if (rows.some(r => r.username === c.rider.username)) return;
+    rows.push({
+      key: 'card:' + c.rider.username, username: c.rider.username,
+      display: c.rider.display || c.rider.username,
+      role: 'rider', here: false, isYou: false, card: c, exported: c.exported,
+      rides: (c.rides || []).filter(a => a.type === 'cycling'),
+      profile: Object.assign({}, DEFAULT_PROFILE, {
+        ftp: c.profile ? c.profile.ftp : null,
+        weightKg: c.profile ? c.profile.weightKg : null,
+        restHr: c.profile ? c.profile.restHr : DEFAULT_PROFILE.restHr,
+        maxHr: c.profile ? c.profile.maxHr : DEFAULT_PROFILE.maxHr,
+      }),
+      unit: c.unit || 'mi',
+    });
+  });
+  return rows;
+}
+
+/** One rider's numbers, worked out the same way the dashboard works out
+ *  yours — the same coach, the same maths, no second implementation. */
+function riderSummary(row) {
+  const rides = row.rides || [];
+  const p = row.profile || {};
+  const week = Analytics.distanceIn(rides, { unit: row.unit, today: todayKey(), days: 7 });
+  const pmc = Cycling.pmc(rides, { ftp: p.ftp, restHr: p.restHr, maxHr: p.maxHr,
+                                   today: todayKey() });
+  let rec = null;
+  try {
+    if (rides.length) rec = Coach.nextUp(rides, p, { now: new Date() });
+  } catch (e) { rec = null; }
+  const last = rides.map(a => a.date || (a.start || '').slice(0, 10))
+                    .filter(Boolean).sort().pop() || null;
+  return {
+    week: week, form: pmc.today ? pmc.today.form : null,
+    ctl: pmc.today ? pmc.today.ctl : null,
+    ftp: p.ftp || null, rides: rides.length, last: last, rec: rec,
+  };
+}
+
+// Said once, after a card is shared or dropped in, then cleared.
+let TEAM_NOTE = '';
+
+function teamView() {
+  const wrap = el('div', { class: 'stack' });
+  if (TEAM_NOTE) {
+    const note = el('div', { class: 'detected' });
+    note.appendChild(el('span', { class: 'grow', text: TEAM_NOTE }));
+    wrap.appendChild(note);
+    TEAM_NOTE = '';
+  }
+
+  // Not on the team yet: one field, one code.
+  if (!ACCOUNT || ACCOUNT.team !== Riders.TEAM_NAME) {
+    const card = el('div', { class: 'card' });
+    card.appendChild(el('h2', { text: 'Join the team' }));
+    card.appendChild(el('p', { class: 'hint',
+      text: 'Ask a teammate for the join code. It puts you on the team board on ' +
+            'this device, and lets you share a card with the rest of the squad.' }));
+    const form = el('div', { class: 'acct-form' });
+    const f = el('label', { class: 'field' });
+    f.appendChild(el('span', { text: 'Join code' }));
+    const input = el('input', { type: 'text', autocapitalize: 'characters',
+                                spellcheck: 'false', placeholder: 'CODE' });
+    f.appendChild(input);
+    form.appendChild(f);
+    card.appendChild(form);
+    const err = el('p', { class: 'acct-err', hidden: 'hidden' });
+    card.appendChild(err);
+    const go = el('button', { class: 'btn', type: 'button', text: 'Join' });
+    const submit = () => {
+      try {
+        ACCOUNT = Riders.joinTeam(ACCOUNT.id, input.value);
+        drawDashboard();
+      } catch (e) { err.textContent = e.message; err.hidden = false; }
+    };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    go.addEventListener('click', submit);
+    card.appendChild(go);
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  const board = teamBoard();
+  const coach = Riders.isCoach(ACCOUNT);
+
+  const head = el('div', { class: 'card' });
+  const h = el('div', { class: 'rt-head' });
+  h.appendChild(el('h2', { text: Riders.TEAM_NAME }));
+  h.appendChild(el('span', { class: 'pill mute',
+    text: `${board.length} rider${board.length === 1 ? '' : 's'}` }));
+  if (coach) h.appendChild(el('span', { class: 'pill good', text: 'you are coach' }));
+  head.appendChild(h);
+  head.appendChild(el('p', { class: 'hint',
+    text: 'Everybody’s numbers, worked out the same way as your own. Riders on ' +
+          'other devices appear here once they send you their card — there is no ' +
+          'server doing it behind the scenes.' }));
+
+  const actions = el('div', { class: 'team-actions' });
+  const share = el('button', { class: 'btn', type: 'button', text: 'Share my card' });
+  share.addEventListener('click', () => {
+    const card = myCard();
+    download(`${card.rider.username}-card.json`, JSON.stringify(card), 'application/json');
+    TEAM_NOTE = 'Card saved to your downloads. Send it to whoever keeps the team board.';
+    drawDashboard();
+  });
+  actions.appendChild(share);
+
+  const add = el('button', { class: 'ghost', type: 'button', text: 'Add a teammate’s card' });
+  const picker = el('input', { type: 'file', class: 'hidden-input', accept: '.json,application/json' });
+  picker.addEventListener('change', async () => {
+    const file = picker.files && picker.files[0];
+    picker.value = '';
+    if (!file) return;
+    try {
+      const card = JSON.parse(await readFile(file));
+      addCard(card);
+      TEAM_NOTE = `${card.rider.display || card.rider.username} is on the board.`;
+      drawDashboard();
+    } catch (e) {
+      TEAM_NOTE = e.message || 'That file could not be read.';
+      drawDashboard();
+    }
+  });
+  add.addEventListener('click', () => picker.click());
+  actions.appendChild(add);
+  actions.appendChild(picker);
+  head.appendChild(actions);
+  wrap.appendChild(head);
+
+  const table = el('div', { class: 'card' });
+  const wrapTable = el('div', { class: 'tbl-wrap' });
+  const t = el('table');
+  const thead = el('thead');
+  const tr = el('tr');
+  ['Rider', 'Last 7 days', 'Rides', 'FTP', 'Form', 'Last ride', 'Next session']
+    .forEach((label, i) => tr.appendChild(el('th', {
+      class: i && i < 6 ? 'r' : '', scope: 'col', text: label })));
+  if (coach) tr.appendChild(el('th', { class: 'r act', scope: 'col',
+                                       html: '<span class="vh">Remove</span>' }));
+  thead.appendChild(tr);
+  t.appendChild(thead);
+
+  const tbody = el('tbody');
+  board
+    .map(row => ({ row: row, sum: riderSummary(row) }))
+    .sort((a, b) => b.sum.week.distance - a.sum.week.distance)
+    .forEach(({ row, sum }) => {
+      const line = el('tr');
+      const who = el('td', { class: 'name' });
+      who.appendChild(document.createTextNode(row.display));
+      if (row.isYou) who.appendChild(el('span', { class: 'src', text: 'you' }));
+      if (row.role === 'coach') who.appendChild(el('span', { class: 'src', text: 'coach' }));
+      if (!row.here) {
+        who.appendChild(el('span', { class: 'src',
+          text: 'card ' + fmtDate((row.exported || '').slice(0, 10)) }));
+      }
+      line.appendChild(who);
+
+      const unit = row.unit === 'km' ? 'km' : 'mi';
+      line.appendChild(el('td', { class: 'r num',
+        text: sum.rides ? `${fmt(sum.week.distance, 1)} ${unit}` : '—' }));
+      line.appendChild(el('td', { class: 'r num', text: String(sum.week.rides) }));
+      line.appendChild(el('td', { class: 'r num', text: sum.ftp ? sum.ftp + ' W' : '—' }));
+      line.appendChild(el('td', { class: 'r num',
+        text: sum.form == null ? '—' : (sum.form > 0 ? '+' : '') + Math.round(sum.form) }));
+      line.appendChild(el('td', { class: 'r num', text: sum.last ? fmtDate(sum.last) : '—' }));
+
+      const next = el('td');
+      if (sum.rec) {
+        const chosen = sum.rec.options.find(o => o.tone === 'recommended') || sum.rec.options[0];
+        next.appendChild(el('strong', { text: chosen.name }));
+        const mins = chosen.workout ? Math.round(chosen.workout.seconds / 60) : null;
+        next.appendChild(el('span', { class: 'src',
+          text: sum.rec.forDay === 'tomorrow' ? 'tomorrow' : 'today' }));
+        if (mins) {
+          next.appendChild(el('div', { class: 'sub-note',
+            text: `${mins} min${chosen.workout.tss ? ' · ' + chosen.workout.tss + ' TSS' : ''}` }));
+        }
+        if (sum.rec.options[0] && sum.rec.options[0].second) {
+          next.appendChild(el('div', { class: 'sub-note', text: 'double day' }));
+        }
+      } else {
+        next.appendChild(el('span', { class: 'src', text: 'no rides yet' }));
+      }
+      line.appendChild(next);
+
+      if (coach) {
+        const cell = el('td', { class: 'r act' });
+        if (!row.isYou) {
+          const del = el('button', { class: 'del', type: 'button', text: '×',
+            title: 'Take this rider off the board',
+            'aria-label': `Remove ${row.display} from the team` });
+          del.addEventListener('click', () => {
+            if (!window.confirm(`Take ${row.display} off the team board?` +
+                (row.here ? ' Their account and rides stay on this device.' : ''))) return;
+            if (row.here) Riders.leaveTeam(row.id);
+            else saveCards(loadCards().filter(c => c.rider.username !== row.username));
+            drawDashboard();
+          });
+          cell.appendChild(del);
+        }
+        line.appendChild(cell);
+      }
+      tbody.appendChild(line);
+    });
+  t.appendChild(tbody);
+  wrapTable.appendChild(t);
+  table.appendChild(el('h2', { text: 'The board' }));
+  table.appendChild(wrapTable);
+  table.appendChild(el('p', { class: 'hint',
+    text: 'Sorted by the last seven days. A card is a snapshot of the day it was ' +
+          'exported, so ask for a fresh one when it goes stale.' }));
+  wrap.appendChild(table);
+  return wrap;
 }
 
 /* ---------------------------------------------------------- workout view */
@@ -2554,14 +3009,20 @@ function workoutView() {
 
 function switchTab(name) {
   TAB = name;
-  drawDashboard();
+  // With no rides loaded there is no dashboard to draw — the import screen
+  // carries the tabs instead, so a rider on the team can reach the board
+  // before they have uploaded anything.
+  if (DATA && DATA.totals && DATA.totals.activities) drawDashboard();
+  else render(DATA);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function tabBar() {
   const bar = el('div', { class: 'tabs', role: 'tablist' });
-  [['dashboard', 'Dashboard'], ['workout', 'Build a workout']]
-    .forEach(([key, label]) => {
+  const tabs = [['dashboard', 'Dashboard'], ['workout', 'Build a workout']];
+  // Only for riders who are on a team. Solo, the site is what it always was.
+  if (ACCOUNT && ACCOUNT.team) tabs.push(['team', ACCOUNT.team]);
+  tabs.forEach(([key, label]) => {
       const b = el('button', { type: 'button', role: 'tab',
                                'aria-selected': String(TAB === key), text: label });
       b.addEventListener('click', () => {
@@ -2623,9 +3084,45 @@ function watchTheDate() {
   }, 60000);
 }
 
+/* Whether the page is showing the sign-in screen rather than the site. */
+let SIGNING_IN = false;
+
+/** The button in the corner: who you are, or a way to become somebody. */
+function paintAccountButton() {
+  const btn = $('#account-btn');
+  if (!btn) return;
+  btn.textContent = ACCOUNT ? ACCOUNT.display : 'Sign in';
+  btn.title = ACCOUNT
+    ? `Signed in as ${ACCOUNT.username} — click to switch rider or sign out`
+    : 'Keep your rides separate from anyone else using this device';
+}
+
 /* ------------------------------------------------------------------ start */
 (function start() {
+  ACCOUNT = Riders.current();
   loadProfile();
+  paintAccountButton();
+
+  $('#account-btn').addEventListener('click', () => {
+    if (!ACCOUNT) {
+      SIGNING_IN = true;
+      const app = $('#app');
+      app.innerHTML = '';
+      $('#import-btn').hidden = true;
+      $('#clear-btn').hidden = true;
+      app.appendChild(accountScreen());
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Signed in already: the button is a way out, or a way to be somebody else.
+    const stay = window.confirm(
+      `Signed in as ${ACCOUNT.display}.\n\nOK signs you out — your rides stay on ` +
+      'this device and come back when you sign in again. Cancel to stay.');
+    if (!stay) return;
+    Riders.signOut();
+    useAccount(null);
+  });
+
   $('#import-btn').addEventListener('click', () => render(null));
   $('#clear-btn').addEventListener('click', () => {
     // The only thing on the page that deletes rides, and there is no undo:

@@ -301,6 +301,49 @@ Never make an import path that replaces the stored payload wholesale.
 Never let a CSV-derived figure be presented with .FIT-level confidence. Where a
 number could come from either, say which it was.
 
+## Riders, and the team
+
+`hub/static/riders.js` adds accounts. There is still no server: an account is a
+name, a hashed password and a slot in this browser's storage, and signing in
+switches which slot the page reads and writes. `ACCOUNT` in app.js is the whole
+of it — `saveLocal`, `loadLocal`, `profileKey` and `setupKey` all key off it, so
+two riders on one laptop keep separate rides, separate FTPs, and separate
+answers to the setup card.
+
+**Say what it is, every time it comes up.** It is not a cloud login and it
+cannot follow a rider to another device, because their rides are on that device
+and nowhere else. It is not a security boundary either: anything in
+localStorage is readable by anyone who can open the developer tools. The
+password keeps a teammate out of your numbers on a shared machine, and the
+account screen says so in as many words. Never write copy that implies more.
+
+Passwords are hashed anyway, because people reuse them: PBKDF2-SHA256 through
+WebCrypto where it exists, and 1000 rounds of an in-file SHA-256 where it does
+not (`file://` in some browsers). Each account records which, so a password is
+checked the way it was made. The SHA-256 is pinned against the published test
+vectors — if you touch it, the tests will say.
+
+**Nobody is forced into an account.** Signed out, the page is exactly what it
+always was: one history, this browser, the old storage keys. The first account
+made adopts a history loaded before accounts existed, so nobody loses a season
+to signing up.
+
+### The team tab
+
+Only visible to an account that has joined a team, so a solo rider never sees
+it. `DIRTDOGS` puts you on Vacaville Composite; the first rider on a device to
+join is its coach, and a coach can take anyone off the board.
+
+The board runs the same `Coach.nextUp()` and the same `Cycling.pmc()` over each
+rider's rides that the dashboard runs over yours. There is no second
+implementation of the coach for teams and there must never be one.
+
+**Rider cards are how team data crosses devices**, because nothing else can.
+`myCard()` writes a rider's profile and ride summaries to a small JSON file —
+power curves stripped, since a teammate's bests are not what a board is for —
+and the team tab reads them back. A card is a snapshot of the day it was
+exported and the page says so; it is not a sync.
+
 ## A hard constraint on Strava
 
 Strava's API policy forbids using Strava Data "in connection with the

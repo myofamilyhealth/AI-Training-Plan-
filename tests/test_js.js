@@ -3,6 +3,19 @@
  */
 'use strict';
 const path = require('path');
+
+// riders.js keeps accounts in localStorage, which node does not have. A Map
+// with the four methods it uses is the whole of what it needs.
+global.localStorage = (function () {
+  const m = new Map();
+  return {
+    getItem: k => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: k => { m.delete(k); },
+    clear: () => m.clear(),
+    get length() { return m.size; },
+  };
+})();
 const I = require(path.join(__dirname, '..', 'hub', 'static', 'importer.js'));
 const A = require(path.join(__dirname, '..', 'hub', 'static', 'analytics.js'));
 
@@ -1140,9 +1153,99 @@ Zip.extract(deflatedZip).then(files => {
 
    The zip tests below run on promises and exit(1) themselves; this covers the
    synchronous ones. */
-if (failures.length) {
-  console.log(`FAILED (${failures.length})`);
-  failures.forEach(f => console.log('  -', f));
-  process.exit(1);
-}
-console.log('all javascript checks passed');
+/* ------------------------------------------------------------- accounts */
+/* Hashing is asynchronous, so these run in a promise and the gate waits for
+   them. Everything above is synchronous and has already recorded its results
+   into the same list. */
+
+const Ri = require(path.join(__dirname, '..', 'hub', 'static', 'riders.js'));
+
+// The fallback hash is a real SHA-256, checked against the published vectors —
+// a page opened from a file:// URL has no WebCrypto and falls back to it.
+check('sha256 of nothing', Ri.sha256(''),
+      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+check('sha256 of abc', Ri.sha256('abc'),
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+check('sha256 across a block boundary',
+      Ri.sha256('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq'),
+      '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1');
+
+check('a username has to be usable', Ri.usernameProblem('nate dog') !== null, true);
+check('and cannot be one character', Ri.usernameProblem('n') !== null, true);
+check('an ordinary one is fine', Ri.usernameProblem('nate.dog-2'), null);
+check('a wrong code is refused', Ri.joinProblem('dogs') !== null, true);
+check('the right one is not, in any case', Ri.joinProblem('  dirtdogs  '), null);
+
+(async function accounts() {
+  localStorage.clear();
+  // A history from before accounts existed belongs to the first account made.
+  localStorage.setItem('training-hub-data', JSON.stringify({ raw: [{ id: 'old' }] }));
+
+  const nate = await Ri.signUp('NateDog', 'dirtdogs1', 'Nate R');
+  check('signing up signs you in', Ri.current().id, nate.id);
+  check('the username is folded to lower case', nate.username, 'natedog');
+  check('the password is not kept', JSON.stringify(nate).indexOf('dirtdogs1'), -1);
+  check('rides loaded before there were accounts are adopted',
+        (Ri.loadData(nate.id) || {}).raw.length, 1);
+  check('and no longer sit in the old slot',
+        localStorage.getItem('training-hub-data'), null);
+
+  try {
+    await Ri.signUp('natedog', 'somethingelse');
+    check('a taken username is refused', 'let through', 'refused');
+  } catch (e) { check('a taken username is refused', /taken/.test(e.message), true); }
+
+  try {
+    await Ri.signUp('shorty', '12345');
+    check('a short password is refused', 'let through', 'refused');
+  } catch (e) { check('a short password is refused', /six characters/.test(e.message), true); }
+
+  const sam = await Ri.signUp('sam', 'hilltops2', 'Sam K');
+  Ri.saveData(sam.id, { raw: [{ id: 'a' }, { id: 'b' }] });
+  check('two riders, two histories',
+        [Ri.loadData(nate.id).raw.length, Ri.loadData(sam.id).raw.length], [1, 2]);
+
+  try {
+    await Ri.signIn('natedog', 'wrong');
+    check('the wrong password is refused', 'let through', 'refused');
+  } catch (e) { check('the wrong password is refused', /does not match/.test(e.message), true); }
+
+  check('the right one is not', (await Ri.signIn('natedog', 'dirtdogs1')).id, nate.id);
+  check('and signing in switches whose history is current',
+        Ri.current().username, 'natedog');
+
+  await Ri.changePassword('natedog', 'dirtdogs1', 'newpassword');
+  try {
+    await Ri.signIn('natedog', 'dirtdogs1');
+    check('the old password stops working', 'let through', 'refused');
+  } catch (e) { check('the old password stops working', /does not match/.test(e.message), true); }
+  check('the new one works', (await Ri.signIn('natedog', 'newpassword')).id, nate.id);
+
+  // The team. First one in is the coach, because somebody has to be able to
+  // take a rider off the board.
+  try {
+    Ri.joinTeam(nate.id, 'DOGDIRT');
+    check('a wrong code does not get you on the team', 'let through', 'refused');
+  } catch (e) { check('a wrong code does not get you on the team', /join code/.test(e.message), true); }
+
+  check('the first rider in is the coach', Ri.joinTeam(nate.id, 'dirtdogs').role, 'coach');
+  check('the next one is not', Ri.joinTeam(sam.id, 'DIRTDOGS').role, 'rider');
+  check('and both are on the board', Ri.teamRiders().length, 2);
+  check('coach is coach', Ri.isCoach(Ri.byId(nate.id)), true);
+  check('rider is not', Ri.isCoach(Ri.byId(sam.id)), false);
+  check('leaving takes you off it', (Ri.leaveTeam(sam.id), Ri.teamRiders().length), 1);
+
+  // Removing an account takes its rides with it. There is no copy anywhere.
+  Ri.remove(sam.id);
+  check('a removed account is gone', Ri.byId(sam.id), null);
+  check('and so is its history', Ri.loadData(sam.id), null);
+
+  localStorage.clear();
+
+  if (failures.length) {
+    console.log(`FAILED (${failures.length})`);
+    failures.forEach(f => console.log('  -', f));
+    process.exit(1);
+  }
+  console.log('all javascript checks passed');
+})();

@@ -29,5 +29,6 @@ SCRIPT = "\n".join((
     _read("library.js"),
     _read("workouts.js"),
     _read("coach.js"),
+    _read("riders.js"),
     _read("app.js"),
 ))
